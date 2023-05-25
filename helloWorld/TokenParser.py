@@ -15,13 +15,14 @@ def process_files(input_file, output_file):
         if  (stripped_line):
             stripped_line_string = stripped_line.group()
             stripped_line_string = stripped_line_string.replace(" ", "")
-            stripped_line_string = stripped_line_string + ",\n"
+            stripped_line_string = stripped_line_string + ","
             LogfileOnlyTokens.write(stripped_line_string)
         
     reading_file.close()
     LogfileOnlyTokens.close()
 
 def CrossReferenceTokens(logFile, TokenFile):
+    total = 0
     result = 1
     log_File    = open(logFile, "r")
     Token_File = open(TokenFile, "r")
@@ -32,6 +33,7 @@ def CrossReferenceTokens(logFile, TokenFile):
         if (TokenFileString.find(line) == -1):
             print("Token " + line + "not found in tokenfile")
             result = -1
+        total = total + 1
     return result
 
 

@@ -3,11 +3,15 @@ from tensorflow import keras
 import TokenParser
 import numpy as np
 
+# https://www.tensorflow.org/text/tutorials/text_generation
+
 TokenFileName = "Tokens.dat"
 LogFileName   = "logfile.log"
 
 TokenFileNameCvs = "TokenfileOnlyTokens.log"
 LogFileNameCvs   = "LogfileOnlyTokens.log"
+
+seq_length = 3
 
 TokenParser.process_files(TokenFileName,  TokenFileNameCvs)
 TokenParser.process_files(LogFileName, LogFileNameCvs)
@@ -36,9 +40,20 @@ if (result):
     token_from_id    = tf.keras.layers.StringLookup(vocabulary=tokenList, mask_token=None, invert=True)
 
     ids_from_logfile = ids_from_token(logtokenList)
-    print("ids_from_logfile:")
-    print(ids_from_logfile)
-    print("token_from_id:")
-    print(token_from_id(ids_from_logfile))
+    
+    sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+    
+    # JENTS: create an array of tensors (zero dimension tensors each containing one token)
+    
+    for ids in sliced_ids_from_logfile.take(10):
+        print(token_from_id(ids).numpy().decode('utf-8'))
+
+    # each sequence entry contains seq_length number of elements
+    sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
+    
+    print("sliced_ids_from_logfile:")
+
+    for seq in sequences.take(2):
+        print(token_from_id(seq))
 
     print("END")

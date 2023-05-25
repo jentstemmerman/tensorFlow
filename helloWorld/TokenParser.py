@@ -1,5 +1,3 @@
-import tensorflow as tf
-from tensorflow import keras
 import re
 
 def process_files(input_file, output_file):
@@ -38,8 +36,3 @@ def CrossReferenceTokens(logFile, TokenFile):
 
 
 
-process_files("Tokens.dat",  "TokenfileOnlyTokens.log")
-process_files("logfile.log", "LogfileOnlyTokens.log")
-
-result = CrossReferenceTokens("LogfileOnlyTokens.log", "TokenfileOnlyTokens.log")
-print("Cross reference passed = ", result)

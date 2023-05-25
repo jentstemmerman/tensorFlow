@@ -2,10 +2,16 @@ import tensorflow as tf
 from tensorflow import keras
 import TokenParser
 
-TokenParser.process_files("Tokens.dat",  "TokenfileOnlyTokens.log")
-TokenParser.process_files("logfile.log", "LogfileOnlyTokens.log")
+TokenFileName = "Tokens.dat"
+LogFileName   = "logfile.log"
 
-result = TokenParser.CrossReferenceTokens("LogfileOnlyTokens.log", "TokenfileOnlyTokens.log")
+TokenFileNameCvs = "TokenfileOnlyTokens.log"
+LogFileNameCvs   = "LogfileOnlyTokens.log"
+
+TokenParser.process_files(TokenFileName,  TokenFileNameCvs)
+TokenParser.process_files(LogFileName, LogFileNameCvs)
+
+result = TokenParser.CrossReferenceTokens(LogFileNameCvs, TokenFileNameCvs)
 print("Cross reference passed = ", result)
 
 

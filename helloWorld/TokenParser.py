@@ -14,7 +14,6 @@ def process_files(input_file, output_file):
 
         if  (stripped_line):
             stripped_line_string = stripped_line.group()
-            stripped_line_string = stripped_line_string.replace(" ", "")
             stripped_line_string = stripped_line_string + ","
             LogfileOnlyTokens.write(stripped_line_string)
         
@@ -24,7 +23,7 @@ def process_files(input_file, output_file):
 def CrossReferenceTokens(logFile, TokenFile):
     total = 0
     result = 1
-    log_File    = open(logFile, "r")
+    log_File   = open(logFile, "r")
     Token_File = open(TokenFile, "r")
 
     TokenFileString = Token_File.read()
@@ -37,4 +36,22 @@ def CrossReferenceTokens(logFile, TokenFile):
     return result
 
 
+def split_input_target(sequence):
+    # Tensorflow -> input_text: Tensorflo, target_text = ensorfloW
+    input_text = sequence[:-1]
+    target_text = sequence[1:]
+    return input_text, target_text
 
+
+def GetTokenTranslation(token, TokenFile):
+    # Tensorflow -> input_text: Tensorflo, target_text = ensorfloW
+    Token_File = open(TokenFile, "r")
+    TokenFileLines = Token_File.readlines()
+    TranslationString = ""
+
+    for line in TokenFileLines:
+        if (line.find(token) != -1):
+            TranslationString = line
+            break
+    
+    return TranslationString

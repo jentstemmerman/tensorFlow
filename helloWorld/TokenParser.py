@@ -14,7 +14,7 @@ def process_files(input_file, output_file):
 
         if  (stripped_line):
             stripped_line_string = stripped_line.group()
-            stripped_line_string = stripped_line_string + ","
+            stripped_line_string = stripped_line_string + '\n'
             LogfileOnlyTokens.write(stripped_line_string)
         
     reading_file.close()

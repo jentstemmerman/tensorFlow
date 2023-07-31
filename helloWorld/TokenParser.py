@@ -1,7 +1,11 @@
 import re
+from pathlib import Path
 
 def process_files(input_file, output_file):
-    reading_file      = open(input_file,  "r")
+    reading_file      = open(input_file,  "r", errors='ignore')
+    
+    file = Path(output_file)
+    file.parent.mkdir(parents=True, exist_ok=True)
     LogfileOnlyTokens = open(output_file, "w")
 
     for line in reading_file:

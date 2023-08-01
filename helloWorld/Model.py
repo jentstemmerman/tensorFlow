@@ -80,29 +80,32 @@ try:
 except:
     model = None
 
+# jents: organize them in batches and shuffle them.
+# Batch size
+BATCH_SIZE = 64
+
+# Buffer size to shuffle the dataset
+# (TF data is designed to work with possibly infinite sequences,
+# so it doesn't attempt to shuffle the entire sequence in memory. Instead,
+# it maintains a buffer in which it shuffles elements).
+BUFFER_SIZE = 10000
+
+dataset = (
+    dataset
+    .shuffle(BUFFER_SIZE)
+    .batch(BATCH_SIZE, drop_remainder=True)
+    .prefetch(tf.data.experimental.AUTOTUNE))
+
+dataset  # python convention to show the variable is ready
+
 if ((model is None) or (force_train_model)):
     for ids in sliced_ids_from_logfile.take(10):
         print(token_from_id(ids).numpy().decode('utf-8'))
+    
+    model = None
 
 
 
-    # jents: organize them in batches and shuffle them.
-    # Batch size
-    BATCH_SIZE = 64
-
-    # Buffer size to shuffle the dataset
-    # (TF data is designed to work with possibly infinite sequences,
-    # so it doesn't attempt to shuffle the entire sequence in memory. Instead,
-    # it maintains a buffer in which it shuffles elements).
-    BUFFER_SIZE = 10000
-
-    dataset = (
-        dataset
-        .shuffle(BUFFER_SIZE)
-        .batch(BATCH_SIZE, drop_remainder=True)
-        .prefetch(tf.data.experimental.AUTOTUNE))
-
-    dataset  # python convention to show the variable is ready
 
     # Length of the vocabulary in StringLookup Layer
     vocab_size = len(ids_from_token.get_vocabulary())

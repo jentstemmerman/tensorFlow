@@ -1,66 +1,72 @@
+
 import tensorflow as tf
 from tensorflow import keras
+import numpy as np
 import TokenParser
 import ModelClass
-import numpy as np
 import os
-
 
 force_train_model = False
 
-
-EPOCHS = 1
+EPOCHS = 10
 
 #tf.config.threading.set_intra_op_parallelism_threads(1)
 
 # https://www.tensorflow.org/text/tutorials/text_generation
-trainingSet = 1
+trainingSet = 2
 
 if (trainingSet == 1):
-    Directory = "TrainingSet1"
-    TokenFileName = Directory + "/Tokens.dat"
-    LogFileName   = Directory + "/logfile.log"
+    Directory             = "TrainingSet1"
+    OriginalTokenFileName = Directory + "/Tokens.dat"
+    OriginalLogFileName   = Directory + "/logfile.log"
+    TestFile              = Directory + "/TestData.log"
 else:
-    Directory = "TrainingSet2"
-    TokenFileName = Directory + "/Tokens.dat"
-    LogFileName   = Directory + "/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_QuickCheck_drive_log.log"
+    Directory             = "TrainingSet2"
+    OriginalTokenFileName = Directory + "/Tokens.dat"
+    OriginalLogFileName   = Directory + "/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_QuickCheck_drive_log.log"
+    TestFile              = Directory + "/TestData.log"
 
-TokenFileNameCvs = Directory + "/out/TokenfileOnlyTokens.log"
-TokenFileNameAndPrintfCvs = Directory + "/out/TokenfileAndPrintf.log"
-LogFileNameCvs   = Directory+ "/out/LogfileOnlyTokens.log"
+VocabularyFile            = Directory + "/out/TokenfileOnlyTokens.log"
+LogFileTokens             = Directory+ "/out/LogfileOnlyTokens.log"
+#TokenFileNameAndPrintfCvs = Directory + "/out/TokenfileAndPrintf.log"
 
 seq_length = 5
 
-TokenParser.process_files(TokenFileName, TokenFileNameCvs)
-TokenParser.process_files(LogFileName, LogFileNameCvs)
+############### create files that only contain tokens:
+TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
+TokenParser.process_files(OriginalLogFileName,   LogFileTokens)
 
-result = TokenParser.CrossReferenceTokens(LogFileNameCvs, TokenFileNameCvs)
+################## check whether the logfile tokens only contains tokens that are in the tokenfile
+result = TokenParser.CrossReferenceTokens(LogFileTokens, VocabularyFile)
 print("Cross reference passed = ", result)
 
 if (result == -1):
     print("Logfile contains tokens that are not in the tokenfile!!")
     exit()
 
+##################################################################################################
+
 print("Reading dictionary into memory, not sure I will need it")
 # using loadtxt()
-tokenNumpyList = np.loadtxt(TokenFileNameCvs, delimiter=",", dtype=str)
-tokenList      = tf.convert_to_tensor(tokenNumpyList)
+VocabularyNumpyList = np.loadtxt(VocabularyFile, delimiter=",", dtype=str)
+VocabularyTensor    = tf.convert_to_tensor(VocabularyNumpyList)
 print("Reading dictionary into memory DONE")
 
-print("Reading logfile into memory, might want to improve this later")
-logTokenNumpyList = np.loadtxt(LogFileNameCvs, delimiter=",", dtype=str)
-logtokenList      = tf.convert_to_tensor(logTokenNumpyList)
+print("Reading logfile into a ndarray, might want to improve this later")
+logTokenNumpyList = np.loadtxt(LogFileTokens, delimiter=",", dtype=str)
+TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
 
-print("The Shape of tokenList tensor is",tf.shape(tokenList))
-print("The Shape of logtokenList tensor is",tf.shape(logtokenList))
+print("The Shape of tokenList tensor is", tf.shape(VocabularyTensor))
+print("The Shape of logtokenList tensor is", tf.shape(TrainingLogTensor))
 print("Reading logfile into memory DONE")
 
-# encoder
-ids_from_token   = tf.keras.layers.StringLookup(vocabulary=tokenList, mask_token=None)
-# decoder
-token_from_id    = tf.keras.layers.StringLookup(vocabulary=tokenList, mask_token=None, invert=True)
 
-ids_from_logfile = ids_from_token(logtokenList)
+# encoder
+ids_from_token   = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
+# decoder
+token_from_id    = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
+
+ids_from_logfile = ids_from_token(TrainingLogTensor)
 
 sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
 
@@ -141,7 +147,7 @@ if ((model is None) or (force_train_model)):
     print("Next Token Predictions:\n", token_from_id(sampled_indices).numpy())
 
     for token in token_from_id(sampled_indices).numpy():
-        translation = TokenParser.GetTokenTranslation(token.decode('utf-8'), TokenFileName)
+        translation = TokenParser.GetTokenTranslation(token.decode('utf-8'), OriginalTokenFileName)
         print(token.decode('utf-8'), " ", translation)
 
 
@@ -180,15 +186,21 @@ if ((model is None) or (force_train_model)):
     model.save(saved_model)
 ############################################################################################# Train the model
 
-# dit werkt niet in load model mode!!!
-
 for input_example_batch, target_example_batch in dataset.take(1):
     example_batch_predictions = model(input_example_batch)
-    print("batch_size, sequence_length, vocab_size : ", example_batch_predictions.shape)
+    print("input_example_batch.shape : ", input_example_batch.shape)
+    print("example_batch_predictions.shape : ", example_batch_predictions.shape)
 
-#print("type(dataset) = ", type(dataset)) 
-#loss, acc = model.evaluate(dataset, verbose=2)
-#print("Trained model, accuracy: {:5.2f}%".format(100 * acc))
+TestFileNumpyList = np.loadtxt(TestFile, delimiter=",", dtype=str)
+TestTokenTensor   = tf.convert_to_tensor(TestFileNumpyList)
+
+print("The Shape of TestTokenTensor tensor is", tf.shape(TestTokenTensor))
+
+
+
+#outputTensor = model(TestTokenTensor)
+
+#print(token_from_id(outputTensor))
 
 
 print("END training")

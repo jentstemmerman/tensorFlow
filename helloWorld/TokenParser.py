@@ -59,3 +59,8 @@ def GetTokenTranslation(token, TokenFile):
             break
     
     return TranslationString
+
+#def AddLogFileToDataSet(input_file):
+
+
+

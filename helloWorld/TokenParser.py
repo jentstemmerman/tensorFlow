@@ -46,6 +46,10 @@ def split_input_target(sequence):
     target_text = sequence[1:]
     return input_text, target_text
 
+def returnValue(sequence):
+    return sequence
+
+
 
 def GetTokenTranslation(token, TokenFile):
     # Tensorflow -> input_text: Tensorflo, target_text = ensorfloW

@@ -1,10 +1,25 @@
 
+import time
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 import TokenParser
 import ModelClass
 import os
+testcode = False
+
+if (testcode):
+
+
+    testArray = tf.convert_to_tensor(np.array([1,2,3,4,5,6,7,8,9,10]))
+    print(testArray.shape)
+    TestArrayTensorSlices = tf.data.Dataset.from_tensor_slices(testArray) 
+    print(TestArrayTensorSlices.shape) 
+    batched_dataset = TestArrayTensorSlices.batch(2, drop_remainder=True)
+    print(batched_dataset.shape) 
+
+
+
 
 force_train_model = False
 
@@ -56,8 +71,8 @@ print("Reading logfile into a ndarray, might want to improve this later")
 logTokenNumpyList = np.loadtxt(LogFileTokens, delimiter=",", dtype=str)
 TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
 
-print("The Shape of tokenList tensor is", tf.shape(VocabularyTensor))
-print("The Shape of logtokenList tensor is", tf.shape(TrainingLogTensor))
+print("The Shape of tokenList tensor is ", VocabularyTensor.shape)
+print("The Shape of logtokenList tensor is ", TrainingLogTensor.shape)
 print("Reading logfile into memory DONE")
 
 
@@ -111,8 +126,6 @@ if ((model is None) or (force_train_model)):
     model = None
 
 
-
-
     # Length of the vocabulary in StringLookup Layer
     vocab_size = len(ids_from_token.get_vocabulary())
     print("vocab_size: ", vocab_size)
@@ -132,7 +145,7 @@ if ((model is None) or (force_train_model)):
 
     for input_example_batch, target_example_batch in dataset.take(1):
         example_batch_predictions = model(input_example_batch)
-        print("batch_size, sequence_length, vocab_size : ", example_batch_predictions.shape)
+        print("input_example_batch, example_batch_predictions.shape ", input_example_batch.shape, example_batch_predictions.shape)
 
     model.summary()
 
@@ -185,22 +198,66 @@ if ((model is None) or (force_train_model)):
     
     model.save(saved_model)
 ############################################################################################# Train the model
+# Checking the shape of the tensor
+#print(tensor.shape)   -> je wil deze gebruiken
+#print(tf.shape(tensor))
 
-for input_example_batch, target_example_batch in dataset.take(1):
-    example_batch_predictions = model(input_example_batch)
-    print("input_example_batch.shape : ", input_example_batch.shape)
-    print("example_batch_predictions.shape : ", example_batch_predictions.shape)
+
+#for input_example_batch, target_example_batch in dataset.take(1):
+#    example_batch_predictions = model(input_example_batch)
+#    print("input_example_batch.shape : ", input_example_batch.shape)
+#    print("example_batch_predictions.shape : ", example_batch_predictions.shape)
 
 TestFileNumpyList = np.loadtxt(TestFile, delimiter=",", dtype=str)
-TestTokenTensor   = tf.convert_to_tensor(TestFileNumpyList)
-
-print("The Shape of TestTokenTensor tensor is", tf.shape(TestTokenTensor))
+print(TestFileNumpyList)
 
 
+idsTestFile = ids_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
+print(idsTestFile)
 
-#outputTensor = model(TestTokenTensor)
+idsTestFile = tf.expand_dims(idsTestFile, 0)
 
-#print(token_from_id(outputTensor))
+TestLogDataset = tf.data.Dataset.from_tensor_slices(idsTestFile) # dit is niet goed
 
 
-print("END training")
+
+batched_dataset = TestLogDataset.batch(seq_length, drop_remainder=True)
+# the wrong dimension
+
+# Create multiple 1-dimensional tensors
+input_shape = (None, 5)
+tensor1 = tf.constant([0, 1, 2, 3, 4], dtype='int64')
+tensor2 = tf.constant([5, 6, 7, 8, 9], dtype='int64')
+batched_tensor = tf.stack([tensor1, tensor2])
+#batched_tensor = tf.expand_dims(tensor1, axis=0)
+# Convert to a batch of tensors
+
+
+states = None
+predicted_logits, states = model(inputs=batched_tensor)
+
+one_step_model = ModelClass.OneStep(model, token_from_id, ids_from_token)
+
+start = time.time()
+states = None
+next_char = tf.constant(TestFileNumpyList)
+test = ids_from_token(next_char)
+predicted_logits, states = model(inputs=test, states=states,
+                                          return_state=True)
+
+input_ids = test.to_tensor()
+
+result = [next_char]
+
+for n in range(1000):
+  next_char, states = one_step_model.generate_one_step(next_char, states=states)
+  result.append(next_char)
+
+result = tf.strings.join(result)
+end = time.time()
+print(result[0].numpy().decode('utf-8'), '\n\n' + '_'*80)
+print('\nRun time:', end - start)
+
+
+
+print("END")

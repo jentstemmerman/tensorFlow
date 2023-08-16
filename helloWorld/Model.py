@@ -6,20 +6,6 @@ import numpy as np
 import TokenParser
 import ModelClass
 import os
-testcode = False
-
-if (testcode):
-
-
-    testArray = tf.convert_to_tensor(np.array([1,2,3,4,5,6,7,8,9,10]))
-    print(testArray.shape)
-    TestArrayTensorSlices = tf.data.Dataset.from_tensor_slices(testArray) 
-    print(TestArrayTensorSlices.shape) 
-    batched_dataset = TestArrayTensorSlices.batch(2, drop_remainder=True)
-    print(batched_dataset.shape) 
-
-
-
 
 force_train_model = False
 
@@ -203,61 +189,44 @@ if ((model is None) or (force_train_model)):
 #print(tf.shape(tensor))
 
 
+#for n in range(1000):
+#  next_char, states = one_step_model.generate_one_step(next_char, states=states)
+#  result.append(next_char)
+
+#result = tf.strings.join(result)
+
+
+
+
 #for input_example_batch, target_example_batch in dataset.take(1):
 #    example_batch_predictions = model(input_example_batch)
 #    print("input_example_batch.shape : ", input_example_batch.shape)
 #    print("example_batch_predictions.shape : ", example_batch_predictions.shape)
-
+start = time.time()
 TestFileNumpyList = np.loadtxt(TestFile, delimiter=",", dtype=str)
 print(TestFileNumpyList)
 
 
 idsTestFile = ids_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
 print(idsTestFile)
-
-idsTestFile = tf.expand_dims(idsTestFile, 0)
-
-TestLogDataset = tf.data.Dataset.from_tensor_slices(idsTestFile) # dit is niet goed
-
-
-
-batched_dataset = TestLogDataset.batch(seq_length, drop_remainder=True)
-# the wrong dimension
-
-# Create multiple 1-dimensional tensors
-input_shape = (None, 5)
-tensor1 = tf.constant([0, 1, 2, 3, 4], dtype='int64')
-tensor2 = tf.constant([5, 6, 7, 8, 9], dtype='int64')
-batched_tensor = tf.stack([tensor1, tensor2])
-#batched_tensor = tf.expand_dims(tensor1, axis=0)
-# Convert to a batch of tensors
-
+inputTensor = tf.convert_to_tensor(idsTestFile, dtype='int64')
+#inputTensorExpanded = tf.expand_dims(inputTensor, 0)
+inputTensorExpanded = tf.stack([inputTensor, inputTensor])
+print("inputTensorExpanded: ", inputTensorExpanded.shape)
+tf.print(inputTensorExpanded)
 
 states = None
-predicted_logits, states = model(inputs=batched_tensor)
+predicted_logits = model(inputs=inputTensorExpanded, return_state=False) # -> shape=(2, 5, 12535)
+predicted_logits = predicted_logits[:, -1, :] # ik wil alleen de voorspelling na de laatste token
+predicted_ids = tf.random.categorical(predicted_logits, num_samples=1)
+predicted_ids = tf.squeeze(predicted_ids, axis=-1)
 
-one_step_model = ModelClass.OneStep(model, token_from_id, ids_from_token)
+    # Convert from token ids to characters
+predicted_chars = token_from_id(predicted_ids)
 
-start = time.time()
-states = None
-next_char = tf.constant(TestFileNumpyList)
-test = ids_from_token(next_char)
-predicted_logits, states = model(inputs=test, states=states,
-                                          return_state=True)
-
-input_ids = test.to_tensor()
-
-result = [next_char]
-
-for n in range(1000):
-  next_char, states = one_step_model.generate_one_step(next_char, states=states)
-  result.append(next_char)
-
-result = tf.strings.join(result)
 end = time.time()
-print(result[0].numpy().decode('utf-8'), '\n\n' + '_'*80)
-print('\nRun time:', end - start)
 
+print('\nRun time:', end - start)
 
 
 print("END")

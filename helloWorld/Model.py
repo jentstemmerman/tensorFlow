@@ -183,7 +183,7 @@ if ((model is None) or (force_train_model)):
     history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
     
     model.save(saved_model)
-    
+
 ############################################################################################# Train the model
 # Checking the shape of the tensor
 #print(tensor.shape)   -> je wil deze gebruiken
@@ -204,6 +204,20 @@ next_token_predicted = one_step_model.generate_one_step(inputTensor, states=None
 
 
 end = time.time()
+
+
+LogFileNumpyList = np.loadtxt(LogFileTokens, delimiter=",", dtype=str)
+window_size = 6
+for i in range(LogFileNumpyList.shape[0] - (window_size + 1)):
+    window    = LogFileNumpyList[i:i + window_size - 1]
+    nextToken = LogFileNumpyList[i + window_size]
+    idsLogFile = ids_from_token(window) 
+    inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
+    probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
+    print(window, "probability of next token ", nextToken, " = ", probability)
+     
+
+
 
 print('\nRun time:', end - start)
 

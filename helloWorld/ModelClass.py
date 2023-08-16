@@ -2,6 +2,8 @@ import tensorflow as tf
 from tensorflow import keras
 
 class PrintfLogModel(tf.keras.Model):
+
+
   def __init__(self, vocab_size, embedding_dim, rnn_units):
     super().__init__(self)
     self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
@@ -23,9 +25,27 @@ class PrintfLogModel(tf.keras.Model):
     else:
       return x
     
+
     
     
 class OneStep(tf.keras.Model):
+  def GetTokenProbability(self, inputTensor, predictedToken):
+
+    tokenId = self.ids_from_tokens(predictedToken)
+    inputTensorExpanded = tf.expand_dims(inputTensor, 0)
+
+    print("inputTensorExpanded: ", inputTensorExpanded.shape)
+    tf.print(inputTensorExpanded)
+
+    states = None
+    predicted_logits = self.model(inputs=inputTensorExpanded, return_state=False) # -> shape=(2, 5, 12535)
+    predicted_logits = predicted_logits[:, -1, :] # ik wil alleen de voorspelling na de laatste token
+
+    probabilities = tf.sigmoid(predicted_logits)
+
+    print(probabilities[0, tokenId].numpy())
+    return probabilities[0, tokenId].numpy()
+  
   def __init__(self, model, Tokens_from_ids, ids_from_tokens, temperature=1.0):
     super().__init__()
     self.temperature = temperature
@@ -44,19 +64,17 @@ class OneStep(tf.keras.Model):
     self.prediction_mask = tf.sparse.to_dense(sparse_mask)
 
   #@tf.function   JENTS: this is a decorator. tf.function gets generate_one_step as an argument ( including parameters ) and does optimisation 
-  def generate_one_step(self, inputs, states=None):
-    # Convert strings to token IDs.
-    #input_chars = tf.strings.unicode_split(inputs, 'UTF-8')
-    input_ids = tf.convert_to_tensor(self.ids_from_tokens(inputs))
+  def generate_one_step(self, inputTensor, states=None):
 
     # Run the model.
     # predicted_logits.shape is [batch, char, next_char_logits]
-    predicted_logits, states = self.model(inputs=input_ids, states=states, return_state=True)
+    inputTensorExpanded = tf.expand_dims(inputTensor, 0)
+    predicted_logits = self.model(inputs=inputTensorExpanded, states=states, return_state=False)
     # Only use the last prediction.
     predicted_logits = predicted_logits[:, -1, :]
     predicted_logits = predicted_logits/self.temperature
     # Apply the prediction mask: prevent "[UNK]" from being generated.
-    predicted_logits = predicted_logits + self.prediction_mask
+    pr0edicted_logits = predicted_logits + self.prediction_mask
 
     # Sample the output logits to generate token IDs.
     predicted_ids = tf.random.categorical(predicted_logits, num_samples=1)

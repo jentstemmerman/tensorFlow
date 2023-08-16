@@ -183,25 +183,12 @@ if ((model is None) or (force_train_model)):
     history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
     
     model.save(saved_model)
+    
 ############################################################################################# Train the model
 # Checking the shape of the tensor
 #print(tensor.shape)   -> je wil deze gebruiken
 #print(tf.shape(tensor))
 
-
-#for n in range(1000):
-#  next_char, states = one_step_model.generate_one_step(next_char, states=states)
-#  result.append(next_char)
-
-#result = tf.strings.join(result)
-
-
-
-
-#for input_example_batch, target_example_batch in dataset.take(1):
-#    example_batch_predictions = model(input_example_batch)
-#    print("input_example_batch.shape : ", input_example_batch.shape)
-#    print("example_batch_predictions.shape : ", example_batch_predictions.shape)
 start = time.time()
 TestFileNumpyList = np.loadtxt(TestFile, delimiter=",", dtype=str)
 print(TestFileNumpyList)
@@ -210,19 +197,11 @@ print(TestFileNumpyList)
 idsTestFile = ids_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
 print(idsTestFile)
 inputTensor = tf.convert_to_tensor(idsTestFile, dtype='int64')
-#inputTensorExpanded = tf.expand_dims(inputTensor, 0)
-inputTensorExpanded = tf.stack([inputTensor, inputTensor])
-print("inputTensorExpanded: ", inputTensorExpanded.shape)
-tf.print(inputTensorExpanded)
 
-states = None
-predicted_logits = model(inputs=inputTensorExpanded, return_state=False) # -> shape=(2, 5, 12535)
-predicted_logits = predicted_logits[:, -1, :] # ik wil alleen de voorspelling na de laatste token
-predicted_ids = tf.random.categorical(predicted_logits, num_samples=1)
-predicted_ids = tf.squeeze(predicted_ids, axis=-1)
+one_step_model = ModelClass.OneStep(model, token_from_id, ids_from_token)
+probability = one_step_model.GetTokenProbability(inputTensor, '0F D6 20 07')
+next_token_predicted = one_step_model.generate_one_step(inputTensor, states=None)
 
-    # Convert from token ids to characters
-predicted_chars = token_from_id(predicted_ids)
 
 end = time.time()
 

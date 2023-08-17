@@ -24,19 +24,23 @@ def process_files(input_file, output_file):
     reading_file.close()
     LogfileOnlyTokens.close()
 
-def CrossReferenceTokens(logFile, TokenFile):
-    total = 0
-    result = 1
-    log_File   = open(logFile, "r")
-    Token_File = open(TokenFile, "r")
+def CrossReferenceTokens(directory, TokenFile):
+    for root, dirs, files in os.walk(directory):
+        for filename in files:
+            if filename.endswith(".log"):
+                full_path = os.path.join(root, filename)
+                total = 0
+                result = 1
+                log_File   = open(full_path, "r")
+                Token_File = open(TokenFile, "r")
 
-    TokenFileString = Token_File.read()
-    for line in log_File:
-        line = line.strip()
-        if (TokenFileString.find(line) == -1):
-            print("Token " + line + "not found in tokenfile")
-            result = -1
-        total = total + 1
+                TokenFileString = Token_File.read()
+                for line in log_File:
+                    line = line.strip()
+                    if (TokenFileString.find(line) == -1):
+                        print("Token " + line + "not found in tokenfile")
+                        result = -1
+                    total = total + 1
     return result
 
 
@@ -64,7 +68,19 @@ def GetTokenTranslation(token, TokenFile):
     
     return TranslationString
 
-#def AddLogFileToDataSet(input_file):
+import os
+
+def process_log_files_recursive(directory, outputDirectory):
+    for root, dirs, files in os.walk(directory):
+        for filename in files:
+            if filename.endswith(".log"):
+                full_path = os.path.join(root, filename)
+                # Do something with the content of the log file
+                outputFile = outputDirectory + "/" + filename.replace(".log", "") + "_onlyTokens.log" 
+                process_files(full_path, outputFile)
+
+
+
 
 
 

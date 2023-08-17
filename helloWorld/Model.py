@@ -14,36 +14,48 @@ EPOCHS = 10
 #tf.config.threading.set_intra_op_parallelism_threads(1)
 
 # https://www.tensorflow.org/text/tutorials/text_generation
-trainingSet = 2
+trainingSet = 3
 
 if (trainingSet == 1):
     Directory             = "TrainingSet1"
     OriginalTokenFileName = Directory + "/Tokens.dat"
     OriginalLogFileName   = Directory + "/logfile.log"
     TestFile              = Directory + "/TestData.log"
-else:
+    VocabularyFile        = Directory + "/out/TokenfileOnlyTokens.dat"
+    LogFileTokens         = Directory + "/out/LogfileOnlyTokens.log"
+    ############### create files that only contain tokens:
+    TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
+    TokenParser.process_files(OriginalLogFileName,   LogFileTokens)
+elif (trainingSet == 2):
     Directory             = "TrainingSet2"
     OriginalTokenFileName = Directory + "/Tokens.dat"
     OriginalLogFileName   = Directory + "/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_QuickCheck_drive_log.log"
     TestFile              = Directory + "/TestData.log"
+    VocabularyFile        = Directory + "/out/TokenfileOnlyTokens.dat"
+    LogFileTokens         = Directory+ "/out/LogfileOnlyTokens.log"
+    ############### create files that only contain tokens:
+    TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
+    TokenParser.process_files(OriginalLogFileName,   LogFileTokens)
+elif (trainingSet ==3):
+    Directory             = "TrainingSet3"
+    OriginalTokenFileName = Directory + "/Tokens.dat"
+    VocabularyFile        = Directory + "/out/TokenfileOnlyTokens.dat"
+    TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
+    TokenParser.process_log_files_recursive(Directory, Directory + "/out")
 
-VocabularyFile            = Directory + "/out/TokenfileOnlyTokens.log"
-LogFileTokens             = Directory+ "/out/LogfileOnlyTokens.log"
-#TokenFileNameAndPrintfCvs = Directory + "/out/TokenfileAndPrintf.log"
 
-seq_length = 5
-
-############### create files that only contain tokens:
-TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
-TokenParser.process_files(OriginalLogFileName,   LogFileTokens)
-
-################## check whether the logfile tokens only contains tokens that are in the tokenfile
-result = TokenParser.CrossReferenceTokens(LogFileTokens, VocabularyFile)
+result = TokenParser.CrossReferenceTokens(Directory + "/out", VocabularyFile)
 print("Cross reference passed = ", result)
 
 if (result == -1):
     print("Logfile contains tokens that are not in the tokenfile!!")
     exit()
+
+seq_length = 10
+
+
+################## check whether the logfile tokens only contains tokens that are in the tokenfile
+
 
 ##################################################################################################
 
@@ -74,8 +86,6 @@ sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
 # each sequence entry contains seq_length number of elements
 sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
 
-for seq in sequences.take(2):
-    print(token_from_id(seq))
 
 # run the function split_input_target accross all entries of sequences
 dataset = sequences.map(TokenParser.split_input_target)

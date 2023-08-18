@@ -36,12 +36,13 @@ elif (trainingSet == 2):
     ############### create files that only contain tokens:
     TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
     TokenParser.process_files(OriginalLogFileName,   LogFileTokens)
-elif (trainingSet ==3):
+elif (trainingSet == 3):
     Directory             = "TrainingSet3"
     OriginalTokenFileName = Directory + "/Tokens.dat"
     VocabularyFile        = Directory + "/out/TokenfileOnlyTokens.dat"
+    OutputDirectory       = Directory + "/out"
     TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
-    TokenParser.process_log_files_recursive(Directory, Directory + "/out")
+    TokenParser.process_log_files_to_tokens_recursive(Directory, OutputDirectory)
 
 
 result = TokenParser.CrossReferenceTokens(Directory + "/out", VocabularyFile)
@@ -58,37 +59,34 @@ seq_length = 10
 
 
 ##################################################################################################
-
-print("Reading dictionary into memory, not sure I will need it")
-# using loadtxt()
 VocabularyNumpyList = np.loadtxt(VocabularyFile, delimiter=",", dtype=str)
 VocabularyTensor    = tf.convert_to_tensor(VocabularyNumpyList)
-print("Reading dictionary into memory DONE")
-
-print("Reading logfile into a ndarray, might want to improve this later")
-logTokenNumpyList = np.loadtxt(LogFileTokens, delimiter=",", dtype=str)
-TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
-
-print("The Shape of tokenList tensor is ", VocabularyTensor.shape)
-print("The Shape of logtokenList tensor is ", TrainingLogTensor.shape)
-print("Reading logfile into memory DONE")
-
 
 # encoder
 ids_from_token   = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
 # decoder
 token_from_id    = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
 
-ids_from_logfile = ids_from_token(TrainingLogTensor)
+logFileIterator = TokenParser.LogfileIterator(OutputDirectory)
+tokenLogfileToProcess = logFileIterator.get_first_tokenlogfile()
+dataset = None
 
-sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+while (tokenLogfileToProcess is not None):
+    print("adding " + tokenLogfileToProcess + " to the training dataset")
+    logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+    TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
+    ids_from_logfile = ids_from_token(TrainingLogTensor)
+    sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+    # each sequence entry contains seq_length number of elements
+    sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
+    # run the function split_input_target accross all entries of sequences
+    if (dataset == None):
+        dataset = sequences.map(TokenParser.split_input_target)
+    else:
+         dataset = dataset.concatenate(sequences.map(TokenParser.split_input_target))
 
-# each sequence entry contains seq_length number of elements
-sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
+    tokenLogfileToProcess = logFileIterator.get_next_tokenlogfile()
 
-
-# run the function split_input_target accross all entries of sequences
-dataset = sequences.map(TokenParser.split_input_target)
 # JENTS: create an array of tensors (zero dimension tensors each containing one token)
 saved_model = Directory + '/out/saved_model'
 
@@ -116,8 +114,7 @@ dataset = (
 dataset  # python convention to show the variable is ready
 
 if ((model is None) or (force_train_model)):
-    for ids in sliced_ids_from_logfile.take(10):
-        print(token_from_id(ids).numpy().decode('utf-8'))
+
     
     model = None
 

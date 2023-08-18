@@ -63,7 +63,7 @@ class OneStep(tf.keras.Model):
         dense_shape=[len(ids_from_tokens.get_vocabulary())])
     self.prediction_mask = tf.sparse.to_dense(sparse_mask)
 
-  #@tf.function   JENTS: this is a decorator. tf.function gets generate_one_step as an argument ( including parameters ) and does optimisation 
+  @tf.function #  JENTS: this is a decorator. tf.function gets generate_one_step as an argument ( including parameters ) and does optimisation 
   def generate_one_step(self, inputTensor, states=None):
 
     # Run the model.

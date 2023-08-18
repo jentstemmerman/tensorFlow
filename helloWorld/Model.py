@@ -7,39 +7,75 @@ import TokenParser
 import ModelClass
 import os
 
-
-
 # this gives a high result
 def verification(datasetForVerification):
-    stacked_Input_tensor  = None
-    stacked_Output_tensor = None
-    
-    for input_example_batch, target_example_batch in datasetForVerification.take(100):
+    stacked_Predicted_Output_tensor = None
+    stacked_realOutput_tensor       = None
+
+    for input_example_batch, target_example_batch in datasetForVerification.take(200):
         inputTensorExpanded = tf.expand_dims(input_example_batch, 0)
+        outputTensorExpanded = tf.expand_dims(target_example_batch, 0)
         example_batch_predictions = model(inputTensorExpanded, return_state=False)
         
-        if (stacked_Input_tensor == None):
-            stacked_Input_tensor = inputTensorExpanded
+        if (stacked_Predicted_Output_tensor == None):
+            stacked_Predicted_Output_tensor = example_batch_predictions
         else:
-            stacked_Input_tensor = tf.concat([stacked_Input_tensor, inputTensorExpanded], axis=0)
-        
-        if (stacked_Output_tensor == None):
-            stacked_Output_tensor = example_batch_predictions
-        else:
-            stacked_Output_tensor = tf.concat([stacked_Output_tensor, example_batch_predictions], axis=0)
+            stacked_Predicted_Output_tensor = tf.concat([stacked_Predicted_Output_tensor, example_batch_predictions], axis=0)
 
-    print("stacked_Input_tensor.shape ", stacked_Input_tensor.shape)
-    print("stacked_Output_tensor.shape ", stacked_Output_tensor.shape)
+        if (stacked_realOutput_tensor == None):
+            stacked_realOutput_tensor = outputTensorExpanded
+        else:
+            stacked_realOutput_tensor = tf.concat([stacked_realOutput_tensor, outputTensorExpanded], axis=0)
 
 
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
 
-    batch_mean_loss = loss(stacked_Input_tensor, stacked_Output_tensor)
+    batch_mean_loss = loss(stacked_realOutput_tensor, stacked_Predicted_Output_tensor)
     print("Mean loss:        ", batch_mean_loss)
 
     tf.exp(batch_mean_loss).numpy()
+    print("Mean loss exp:        ", tf.exp(batch_mean_loss).numpy())
+
+    return batch_mean_loss
 
 
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectoryTraining):
+    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectoryTraining)
+    ################# Create a dataset for training and throw all files that are in the training output dir in it
+    TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectoryTraining)
+    tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
+    datasetForTraining = None
+
+    while (tokenLogfileToProcess is not None):
+        print("adding " + tokenLogfileToProcess + " to the training dataset")
+        logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+        TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
+        ids_from_logfile = id_from_token(TrainingLogTensor)
+        sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+        # each sequence entry contains seq_length number of elements
+        sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
+        # run the function split_input_target accross all entries of sequences
+        if (datasetForTraining == None):
+            datasetForTraining = sequences.map(TokenParser.split_input_target)
+            
+        else:
+            datasetForTraining = datasetForTraining.concatenate(sequences.map(TokenParser.split_input_target))
+
+        tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
+        return datasetForTraining
+
+
+def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
+    TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
+    VocabularyNumpyList = np.loadtxt(VocabularyFile, delimiter=",", dtype=str)
+    VocabularyTensor    = tf.convert_to_tensor(VocabularyNumpyList)
+
+    # encoder
+    id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
+    # decoder
+    token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
+
+    return id_from_token, token_from_id
 
 #tf.config.threading.set_intra_op_parallelism_threads(1)
 
@@ -47,11 +83,11 @@ def verification(datasetForVerification):
 
 force_train_model = False
 
-EPOCHS = 5
-seq_length = 7
+EPOCHS = 10
+seq_length = 10
 trainingSet = 3
 
-
+start = time.time()
 
 if (trainingSet == 1):
     Directory = "TrainingSet1"
@@ -71,73 +107,23 @@ VerificationDirectory       = Directory + os.path.sep + "Verification"
 OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
 OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
-TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
-TokenParser.process_log_files_to_tokens_recursive(TrainingDirectory, OutputDirectoryTraining)
-TokenParser.process_log_files_to_tokens_recursive(VerificationDirectory, OutputDirectoryVerification)
+
+######################################################################################################
+id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
+
+################# Create a dataset for training and throw all files that are in the training output dir in it
+datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining)        
+datasetForTraining2 = datasetForTraining  # for the losstraining
+################# Create a dataset for verification and throw all files that are in the verification output dir in it
+datasetForVerification = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification)    
 
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
-CrossReferenceResultTraining = TokenParser.CrossReferenceTokens(OutputDirectoryTraining, VocabularyFile)
+CrossReferenceResultTraining     = TokenParser.CrossReferenceTokens(OutputDirectoryTraining, VocabularyFile)
 CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
 
 if (CrossReferenceResultTraining == -1) or (CrossReferenceResultVerification == -1):
     print("Logfile contains tokens that are not in the tokenfile!!")
     exit()
-
-######################################################################################################
-
-VocabularyNumpyList = np.loadtxt(VocabularyFile, delimiter=",", dtype=str)
-VocabularyTensor    = tf.convert_to_tensor(VocabularyNumpyList)
-
-# encoder
-id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
-# decoder
-token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
-
-
-################# Create a dataset for training and throw all files that are in the training output dir in it
-TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectoryTraining)
-tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
-datasetForTraining = None
-
-while (tokenLogfileToProcess is not None):
-    print("adding " + tokenLogfileToProcess + " to the training dataset")
-    logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
-    TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
-    ids_from_logfile = id_from_token(TrainingLogTensor)
-    sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
-    # each sequence entry contains seq_length number of elements
-    sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
-    # run the function split_input_target accross all entries of sequences
-    if (datasetForTraining == None):
-        datasetForTraining = sequences.map(TokenParser.split_input_target)
-    else:
-         datasetForTraining = datasetForTraining.concatenate(sequences.map(TokenParser.split_input_target))
-
-    tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
-
-
-################# Create a dataset for verification and throw all files that are in the verification output dir in it
-TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectoryTraining)
-tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
-datasetForVerification = None
-
-while (tokenLogfileToProcess is not None):
-    print("adding " + tokenLogfileToProcess + " to the training dataset")
-    logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
-    TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
-    ids_from_logfile = id_from_token(TrainingLogTensor)
-    sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
-    # each sequence entry contains seq_length number of elements
-    sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
-    # run the function split_input_target accross all entries of sequences
-    if (datasetForVerification == None):
-        datasetForVerification = sequences.map(TokenParser.split_input_target)
-    else:
-         datasetForVerification = datasetForVerification.concatenate(sequences.map(TokenParser.split_input_target))
-
-    tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
-
-###################################################################################################
 
 try:
     model = tf.keras.models.load_model(ModelDirectory, compile=True)
@@ -146,7 +132,7 @@ except:
 
 # jents: organize them in batches and also shuffle .
 # Batch size
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
 # Buffer size to shuffle the dataset
 # (TF data is designed to work with possibly infinite sequences,
@@ -182,7 +168,6 @@ if ((model is None) or (force_train_model)):
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
     model.compile(optimizer='adam', loss=loss)
 
-
     # Directory where the checkpoints will be saved
     checkpoint_dir = Directory + '/out/training_checkpoints'
 
@@ -201,27 +186,21 @@ if ((model is None) or (force_train_model)):
     
     model.save(ModelDirectory)
 
-############################################################################################# Train the model
-# Checking the shape of the tensor
-#print(tensor.shape)   -> je wil deze gebruiken
-#print(tf.shape(tensor))
-verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
-tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
-
-if (tokenLogfileToProcess == None):
-    exit()
-
-start = time.time()
-TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
-
-idsTestFile = id_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
-
-
-one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
-
+############################################################################################# Use the model
 calculateAverage = 0
 
 if (calculateAverage):
+    verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
+    tokenLogfileToProcess = verificationFileIterator.get_first_tokenlogfile()
+
+    if (tokenLogfileToProcess == None):
+        exit()
+    
+    TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+
+    idsTestFile = id_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
+
+    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
     window_size = 8
     Accumulator = 0
     AccumulatorCount = 0
@@ -231,17 +210,18 @@ if (calculateAverage):
         idsLogFile = id_from_token(window) 
         inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
         probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
-        #print(window, "probability of next token ", nextToken, " = ", probability)
         AccumulatorCount = AccumulatorCount + 1
         Accumulator = Accumulator + probability
     print('\nAverage score = ', Accumulator / AccumulatorCount)
-    print('\nRun time:', end - start)
 
 
+losstraining     = verification(datasetForTraining2)
+lossverification = verification(datasetForVerification)
+print("losstraining, lossverification: " , losstraining, lossverification)
 
-
-verification(datasetForVerification)
 end = time.time()
+
+print('\nRun time:', end - start)
 print("END")
 
 

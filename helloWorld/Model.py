@@ -7,6 +7,42 @@ import TokenParser
 import ModelClass
 import os
 
+
+
+
+def verification(datasetForVerification):
+    
+    for input_example_batch, target_example_batch in datasetForVerification.take(1):
+        example_batch_predictions = model(input_example_batch)
+        print("input_example_batch, example_batch_predictions.shape ", input_example_batch.shape, example_batch_predictions.shape)
+
+     ############################################################################################# Try without training
+
+    sampled_indices = tf.random.categorical(example_batch_predictions[0], num_samples=1)
+    sampled_indices = tf.squeeze(sampled_indices, axis=-1).numpy()
+    sampled_indices
+
+    print("Input:\n", token_from_id(input_example_batch[0]).numpy())
+    print()
+    print("Next Token Predictions:\n", token_from_id(sampled_indices).numpy())
+
+    for token in token_from_id(sampled_indices).numpy():
+        translation = TokenParser.GetTokenTranslation(token.decode('utf-8'), OriginalTokenFileName)
+        print(token.decode('utf-8'), " ", translation)
+
+
+    ############################################################################################# Setup to train the model
+
+    loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+
+    example_batch_mean_loss = loss(target_example_batch, example_batch_predictions)
+    print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
+    print("Mean loss:        ", example_batch_mean_loss)
+
+    tf.exp(example_batch_mean_loss).numpy()
+
+
+
 #tf.config.threading.set_intra_op_parallelism_threads(1)
 
 # https://www.tensorflow.org/text/tutorials/text_generation
@@ -60,10 +96,10 @@ id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_t
 token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
 
 
-################# Create a dataset and throw all files that are in the training output dir in it
-logFileIterator = TokenParser.LogfileIterator(OutputDirectoryTraining)
-tokenLogfileToProcess = logFileIterator.get_first_tokenlogfile()
-dataset = None
+################# Create a dataset for training and throw all files that are in the training output dir in it
+TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectoryTraining)
+tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
+datasetForTraining = None
 
 while (tokenLogfileToProcess is not None):
     print("adding " + tokenLogfileToProcess + " to the training dataset")
@@ -74,12 +110,34 @@ while (tokenLogfileToProcess is not None):
     # each sequence entry contains seq_length number of elements
     sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
     # run the function split_input_target accross all entries of sequences
-    if (dataset == None):
-        dataset = sequences.map(TokenParser.split_input_target)
+    if (datasetForTraining == None):
+        datasetForTraining = sequences.map(TokenParser.split_input_target)
     else:
-         dataset = dataset.concatenate(sequences.map(TokenParser.split_input_target))
+         datasetForTraining = datasetForTraining.concatenate(sequences.map(TokenParser.split_input_target))
 
-    tokenLogfileToProcess = logFileIterator.get_next_tokenlogfile()
+    tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
+
+
+################# Create a dataset for verification and throw all files that are in the verification output dir in it
+TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectoryTraining)
+tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
+datasetForVerification = None
+
+while (tokenLogfileToProcess is not None):
+    print("adding " + tokenLogfileToProcess + " to the training dataset")
+    logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+    TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
+    ids_from_logfile = id_from_token(TrainingLogTensor)
+    sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+    # each sequence entry contains seq_length number of elements
+    sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
+    # run the function split_input_target accross all entries of sequences
+    if (datasetForVerification == None):
+        datasetForVerification = sequences.map(TokenParser.split_input_target)
+    else:
+         datasetForVerification = datasetForVerification.concatenate(sequences.map(TokenParser.split_input_target))
+
+    tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
 
 ###################################################################################################
 
@@ -98,13 +156,13 @@ BATCH_SIZE = 64
 # it maintains a buffer in which it shuffles elements).
 BUFFER_SIZE = 10000
 
-dataset = (
-    dataset
+datasetForTraining = (
+    datasetForTraining
     .shuffle(BUFFER_SIZE)
     .batch(BATCH_SIZE, drop_remainder=True)
     .prefetch(tf.data.experimental.AUTOTUNE))
 
-dataset  # python convention to show the variable is ready
+datasetForTraining  # python convention to show the variable is ready
 
 if ((model is None) or (force_train_model)):
     model = None
@@ -121,40 +179,9 @@ if ((model is None) or (force_train_model)):
         rnn_units=rnn_units)
 
 
-    for input_example_batch, target_example_batch in dataset.take(1):
-        example_batch_predictions = model(input_example_batch)
-        print("input_example_batch, example_batch_predictions.shape ", input_example_batch.shape, example_batch_predictions.shape)
-
-    model.summary()
-
-    ############################################################################################# Try without training
-
-    sampled_indices = tf.random.categorical(example_batch_predictions[0], num_samples=1)
-    sampled_indices = tf.squeeze(sampled_indices, axis=-1).numpy()
-    sampled_indices
-
-    print("Input:\n", token_from_id(input_example_batch[0]).numpy())
-    print()
-    print("Next Token Predictions:\n", token_from_id(sampled_indices).numpy())
-
-    for token in token_from_id(sampled_indices).numpy():
-        translation = TokenParser.GetTokenTranslation(token.decode('utf-8'), OriginalTokenFileName)
-        print(token.decode('utf-8'), " ", translation)
-
-
-    ############################################################################################# Setup to train the model
-
-    loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
-
-    example_batch_mean_loss = loss(target_example_batch, example_batch_predictions)
-    print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
-    print("Mean loss:        ", example_batch_mean_loss)
-
-    tf.exp(example_batch_mean_loss).numpy()
-
     ############################################################################################# Train the model
 
-
+    loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
     model.compile(optimizer='adam', loss=loss)
 
 
@@ -172,7 +199,7 @@ if ((model is None) or (force_train_model)):
         model.load_weights(latest)
 
     
-    history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
+    history = model.fit(datasetForTraining, epochs=EPOCHS, callbacks=[checkpoint_callback])
     
     model.save(ModelDirectory)
 
@@ -181,7 +208,7 @@ if ((model is None) or (force_train_model)):
 #print(tensor.shape)   -> je wil deze gebruiken
 #print(tf.shape(tensor))
 verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
-tokenLogfileToProcess = logFileIterator.get_first_tokenlogfile()
+tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
 
 if (tokenLogfileToProcess == None):
     exit()
@@ -194,21 +221,30 @@ idsTestFile = id_from_token(TestFileNumpyList)  # dit vertaalt heel de array naa
 
 one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
 
-window_size = 8
+calculateAverage = 0
 
-for i in range(TestFileNumpyList.shape[0] - (window_size + 1)):
-    window    = TestFileNumpyList[i:i + window_size - 1]
-    nextToken = TestFileNumpyList[i + window_size]
-    idsLogFile = id_from_token(window) 
-    inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
-    probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
-    print(window, "probability of next token ", nextToken, " = ", probability)
-     
+if (calculateAverage):
+    window_size = 8
+    Accumulator = 0
+    AccumulatorCount = 0
+    for i in range(TestFileNumpyList.shape[0] - (window_size + 1)):
+        window    = TestFileNumpyList[i:i + window_size - 1]
+        nextToken = TestFileNumpyList[i + window_size]
+        idsLogFile = id_from_token(window) 
+        inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
+        probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
+        #print(window, "probability of next token ", nextToken, " = ", probability)
+        AccumulatorCount = AccumulatorCount + 1
+        Accumulator = Accumulator + probability
+    print('\nAverage score = ', Accumulator / AccumulatorCount)
+    print('\nRun time:', end - start)
 
+
+
+
+#verification(datasetForVerification)
 end = time.time()
-
-
-print('\nRun time:', end - start)
-
-
 print("END")
+
+
+

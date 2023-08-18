@@ -63,7 +63,7 @@ class OneStep(tf.keras.Model):
         dense_shape=[len(ids_from_tokens.get_vocabulary())])
     self.prediction_mask = tf.sparse.to_dense(sparse_mask)
 
-  @tf.function #  JENTS: this is a decorator. tf.function gets generate_one_step as an argument ( including parameters ) and does optimisation 
+ # @tf.function #  JENTS: this is a decorator. tf.function gets generate_one_step as an argument ( including parameters ) and does optimisation 
   def generate_one_step(self, inputTensor, states=None):
 
     # Run the model.
@@ -74,14 +74,14 @@ class OneStep(tf.keras.Model):
     predicted_logits = predicted_logits[:, -1, :]
     predicted_logits = predicted_logits/self.temperature
     # Apply the prediction mask: prevent "[UNK]" from being generated.
-    pr0edicted_logits = predicted_logits + self.prediction_mask
+    predicted_logits = predicted_logits + self.prediction_mask
 
     # Sample the output logits to generate token IDs.
     predicted_ids = tf.random.categorical(predicted_logits, num_samples=1)
     predicted_ids = tf.squeeze(predicted_ids, axis=-1)
 
     # Convert from token ids to characters
-    predicted_chars = self.Tokens_from_ids(predicted_ids)
+    predicted_token = (self.Tokens_from_ids(predicted_ids))[0].numpy()
 
     # Return the characters and model state.
-    return predicted_chars, states
+    return predicted_token

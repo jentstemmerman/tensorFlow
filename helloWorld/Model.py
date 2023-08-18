@@ -6,6 +6,7 @@ import numpy as np
 import TokenParser
 import ModelClass
 import os
+import re
 
 # this gives a high result
 def verification(datasetForVerification):
@@ -76,6 +77,58 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
     token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
 
     return id_from_token, token_from_id
+
+def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token):
+    TestFileNumpyList = np.loadtxt(Logfile, delimiter=",", dtype=str)
+    idsTestFile = id_from_token(TestFileNumpyList)
+
+    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
+    window_size = seq_length + 1
+    FileNameAnalyzed = Logfile.replace(".log", ".analyzedlog")
+    
+    LogfileToAnalyze = open(Logfile         , "r", errors='ignore')
+    LogfileAnalyzed  = open(FileNameAnalyzed, "w")
+
+    token_pattern = re.compile(".{1,2} .{1,2} .{1,2} .{1,2}")
+    
+    lineNumber = 0
+
+    for lineLogfileToAnalyze in LogfileToAnalyze:
+            regexFound = re.search(token_pattern, lineLogfileToAnalyze)
+            if  (regexFound):
+                tokenString = regexFound.string
+                tokenString = tokenString.replace("\n", "")
+                lineLogfileToAnalyze = lineLogfileToAnalyze.replace(tokenString, tokenString + " Not Appl")
+                LogfileAnalyzed.write(lineLogfileToAnalyze)
+            lineNumber = lineNumber + 1
+            if (lineNumber == window_size-1):
+                break
+
+    
+    for i in range(TestFileNumpyList.shape[0] - (window_size + 1)):
+        window    = TestFileNumpyList[i:i + window_size - 1]
+        nextToken = TestFileNumpyList[i + window_size]
+        idsLogFile = id_from_token(window) 
+        inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
+        probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
+        nextPredictedToken = one_step_model.generate_one_step(inputTensor, states=None)
+        nextPredictedToken = nextPredictedToken.decode('utf-8')  
+        
+        lineLogfileToAnalyze = LogfileToAnalyze.readline()
+
+        regexFound = re.search(token_pattern, lineLogfileToAnalyze)
+
+        if  (regexFound):
+            tokenString = regexFound.string
+            tokenString = tokenString.replace("\n", "")
+            replacement = tokenString + " Probability = " + "{:.2f}".format(probability) + ". Predicted: " + nextPredictedToken + ". " + "window = " + window[window_size - 2] 
+            lineLogfileToAnalyze = lineLogfileToAnalyze.replace(tokenString, replacement)
+            LogfileAnalyzed.write(lineLogfileToAnalyze)
+        if (i % 100 == 0):
+            print("annotating line " + str(i) + " of " + str(TestFileNumpyList.shape[0]))
+
+    LogfileToAnalyze.close()
+    LogfileAnalyzed.close()
 
 #tf.config.threading.set_intra_op_parallelism_threads(1)
 
@@ -187,15 +240,27 @@ if ((model is None) or (force_train_model)):
     model.save(ModelDirectory)
 
 ############################################################################################# Use the model
-calculateAverage = 0
+
+
+verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
+tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
+AddProbabilitiesToLogFile(model, tokenLogfileToProcess, token_from_id, id_from_token)
+
+
+
+
+calculateAverage = 1
+
 
 if (calculateAverage):
     verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
-    tokenLogfileToProcess = verificationFileIterator.get_first_tokenlogfile()
+    tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
 
     if (tokenLogfileToProcess == None):
         exit()
+
     
+
     TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
 
     idsTestFile = id_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
@@ -212,7 +277,7 @@ if (calculateAverage):
         probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
         AccumulatorCount = AccumulatorCount + 1
         Accumulator = Accumulator + probability
-    print('\nAverage score = ', Accumulator / AccumulatorCount)
+    
 
 
 losstraining     = verification(datasetForTraining2)

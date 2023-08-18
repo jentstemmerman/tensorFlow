@@ -9,37 +9,35 @@ import os
 
 
 
-
+# this gives a high result
 def verification(datasetForVerification):
+    stacked_Input_tensor  = None
+    stacked_Output_tensor = None
     
-    for input_example_batch, target_example_batch in datasetForVerification.take(1):
-        example_batch_predictions = model(input_example_batch)
-        print("input_example_batch, example_batch_predictions.shape ", input_example_batch.shape, example_batch_predictions.shape)
+    for input_example_batch, target_example_batch in datasetForVerification.take(100):
+        inputTensorExpanded = tf.expand_dims(input_example_batch, 0)
+        example_batch_predictions = model(inputTensorExpanded, return_state=False)
+        
+        if (stacked_Input_tensor == None):
+            stacked_Input_tensor = inputTensorExpanded
+        else:
+            stacked_Input_tensor = tf.concat([stacked_Input_tensor, inputTensorExpanded], axis=0)
+        
+        if (stacked_Output_tensor == None):
+            stacked_Output_tensor = example_batch_predictions
+        else:
+            stacked_Output_tensor = tf.concat([stacked_Output_tensor, example_batch_predictions], axis=0)
 
-     ############################################################################################# Try without training
+    print("stacked_Input_tensor.shape ", stacked_Input_tensor.shape)
+    print("stacked_Output_tensor.shape ", stacked_Output_tensor.shape)
 
-    sampled_indices = tf.random.categorical(example_batch_predictions[0], num_samples=1)
-    sampled_indices = tf.squeeze(sampled_indices, axis=-1).numpy()
-    sampled_indices
-
-    print("Input:\n", token_from_id(input_example_batch[0]).numpy())
-    print()
-    print("Next Token Predictions:\n", token_from_id(sampled_indices).numpy())
-
-    for token in token_from_id(sampled_indices).numpy():
-        translation = TokenParser.GetTokenTranslation(token.decode('utf-8'), OriginalTokenFileName)
-        print(token.decode('utf-8'), " ", translation)
-
-
-    ############################################################################################# Setup to train the model
 
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
 
-    example_batch_mean_loss = loss(target_example_batch, example_batch_predictions)
-    print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
-    print("Mean loss:        ", example_batch_mean_loss)
+    batch_mean_loss = loss(stacked_Input_tensor, stacked_Output_tensor)
+    print("Mean loss:        ", batch_mean_loss)
 
-    tf.exp(example_batch_mean_loss).numpy()
+    tf.exp(batch_mean_loss).numpy()
 
 
 
@@ -242,7 +240,7 @@ if (calculateAverage):
 
 
 
-#verification(datasetForVerification)
+verification(datasetForVerification)
 end = time.time()
 print("END")
 

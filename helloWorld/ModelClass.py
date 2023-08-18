@@ -34,8 +34,8 @@ class OneStep(tf.keras.Model):
     tokenId = self.ids_from_tokens(predictedToken)
     inputTensorExpanded = tf.expand_dims(inputTensor, 0)
 
-    print("inputTensorExpanded: ", inputTensorExpanded.shape)
-    tf.print(inputTensorExpanded)
+    #print("inputTensorExpanded: ", inputTensorExpanded.shape)
+    #tf.print(inputTensorExpanded)
 
     states = None
     predicted_logits = self.model(inputs=inputTensorExpanded, return_state=False) # -> shape=(2, 5, 12535)
@@ -43,7 +43,7 @@ class OneStep(tf.keras.Model):
 
     probabilities = tf.sigmoid(predicted_logits)
 
-    print(probabilities[0, tokenId].numpy())
+    #print(probabilities[0, tokenId].numpy())
     return probabilities[0, tokenId].numpy()
   
   def __init__(self, model, Tokens_from_ids, ids_from_tokens, temperature=1.0):

@@ -7,67 +7,61 @@ import TokenParser
 import ModelClass
 import os
 
-force_train_model = False
-
-EPOCHS = 10
-
 #tf.config.threading.set_intra_op_parallelism_threads(1)
 
 # https://www.tensorflow.org/text/tutorials/text_generation
+
+force_train_model = False
+
+EPOCHS = 5
+seq_length = 7
 trainingSet = 3
 
+
+
 if (trainingSet == 1):
-    Directory             = "TrainingSet1"
-    OriginalTokenFileName = Directory + "/Tokens.dat"
-    OriginalLogFileName   = Directory + "/logfile.log"
-    TestFile              = Directory + "/TestData.log"
-    VocabularyFile        = Directory + "/out/TokenfileOnlyTokens.dat"
-    LogFileTokens         = Directory + "/out/LogfileOnlyTokens.log"
-    ############### create files that only contain tokens:
-    TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
-    TokenParser.process_files(OriginalLogFileName,   LogFileTokens)
+    Directory = "TrainingSet1"
 elif (trainingSet == 2):
-    Directory             = "TrainingSet2"
-    OriginalTokenFileName = Directory + "/Tokens.dat"
-    OriginalLogFileName   = Directory + "/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_QuickCheck_drive_log.log"
-    TestFile              = Directory + "/TestData.log"
-    VocabularyFile        = Directory + "/out/TokenfileOnlyTokens.dat"
-    LogFileTokens         = Directory+ "/out/LogfileOnlyTokens.log"
-    ############### create files that only contain tokens:
-    TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
-    TokenParser.process_files(OriginalLogFileName,   LogFileTokens)
+    Directory = "TrainingSet2"
 elif (trainingSet == 3):
-    Directory             = "TrainingSet3"
-    OriginalTokenFileName = Directory + "/Tokens.dat"
-    VocabularyFile        = Directory + "/out/TokenfileOnlyTokens.dat"
-    OutputDirectory       = Directory + "/out"
-    TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
-    TokenParser.process_log_files_to_tokens_recursive(Directory, OutputDirectory)
+    Directory = "TrainingSet3"
 
+OriginalTokenFileName       = Directory + os.path.sep + "Tokens.dat"
 
-result = TokenParser.CrossReferenceTokens(Directory + "/out", VocabularyFile)
-print("Cross reference passed = ", result)
+OutputDirectory             = Directory + os.path.sep + "out"
+VocabularyFile              = OutputDirectory + os.path.sep + "TokenfileOnlyTokens.dat"
 
-if (result == -1):
+ModelDirectory              = OutputDirectory + os.path.sep + "SavedModel"
+TrainingDirectory           = Directory + os.path.sep + "Training"
+VerificationDirectory       = Directory + os.path.sep + "Verification"
+OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
+OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
+
+TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
+TokenParser.process_log_files_to_tokens_recursive(TrainingDirectory, OutputDirectoryTraining)
+TokenParser.process_log_files_to_tokens_recursive(VerificationDirectory, OutputDirectoryVerification)
+
+################## check whether the logfile tokens only contains tokens that are in the tokenfile
+CrossReferenceResultTraining = TokenParser.CrossReferenceTokens(OutputDirectoryTraining, VocabularyFile)
+CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
+
+if (CrossReferenceResultTraining == -1) or (CrossReferenceResultVerification == -1):
     print("Logfile contains tokens that are not in the tokenfile!!")
     exit()
 
-seq_length = 10
+######################################################################################################
 
-
-################## check whether the logfile tokens only contains tokens that are in the tokenfile
-
-
-##################################################################################################
 VocabularyNumpyList = np.loadtxt(VocabularyFile, delimiter=",", dtype=str)
 VocabularyTensor    = tf.convert_to_tensor(VocabularyNumpyList)
 
 # encoder
-ids_from_token   = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
+id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
 # decoder
-token_from_id    = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
+token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
 
-logFileIterator = TokenParser.LogfileIterator(OutputDirectory)
+
+################# Create a dataset and throw all files that are in the training output dir in it
+logFileIterator = TokenParser.LogfileIterator(OutputDirectoryTraining)
 tokenLogfileToProcess = logFileIterator.get_first_tokenlogfile()
 dataset = None
 
@@ -75,7 +69,7 @@ while (tokenLogfileToProcess is not None):
     print("adding " + tokenLogfileToProcess + " to the training dataset")
     logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
     TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
-    ids_from_logfile = ids_from_token(TrainingLogTensor)
+    ids_from_logfile = id_from_token(TrainingLogTensor)
     sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
     # each sequence entry contains seq_length number of elements
     sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
@@ -87,15 +81,14 @@ while (tokenLogfileToProcess is not None):
 
     tokenLogfileToProcess = logFileIterator.get_next_tokenlogfile()
 
-# JENTS: create an array of tensors (zero dimension tensors each containing one token)
-saved_model = Directory + '/out/saved_model'
+###################################################################################################
 
 try:
-    model = tf.keras.models.load_model(saved_model, compile=True)
+    model = tf.keras.models.load_model(ModelDirectory, compile=True)
 except:
     model = None
 
-# jents: organize them in batches and shuffle them.
+# jents: organize them in batches and also shuffle .
 # Batch size
 BATCH_SIZE = 64
 
@@ -114,16 +107,8 @@ dataset = (
 dataset  # python convention to show the variable is ready
 
 if ((model is None) or (force_train_model)):
-
-    
     model = None
-
-
-    # Length of the vocabulary in StringLookup Layer
-    vocab_size = len(ids_from_token.get_vocabulary())
-    print("vocab_size: ", vocab_size)
-
-
+    
     # The embedding dimension, to be checked out
     embedding_dim = 256
 
@@ -131,7 +116,7 @@ if ((model is None) or (force_train_model)):
     rnn_units = 1024  
 
     model = ModelClass.PrintfLogModel(
-        vocab_size=vocab_size,
+        vocab_size=len(id_from_token.get_vocabulary()),
         embedding_dim=embedding_dim,
         rnn_units=rnn_units)
 
@@ -189,41 +174,38 @@ if ((model is None) or (force_train_model)):
     
     history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
     
-    model.save(saved_model)
+    model.save(ModelDirectory)
 
 ############################################################################################# Train the model
 # Checking the shape of the tensor
 #print(tensor.shape)   -> je wil deze gebruiken
 #print(tf.shape(tensor))
+verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
+tokenLogfileToProcess = logFileIterator.get_first_tokenlogfile()
+
+if (tokenLogfileToProcess == None):
+    exit()
 
 start = time.time()
-TestFileNumpyList = np.loadtxt(TestFile, delimiter=",", dtype=str)
-print(TestFileNumpyList)
+TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+
+idsTestFile = id_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
 
 
-idsTestFile = ids_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
-print(idsTestFile)
-inputTensor = tf.convert_to_tensor(idsTestFile, dtype='int64')
+one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
 
-one_step_model = ModelClass.OneStep(model, token_from_id, ids_from_token)
-probability = one_step_model.GetTokenProbability(inputTensor, '0F D6 20 07')
-next_token_predicted = one_step_model.generate_one_step(inputTensor, states=None)
+window_size = 8
 
-
-end = time.time()
-
-
-LogFileNumpyList = np.loadtxt(LogFileTokens, delimiter=",", dtype=str)
-window_size = 6
-for i in range(LogFileNumpyList.shape[0] - (window_size + 1)):
-    window    = LogFileNumpyList[i:i + window_size - 1]
-    nextToken = LogFileNumpyList[i + window_size]
-    idsLogFile = ids_from_token(window) 
+for i in range(TestFileNumpyList.shape[0] - (window_size + 1)):
+    window    = TestFileNumpyList[i:i + window_size - 1]
+    nextToken = TestFileNumpyList[i + window_size]
+    idsLogFile = id_from_token(window) 
     inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
     probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
     print(window, "probability of next token ", nextToken, " = ", probability)
      
 
+end = time.time()
 
 
 print('\nRun time:', end - start)

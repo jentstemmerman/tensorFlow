@@ -82,6 +82,10 @@ class OneStep(tf.keras.Model):
 
     # Convert from token ids to characters
     predicted_token = (self.Tokens_from_ids(predicted_ids))[0].numpy()
+    
+    predicted_logits = predicted_logits[:, :] # ik wil alleen de voorspelling na de laatste token
+    probabilities = tf.sigmoid(predicted_logits)
 
+    probability = probabilities[0, predicted_ids[0].numpy()].numpy()
     # Return the characters and model state.
-    return predicted_token
+    return predicted_token, probability

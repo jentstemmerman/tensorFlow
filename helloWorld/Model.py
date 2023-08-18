@@ -111,17 +111,16 @@ def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token):
         idsLogFile = id_from_token(window) 
         inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
         probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
-        nextPredictedToken = one_step_model.generate_one_step(inputTensor, states=None)
+        nextPredictedToken, probabilityPrediction = one_step_model.generate_one_step(inputTensor, states=None)
         nextPredictedToken = nextPredictedToken.decode('utf-8')  
         
         lineLogfileToAnalyze = LogfileToAnalyze.readline()
-
         regexFound = re.search(token_pattern, lineLogfileToAnalyze)
 
         if  (regexFound):
             tokenString = regexFound.string
             tokenString = tokenString.replace("\n", "")
-            replacement = tokenString + " Probability = " + "{:.2f}".format(probability) + ". Predicted: " + nextPredictedToken + ". " + "window = " + window[window_size - 2] 
+            replacement = tokenString + " Probability = " + "{:.2f}".format(probability) + ". Predicted: " + nextPredictedToken + " {:.2f}".format(probability) + ". " + "window = " + window[window_size - 2] 
             lineLogfileToAnalyze = lineLogfileToAnalyze.replace(tokenString, replacement)
             LogfileAnalyzed.write(lineLogfileToAnalyze)
         if (i % 100 == 0):

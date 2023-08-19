@@ -31,7 +31,7 @@ class PrintfLogModel(tf.keras.Model):
 class OneStep(tf.keras.Model):
   def GetTokenProbability(self, inputTensor, predictedToken):
 
-    tokenId = self.ids_from_tokens(predictedToken)
+    tokenId = self.ids_from_tokens(predictedToken).numpy()
     inputTensorExpanded = tf.expand_dims(inputTensor, 0)
 
     #print("inputTensorExpanded: ", inputTensorExpanded.shape)
@@ -39,12 +39,15 @@ class OneStep(tf.keras.Model):
 
     states = None
     predicted_logits = self.model(inputs=inputTensorExpanded, return_state=False) # -> shape=(2, 5, 12535)
-    predicted_logits = predicted_logits[:, -1, :] # ik wil alleen de voorspelling na de laatste token
+    predicted_logits = predicted_logits[0, -1, :] # ik wil alleen de voorspelling na de laatste token
 
+    probabilitiesSum = tf.math.reduce_sum(predicted_logits, axis=0, keepdims=False, name=None).numpy()
+    predicted_logits = predicted_logits / probabilitiesSum
     probabilities = tf.sigmoid(predicted_logits)
+    probability = probabilities[tokenId].numpy()
+#    probability = probability / probabilitiesSum
 
-    #print(probabilities[0, tokenId].numpy())
-    return probabilities[0, tokenId].numpy()
+    return probability
   
   def __init__(self, model, Tokens_from_ids, ids_from_tokens, temperature=1.0):
     super().__init__()
@@ -74,18 +77,21 @@ class OneStep(tf.keras.Model):
     predicted_logits = predicted_logits[:, -1, :]
     predicted_logits = predicted_logits/self.temperature
     # Apply the prediction mask: prevent "[UNK]" from being generated.
-    predicted_logits = predicted_logits + self.prediction_mask
+    #predicted_logits = predicted_logits + self.prediction_mask
 
     # Sample the output logits to generate token IDs.
-    predicted_ids = tf.random.categorical(predicted_logits, num_samples=1)
-    predicted_ids = tf.squeeze(predicted_ids, axis=-1)
+    predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
+    predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
 
     # Convert from token ids to characters
-    predicted_token = (self.Tokens_from_ids(predicted_ids))[0].numpy()
-    
-    predicted_logits = predicted_logits[:, :] # ik wil alleen de voorspelling na de laatste token
+    predicted_token = (self.Tokens_from_ids(predicted_id)).numpy()
+   
+    probabilitiesSum = tf.math.reduce_sum(predicted_logits, axis=1, keepdims=False, name=None).numpy()[0]
+    predicted_logits = predicted_logits / probabilitiesSum
     probabilities = tf.sigmoid(predicted_logits)
+    
 
-    probability = probabilities[0, predicted_ids[0].numpy()].numpy()
+    probability = probabilities[0, predicted_id].numpy() # ik wil alleen de voorspelling na de laatste token
+
     # Return the characters and model state.
     return predicted_token, probability

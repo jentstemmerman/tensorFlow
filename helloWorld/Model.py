@@ -37,7 +37,7 @@ def verification(datasetForVerification):
     tf.exp(batch_mean_loss).numpy()
     print("Mean loss exp:        ", tf.exp(batch_mean_loss).numpy())
 
-    return batch_mean_loss
+    return batch_mean_loss.numpy()
 
 
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectoryTraining):
@@ -78,6 +78,13 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
 
     return id_from_token, token_from_id
 
+def AddScoresToScoreFile(Scorefile, scoreString):
+    Scorefilehandle  = open(Scorefile, "w")
+    Scorefilehandle.write(scoreString)
+    Scorefilehandle.close()
+
+
+
 def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token):
     TestFileNumpyList = np.loadtxt(Logfile, delimiter=",", dtype=str)
     idsTestFile = id_from_token(TestFileNumpyList)
@@ -110,8 +117,7 @@ def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token):
         nextToken = TestFileNumpyList[i + window_size]
         idsLogFile = id_from_token(window) 
         inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
-        probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
-        nextPredictedToken, probabilityPrediction = one_step_model.generate_one_step(inputTensor, states=None)
+        nextPredictedToken, probabilityPrediction, probabilityOfNextToken = one_step_model.generate_one_step(inputTensor, nextToken, states=None)
         nextPredictedToken = nextPredictedToken.decode('utf-8')  
         
         lineLogfileToAnalyze = LogfileToAnalyze.readline()
@@ -120,7 +126,7 @@ def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token):
         if  (regexFound):
             tokenString = regexFound.string
             tokenString = tokenString.replace("\n", "")
-            replacement = tokenString + " Probability = " + "{:.2f}".format(probability) + ". Predicted: " + nextPredictedToken + " Probability: {:.2f}".format(probability) + ". " + "window = " + window[window_size - 2] 
+            replacement = tokenString + " Probability = " + "{:.2f}".format(probabilityOfNextToken) + ". Predicted: " + nextPredictedToken + ". Probability: {:.2f}".format(probabilityPrediction) + ". " + "window = " + window[window_size - 2] 
             lineLogfileToAnalyze = lineLogfileToAnalyze.replace(tokenString, replacement)
             LogfileAnalyzed.write(lineLogfileToAnalyze)
         if (i % 100 == 0):
@@ -151,6 +157,8 @@ elif (trainingSet == 3):
 OriginalTokenFileName       = Directory + os.path.sep + "Tokens.dat"
 
 OutputDirectory             = Directory + os.path.sep + "out"
+ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
+
 VocabularyFile              = OutputDirectory + os.path.sep + "TokenfileOnlyTokens.dat"
 
 ModelDirectory              = OutputDirectory + os.path.sep + "SavedModel"
@@ -241,6 +249,14 @@ if ((model is None) or (force_train_model)):
 ############################################################################################# Use the model
 
 
+losstraining     = verification(datasetForTraining2)
+lossverification = verification(datasetForVerification)
+scoreString = "loss at training: " + str(losstraining) + ", Loss at verification: " + str(lossverification)
+print(scoreString)
+
+AddScoresToScoreFile(ScoreFile, scoreString)
+
+
 verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
 tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
 AddProbabilitiesToLogFile(model, tokenLogfileToProcess, token_from_id, id_from_token)
@@ -248,7 +264,7 @@ AddProbabilitiesToLogFile(model, tokenLogfileToProcess, token_from_id, id_from_t
 
 
 
-calculateAverage = 1
+calculateAverage = 0
 
 
 if (calculateAverage):
@@ -278,10 +294,6 @@ if (calculateAverage):
         Accumulator = Accumulator + probability
     
 
-
-losstraining     = verification(datasetForTraining2)
-lossverification = verification(datasetForVerification)
-print("losstraining, lossverification: " , losstraining, lossverification)
 
 end = time.time()
 

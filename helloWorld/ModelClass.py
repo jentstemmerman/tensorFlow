@@ -72,10 +72,11 @@ class OneStep(tf.keras.Model):
 
     # Convert from token ids to characters
     predicted_token = (self.Tokens_from_ids(predicted_id)).numpy()
-    probabilityPredictedToken = self.GetProbabilityFromLogits(predicted_logits[0,:], predicted_id)
+    softmaxLogits = tf.nn.softmax(predicted_logits[0,:])
+    probabilityPredictedToken = self.GetProbabilityFromLogits(softmaxLogits, predicted_id)
     
     nexttokenId = self.ids_from_tokens(nextToken).numpy()
-    probabilityNextToken = self.GetProbabilityFromLogits(predicted_logits[0,:], nexttokenId)
+    probabilityNextToken = self.GetProbabilityFromLogits(softmaxLogits, nexttokenId)
     # Return the characters and model state.
     return predicted_token, probabilityPredictedToken, probabilityNextToken
   

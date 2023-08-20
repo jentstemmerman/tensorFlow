@@ -63,7 +63,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectoryTraining):
             datasetForTraining = datasetForTraining.concatenate(sequences.map(TokenParser.split_input_target))
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
-        return datasetForTraining
+    return datasetForTraining
 
 
 def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
@@ -139,7 +139,7 @@ def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = False
+force_train_model = True
 
 EPOCHS = 10
 seq_length = 10

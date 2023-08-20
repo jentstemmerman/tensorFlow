@@ -48,7 +48,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectoryTraining):
     datasetForTraining = None
 
     while (tokenLogfileToProcess is not None):
-        print("adding " + tokenLogfileToProcess + " to the training dataset")
+        print("adding " + tokenLogfileToProcess + " to the dataset")
         logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
         TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
         ids_from_logfile = id_from_token(TrainingLogTensor)
@@ -63,6 +63,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectoryTraining):
             datasetForTraining = datasetForTraining.concatenate(sequences.map(TokenParser.split_input_target))
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
+        
     return datasetForTraining
 
 
@@ -85,7 +86,7 @@ def AddScoresToScoreFile(Scorefile, scoreString):
 
 
 
-def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token):
+def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token, PrintfFromToken):
     TestFileNumpyList = np.loadtxt(Logfile, delimiter=",", dtype=str)
     idsTestFile = id_from_token(TestFileNumpyList)
 
@@ -116,6 +117,7 @@ def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token):
         window    = TestFileNumpyList[i:i + window_size - 1]
         nextToken = TestFileNumpyList[i + window_size]
         idsLogFile = id_from_token(window) 
+        
         inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
         nextPredictedToken, probabilityPrediction, probabilityOfNextToken = one_step_model.generate_one_step(inputTensor, nextToken, states=None)
         nextPredictedToken = nextPredictedToken.decode('utf-8')  
@@ -126,7 +128,8 @@ def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token):
         if  (regexFound):
             tokenString = regexFound.string
             tokenString = tokenString.replace("\n", "")
-            replacement = tokenString + " Probability = " + "{:.2f}".format(probabilityOfNextToken) + ". Predicted: " + nextPredictedToken + ". Probability: {:.2f}".format(probabilityPrediction) + ". " + "window = " + window[window_size - 2] 
+            
+            replacement = tokenString + " Probability = " + "{:2.5f}".format(probabilityOfNextToken) + ". Predicted: " + nextPredictedToken + ". Probability: {:2.5f}".format(probabilityPrediction) + ". " + "window = " + window[window_size - 2] + "  " + PrintfFromToken[id_from_token(nextToken)] 
             lineLogfileToAnalyze = lineLogfileToAnalyze.replace(tokenString, replacement)
             LogfileAnalyzed.write(lineLogfileToAnalyze)
         if (i % 100 == 0):
@@ -139,7 +142,7 @@ def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = True
+force_train_model = False
 
 EPOCHS = 10
 seq_length = 10
@@ -167,7 +170,7 @@ VerificationDirectory       = Directory + os.path.sep + "Verification"
 OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
 OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
-
+PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
 ######################################################################################################
 id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
 
@@ -259,7 +262,7 @@ AddScoresToScoreFile(ScoreFile, scoreString)
 
 verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
 tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
-AddProbabilitiesToLogFile(model, tokenLogfileToProcess, token_from_id, id_from_token)
+AddProbabilitiesToLogFile(model, tokenLogfileToProcess, token_from_id, id_from_token, PrintfFromToken)
 
 
 

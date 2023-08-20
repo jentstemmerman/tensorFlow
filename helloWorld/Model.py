@@ -86,16 +86,16 @@ def AddScoresToScoreFile(Scorefile, scoreString):
 
 
 
-def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token, PrintfFromToken):
-    TestFileNumpyList = np.loadtxt(Logfile, delimiter=",", dtype=str)
+def AddProbabilitiesToLogFile(Model, LogfileVerification, token_from_id, id_from_token, PrintfFromToken):
+    TestFileNumpyList = np.loadtxt(LogfileVerification, delimiter=",", dtype=str)
     idsTestFile = id_from_token(TestFileNumpyList)
 
     one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
-    window_size = seq_length + 1
-    FileNameAnalyzed = Logfile.replace(".log", ".analyzedlog")
+    window_size = seq_length
+    FileNameAnalyzed = LogfileVerification.replace(".log", ".analyzedlog")
     
-    LogfileToAnalyze = open(Logfile         , "r", errors='ignore')
-    LogfileAnalyzed  = open(FileNameAnalyzed, "w")
+    LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
+    LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
 
     token_pattern = re.compile(".{1,2} .{1,2} .{1,2} .{1,2}")
     
@@ -109,36 +109,29 @@ def AddProbabilitiesToLogFile(Model, Logfile, token_from_id, id_from_token, Prin
                 lineLogfileToAnalyze = lineLogfileToAnalyze.replace(tokenString, tokenString + " Not Appl")
                 LogfileAnalyzed.write(lineLogfileToAnalyze)
             lineNumber = lineNumber + 1
-            if (lineNumber == window_size-1):
+            if (lineNumber == window_size):
                 break
 
     
     for i in range(TestFileNumpyList.shape[0] - (window_size + 1)):
-        window    = TestFileNumpyList[i:i + window_size - 1]
-        nextToken = TestFileNumpyList[i + window_size]
-        idsLogFile = id_from_token(window) 
+        window      = TestFileNumpyList[i:i + window_size]
+        nextToken   = TestFileNumpyList[i + window_size]
+        IdsInWindow = id_from_token(window) 
         
-        inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
+        inputTensor = tf.convert_to_tensor(IdsInWindow, dtype='int64')
         nextPredictedToken, probabilityPrediction, probabilityOfNextToken = one_step_model.generate_one_step(inputTensor, nextToken, states=None)
         nextPredictedToken = nextPredictedToken.decode('utf-8')  
         
-        lineLogfileToAnalyze = LogfileToAnalyze.readline()
-        regexFound = re.search(token_pattern, lineLogfileToAnalyze)
+        printf = PrintfFromToken[id_from_token(nextToken)]
+        lineToWrite = nextToken + " Probability = " + "{:2.5f}".format(probabilityOfNextToken) + ". Predicted: " + nextPredictedToken + ". Probability: {:2.5f}".format(probabilityPrediction) + ". " + "window = " + window[window_size - 2] + "  " + printf + "\n"
+        LogfileAnalyzed.write(lineToWrite)
 
-        if  (regexFound):
-            tokenString = regexFound.string
-            tokenString = tokenString.replace("\n", "")
-            
-            replacement = tokenString + " Probability = " + "{:2.5f}".format(probabilityOfNextToken) + ". Predicted: " + nextPredictedToken + ". Probability: {:2.5f}".format(probabilityPrediction) + ". " + "window = " + window[window_size - 2] + "  " + PrintfFromToken[id_from_token(nextToken)] 
-            lineLogfileToAnalyze = lineLogfileToAnalyze.replace(tokenString, replacement)
-            LogfileAnalyzed.write(lineLogfileToAnalyze)
         if (i % 100 == 0):
             print("annotating line " + str(i) + " of " + str(TestFileNumpyList.shape[0]))
 
     LogfileToAnalyze.close()
     LogfileAnalyzed.close()
 
-#tf.config.threading.set_intra_op_parallelism_threads(1)
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 

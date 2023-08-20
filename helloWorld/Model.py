@@ -122,7 +122,10 @@ def AddProbabilitiesToLogFile(Model, LogfileVerification, token_from_id, id_from
         nextPredictedToken, probabilityPrediction, probabilityOfNextToken = one_step_model.generate_one_step(inputTensor, nextToken, states=None)
         nextPredictedToken = nextPredictedToken.decode('utf-8')  
         
-        printf = PrintfFromToken[id_from_token(nextToken)]
+        if (nextToken == nextPredictedToken):
+            nextPredictedToken = "Identical  "
+                       
+        printf = PrintfFromToken[nextToken]
         lineToWrite = nextToken + " Probability = " + "{:2.5f}".format(probabilityOfNextToken) + ". Predicted: " + nextPredictedToken + ". Probability: {:2.5f}".format(probabilityPrediction) + ". " + "window = " + window[window_size - 2] + "  " + printf + "\n"
         LogfileAnalyzed.write(lineToWrite)
 

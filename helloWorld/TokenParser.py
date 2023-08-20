@@ -59,16 +59,17 @@ def GetTokenTranslation(TokenFile):
     # Tensorflow -> input_text: Tensorflo, target_text = ensorfloW
     Token_File = open(TokenFile, "r")
     TokenFileLines = Token_File.readlines()
-    ordered_list = []
     regular_expression_tokens = ".{1,2} .{1,2} .{1,2} .{1,2}"
     token_pattern = re.compile(regular_expression_tokens)
-    
+    dictionary = {}
+
     for line in TokenFileLines:
+        tokenString = re.search(token_pattern, line) 
         lineStripped = re.sub(token_pattern, "", line, count=1)
-        ordered_list.append(lineStripped.strip()) 
+        dictionary[tokenString.group()] = lineStripped[1:].strip()
           
         
-    return ordered_list
+    return dictionary
 
 import os
 

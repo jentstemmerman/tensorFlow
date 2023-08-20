@@ -57,7 +57,7 @@ class OneStep(tf.keras.Model):
   def generate_one_step(self, inputTensor, nextToken, states=None):
 
     # Run the model.
-    # predicted_logits.shape is [batch, char, next_char_logits]
+
     inputTensorExpanded = tf.expand_dims(inputTensor, 0)
     predicted_logits = self.model(inputs=inputTensorExpanded, states=states, return_state=False)
     # Only use the last prediction.
@@ -67,9 +67,9 @@ class OneStep(tf.keras.Model):
     #predicted_logits = predicted_logits + self.prediction_mask
     #predicted_id = tf.argmax(predicted_logits, axis=1)
     # Sample the output logits to generate token IDs.
-    predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
-    predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
-
+    #predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
+    #predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
+    predicted_id = tf.argmax(predicted_logits, axis=1).numpy()[0]
     # Convert from token ids to characters
     predicted_token = (self.Tokens_from_ids(predicted_id)).numpy()
     softmaxLogits = tf.nn.softmax(predicted_logits[0,:])

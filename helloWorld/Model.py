@@ -86,18 +86,17 @@ def AddScoresToScoreFile(Scorefile, scoreString):
 
 
 
-def AddProbabilitiesToLogFile(Model, LogfileVerification, token_from_id, id_from_token, PrintfFromToken):
+def AddProbabilitiesToLogFile(Model, LogfileVerification, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken):
     TestFileNumpyList = np.loadtxt(LogfileVerification, delimiter=",", dtype=str)
     idsTestFile = id_from_token(TestFileNumpyList)
 
     one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
     window_size = seq_length
-    FileNameAnalyzed = LogfileVerification.replace(".log", ".analyzedlog")
     
     LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
-    LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
+    LogfileAnalyzed  = open(LogfileAnalyzed,    "w")
 
-    token_pattern = re.compile(".{1,2} .{1,2} .{1,2} .{1,2}")
+    token_pattern = re.compile(TokenParser.ReForTokens)
     
     lineNumber = 0
 
@@ -119,7 +118,7 @@ def AddProbabilitiesToLogFile(Model, LogfileVerification, token_from_id, id_from
         IdsInWindow = id_from_token(window) 
         
         inputTensor = tf.convert_to_tensor(IdsInWindow, dtype='int64')
-        nextPredictedToken, probabilityPrediction, probabilityOfNextToken = one_step_model.generate_one_step(inputTensor, nextToken, states=None)
+        nextPredictedToken, probabilityPrediction, probabilityOfNextToken = one_step_model.generate_one_step(tf.expand_dims(inputTensor, 0), nextToken, states=None)
         nextPredictedToken = nextPredictedToken.decode('utf-8')  
         
         if (nextToken == nextPredictedToken):
@@ -135,6 +134,84 @@ def AddProbabilitiesToLogFile(Model, LogfileVerification, token_from_id, id_from
     LogfileToAnalyze.close()
     LogfileAnalyzed.close()
 
+
+
+def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken):
+    TestFileNumpyList = np.loadtxt(LogfileVerification, delimiter=",", dtype=str)
+    idsTestFile = id_from_token(TestFileNumpyList)
+
+    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
+    window_size = seq_length
+
+    
+    LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
+    LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
+
+    token_pattern = re.compile(TokenParser.ReForTokens)
+    
+    lineNumber = 0
+
+    for lineLogfileToAnalyze in LogfileToAnalyze:
+            regexFound = re.search(token_pattern, lineLogfileToAnalyze)
+            if  (regexFound):
+                tokenString = regexFound.string
+                tokenString = tokenString.replace("\n", "")
+                lineLogfileToAnalyze = lineLogfileToAnalyze.replace(tokenString, tokenString + " Not Appl")
+                LogfileAnalyzed.write(lineLogfileToAnalyze)
+            lineNumber = lineNumber + 1
+            if (lineNumber == window_size):
+                break
+
+    endIndex = TestFileNumpyList.shape[0] - window_size
+    i = 0
+    maxNumberOfParallelExecutions = 100
+
+    while (i <= endIndex):
+        
+        numberOfParallelExecutions = min(endIndex - i + 1, maxNumberOfParallelExecutions)
+        inputTensor = []
+        nexttokenIds = []
+        Windows = []
+        y = 0
+
+        while (y < numberOfParallelExecutions):
+            window      = TestFileNumpyList[i:i + window_size]
+            nextToken   = TestFileNumpyList[i + window_size]
+            IdsInWindow = id_from_token(window) 
+            NextId      = id_from_token(nextToken) 
+
+            Windows.append(window)
+
+            tempTensor = tf.convert_to_tensor(IdsInWindow, dtype='int64')
+            inputTensor.append(tempTensor)
+            
+            nexttokenId = id_from_token(nextToken)
+            nexttokenId = tf.convert_to_tensor(nexttokenId, dtype='int64')
+            nexttokenIds.append(nexttokenId)  # make it a list of tensors
+
+            i += 1
+            y += 1
+
+        inputTensor = tf.stack(inputTensor, axis=0)
+        nexttokenIds = tf.stack(nexttokenIds, axis=0)
+        y = 0
+
+        while (y < numberOfParallelExecutions):
+            nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
+            nextPredictedTokens[y] = nextPredictedTokens[y].decode('utf-8')  
+            if (nexttokenIds.numpy()[y] == nextPredictedTokens[y]):
+                nextPredictedToken = "Identical  "
+            
+            printf = PrintfFromToken[nextToken]
+            lineToWrite = token_from_id(nexttokenIds.numpy()[y]).numpy().decode('utf-8')   + " Probability = " + "{:2.5f}".format((probabilityOfNextTokens[y]).numpy()) + ". Predicted: " + nextPredictedTokens[y] + ". Probability: {:2.5f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " + printf + "\n"
+            LogfileAnalyzed.write(lineToWrite)
+            print("annotating line " + str(i) + " of " + str(TestFileNumpyList.shape[0]))
+            y += 1
+       
+        i += 1
+
+    LogfileToAnalyze.close()
+    LogfileAnalyzed.close()
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
@@ -152,6 +229,10 @@ elif (trainingSet == 2):
     Directory = "TrainingSet2"
 elif (trainingSet == 3):
     Directory = "TrainingSet3"
+elif (trainingSet == 4):
+    Directory = "TrainingSet4"
+elif (trainingSet == 5):
+    Directory = "TrainingSet5"
 
 OriginalTokenFileName       = Directory + os.path.sep + "Tokens.dat"
 
@@ -258,7 +339,10 @@ AddScoresToScoreFile(ScoreFile, scoreString)
 
 verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
 tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
-AddProbabilitiesToLogFile(model, tokenLogfileToProcess, token_from_id, id_from_token, PrintfFromToken)
+LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlogparallel")
+#AddProbabilitiesToParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
+LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlog")
+AddProbabilitiesToLogFile(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
 
 
 

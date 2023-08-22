@@ -1,14 +1,16 @@
 import re
 from pathlib import Path
 
+ReForTokens = "[0-9A-F]{2}(?:\s[0-9A-F]{2}){3}"
+
 def process_files(input_file, output_file):
     reading_file      = open(input_file,  "r", errors='ignore')
     
     file = Path(output_file)
     file.parent.mkdir(parents=True, exist_ok=True)
     LogfileOnlyTokens = open(output_file, "w")
-    regular_expression_tokens = ".{1,2} .{1,2} .{1,2} .{1,2}"
-    token_pattern = re.compile(regular_expression_tokens)
+                                        
+    token_pattern = re.compile(ReForTokens)
 
     for line in reading_file:
         line = line.strip()
@@ -59,8 +61,7 @@ def GetTokenTranslation(TokenFile):
     # Tensorflow -> input_text: Tensorflo, target_text = ensorfloW
     Token_File = open(TokenFile, "r")
     TokenFileLines = Token_File.readlines()
-    regular_expression_tokens = ".{1,2} .{1,2} .{1,2} .{1,2}"
-    token_pattern = re.compile(regular_expression_tokens)
+    token_pattern = re.compile(ReForTokens)
     dictionary = {}
 
     for line in TokenFileLines:

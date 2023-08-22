@@ -48,18 +48,27 @@ class OneStep(tf.keras.Model):
         dense_shape=[len(ids_from_tokens.get_vocabulary())])
     self.prediction_mask = tf.sparse.to_dense(sparse_mask)
 
-
   def GetProbabilityFromLogits(self, logits, id):
     probability = logits[id].numpy()
     return probability
+
+  def GetProbabilitiesFromLogits(self, logits, id):
+    print("Shape of logits:", logits.shape)
+    print("Shape of id:", id.shape)
+    #id = tf.transpose(tf.expand_dims(id, axis=1))
+    print("Shape of id:", id.shape)
+    probabilities = tf.gather(logits, id, axis=1, batch_dims=1)
+
+
+    print("Shape probabilities: ", probabilities.shape)
+
+    return probabilities
   
  # @tf.function #  JENTS: this is a decorator. tf.function gets generate_one_step as an argument ( including parameters ) and does optimisation 
   def generate_one_step(self, inputTensor, nextToken, states=None):
 
     # Run the model.
-
-    inputTensorExpanded = tf.expand_dims(inputTensor, 0)
-    predicted_logits = self.model(inputs=inputTensorExpanded, states=states, return_state=False)
+    predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
     # Only use the last prediction.
     predicted_logits = predicted_logits[:, -1, :]
     #predicted_logits = predicted_logits/self.temperature
@@ -80,3 +89,26 @@ class OneStep(tf.keras.Model):
     # Return the characters and model state.
     return predicted_token, probabilityPredictedToken, probabilityNextToken
   
+  def generate_steps(self, inputTensor, nexttokenId, states=None):
+
+    # Run the model.
+    predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
+    # Only use the last prediction.
+    predicted_logits = predicted_logits[:, -1, :]
+    #predicted_logits = predicted_logits/self.temperature
+    # Apply the prediction mask: prevent "[UNK]" from being generated.
+    #predicted_logits = predicted_logits + self.prediction_mask
+    #predicted_id = tf.argmax(predicted_logits, axis=1)
+    # Sample the output logits to generate token IDs.
+    #predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
+    #predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
+    predicted_id = tf.argmax(predicted_logits, axis=1)
+    # Convert from token ids to characters
+    predicted_tokens = (self.Tokens_from_ids(predicted_id)).numpy()
+    softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
+    probabilityPredictedToken = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id)
+    
+
+    probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, nexttokenId)
+    # Return the characters and model state.
+    return predicted_tokens, probabilityPredictedToken, probabilityNextToken

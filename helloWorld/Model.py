@@ -195,15 +195,18 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
         inputTensor = tf.stack(inputTensor, axis=0)
         nexttokenIds = tf.stack(nexttokenIds, axis=0)
         y = 0
+        nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
 
         while (y < numberOfParallelExecutions):
-            nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
             nextPredictedTokens[y] = nextPredictedTokens[y].decode('utf-8')  
-            if (nexttokenIds.numpy()[y] == nextPredictedTokens[y]):
+            nextToken = token_from_id(nexttokenIds.numpy()[y]).numpy().decode('utf-8')
+            nextPredictedToken = nextPredictedTokens[y]
+            if (nextToken == nextPredictedToken):
                 nextPredictedToken = "Identical  "
+
             
             printf = PrintfFromToken[nextToken]
-            lineToWrite = token_from_id(nexttokenIds.numpy()[y]).numpy().decode('utf-8')   + " Probability = " + "{:2.5f}".format((probabilityOfNextTokens[y]).numpy()) + ". Predicted: " + nextPredictedTokens[y] + ". Probability: {:2.5f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " + printf + "\n"
+            lineToWrite = nextToken  + " Probability = " + "{:2.5f}".format((probabilityOfNextTokens[y]).numpy()) + ". Predicted: " + nextPredictedToken + ". Probability: {:2.5f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " + printf + "\n"
             LogfileAnalyzed.write(lineToWrite)
             print("annotating line " + str(i) + " of " + str(TestFileNumpyList.shape[0]))
             y += 1
@@ -216,6 +219,7 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 # https://www.tensorflow.org/text/tutorials/text_generation
 
 force_train_model = False
+
 
 EPOCHS = 10
 seq_length = 10
@@ -242,6 +246,16 @@ ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
 VocabularyFile              = OutputDirectory + os.path.sep + "TokenfileOnlyTokens.dat"
 
 ModelDirectory              = OutputDirectory + os.path.sep + "SavedModel"
+
+if (force_train_model):
+    model = None
+else:
+    try:
+        model = tf.keras.models.load_model(ModelDirectory, compile=True)
+    except:
+        model = None
+train_model = (model == None)
+
 TrainingDirectory           = Directory + os.path.sep + "Training"
 VerificationDirectory       = Directory + os.path.sep + "Verification"
 OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
@@ -252,44 +266,49 @@ PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
 id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
 
 ################# Create a dataset for training and throw all files that are in the training output dir in it
-datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining)        
-datasetForTraining2 = datasetForTraining  # for the losstraining
+if (train_model):
+    datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining)        
+    datasetForTraining2 = datasetForTraining  # for the losstraining
+
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
 datasetForVerification = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification)    
 
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
-CrossReferenceResultTraining     = TokenParser.CrossReferenceTokens(OutputDirectoryTraining, VocabularyFile)
+
+
+if (train_model):
+    CrossReferenceResultTraining = TokenParser.CrossReferenceTokens(OutputDirectoryTraining, VocabularyFile)
+else:
+    CrossReferenceResultTraining = 0
+
 CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
 
 if (CrossReferenceResultTraining == -1) or (CrossReferenceResultVerification == -1):
     print("Logfile contains tokens that are not in the tokenfile!!")
     exit()
 
-try:
-    model = tf.keras.models.load_model(ModelDirectory, compile=True)
-except:
-    model = None
 
-# jents: organize them in batches and also shuffle .
-# Batch size
-BATCH_SIZE = 32
+if (train_model):
 
-# Buffer size to shuffle the dataset
-# (TF data is designed to work with possibly infinite sequences,
-# so it doesn't attempt to shuffle the entire sequence in memory. Instead,
-# it maintains a buffer in which it shuffles elements).
-BUFFER_SIZE = 10000
+    # jents: organize them in batches and also shuffle .
+    # Batch size
+    BATCH_SIZE = 32
 
-datasetForTraining = (
-    datasetForTraining
-    .shuffle(BUFFER_SIZE)
-    .batch(BATCH_SIZE, drop_remainder=True)
-    .prefetch(tf.data.experimental.AUTOTUNE))
+    # Buffer size to shuffle the dataset
+    # (TF data is designed to work with possibly infinite sequences,
+    # so it doesn't attempt to shuffle the entire sequence in memory. Instead,
+    # it maintains a buffer in which it shuffles elements).
+    BUFFER_SIZE = 10000
 
-datasetForTraining  # python convention to show the variable is ready
+    datasetForTraining = (
+        datasetForTraining
+        .shuffle(BUFFER_SIZE)
+        .batch(BATCH_SIZE, drop_remainder=True)
+        .prefetch(tf.data.experimental.AUTOTUNE))
 
-if ((model is None) or (force_train_model)):
-    model = None
+    datasetForTraining  # python convention to show the variable is ready
+
+
     
     # The embedding dimension, to be checked out
     embedding_dim = 256
@@ -328,19 +347,23 @@ if ((model is None) or (force_train_model)):
 
 ############################################################################################# Use the model
 
+if (train_model):
+    losstraining     = str(verification(datasetForTraining2))
+else:
+    losstraining = "Not Appl"
 
-losstraining     = verification(datasetForTraining2)
-lossverification = verification(datasetForVerification)
-scoreString = "loss at training: " + str(losstraining) + ", Loss at verification: " + str(lossverification)
+lossverification = str(verification(datasetForVerification))
+scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
 print(scoreString)
 
-AddScoresToScoreFile(ScoreFile, scoreString)
+if (train_model):
+    AddScoresToScoreFile(ScoreFile, scoreString)
 
 
 verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
 tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
 LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlogparallel")
-#AddProbabilitiesToParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
+AddProbabilitiesToParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
 LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlog")
 AddProbabilitiesToLogFile(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
 

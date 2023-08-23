@@ -164,7 +164,7 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 
     endIndex = TestFileNumpyList.shape[0] - window_size
     i = 0
-    maxNumberOfParallelExecutions = 100
+    maxNumberOfParallelExecutions = 200
 
     while (i <= endIndex):
         
@@ -196,7 +196,8 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
         nexttokenIds = tf.stack(nexttokenIds, axis=0)
         y = 0
         nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
-
+        print("annotating line " + str(i) + " of " + str(TestFileNumpyList.shape[0]))
+        
         while (y < numberOfParallelExecutions):
             nextPredictedTokens[y] = nextPredictedTokens[y].decode('utf-8')  
             nextToken = token_from_id(nexttokenIds.numpy()[y]).numpy().decode('utf-8')
@@ -208,10 +209,10 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
             printf = PrintfFromToken[nextToken]
             lineToWrite = nextToken  + " Probability = " + "{:2.5f}".format((probabilityOfNextTokens[y]).numpy()) + ". Predicted: " + nextPredictedToken + ". Probability: {:2.5f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " + printf + "\n"
             LogfileAnalyzed.write(lineToWrite)
-            print("annotating line " + str(i) + " of " + str(TestFileNumpyList.shape[0]))
+            
             y += 1
-       
-        i += 1
+        
+        
 
     LogfileToAnalyze.close()
     LogfileAnalyzed.close()

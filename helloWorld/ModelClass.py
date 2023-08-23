@@ -53,14 +53,7 @@ class OneStep(tf.keras.Model):
     return probability
 
   def GetProbabilitiesFromLogits(self, logits, id):
-    print("Shape of logits:", logits.shape)
-    print("Shape of id:", id.shape)
-    #id = tf.transpose(tf.expand_dims(id, axis=1))
-    print("Shape of id:", id.shape)
     probabilities = tf.gather(logits, id, axis=1, batch_dims=1)
-
-
-    print("Shape probabilities: ", probabilities.shape)
 
     return probabilities
   

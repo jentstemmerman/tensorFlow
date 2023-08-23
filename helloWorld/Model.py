@@ -166,6 +166,7 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
     i = 0
     maxNumberOfParallelExecutions = 200
 
+
     while (i <= endIndex):
         
         numberOfParallelExecutions = min(endIndex - i + 1, maxNumberOfParallelExecutions)
@@ -221,6 +222,8 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 
 force_train_model = False
 
+#tf.config.threading.set_inter_op_parallelism_threads(4)
+#tf.config.threading.set_intra_op_parallelism_threads(4)
 
 EPOCHS = 10
 seq_length = 10

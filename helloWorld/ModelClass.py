@@ -1,4 +1,5 @@
 import tensorflow as tf
+import sys
 from tensorflow import keras
 
 class PrintfLogModel(tf.keras.Model):
@@ -25,6 +26,19 @@ class PrintfLogModel(tf.keras.Model):
     else:
       return x
     
+  def save_model_summary_to_file(self, file_path):
+    # Open a file in write mode
+    with open(file_path, 'w') as f:
+        # Redirect the standard output to the file
+        original_stdout = sys.stdout
+        sys.stdout = f
+
+        # Print the model summary
+        self.summary()
+
+        # Reset the standard output
+        sys.stdout = original_stdout
+
 
     
     

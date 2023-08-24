@@ -169,7 +169,10 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 
     while (i <= endIndex):
         
-        numberOfParallelExecutions = min(endIndex - i + 1, maxNumberOfParallelExecutions)
+        numberOfParallelExecutions = min(endIndex - i, maxNumberOfParallelExecutions)
+        if (numberOfParallelExecutions == 0):
+            break
+
         inputTensor = []
         nexttokenIds = []
         Windows = []
@@ -192,7 +195,7 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 
             i += 1
             y += 1
-
+    
         inputTensor = tf.stack(inputTensor, axis=0)
         nexttokenIds = tf.stack(nexttokenIds, axis=0)
         y = 0
@@ -246,7 +249,7 @@ OriginalTokenFileName       = Directory + os.path.sep + "Tokens.dat"
 
 OutputDirectory             = Directory + os.path.sep + "out"
 ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
-
+SummaryFile                 = OutputDirectory + os.path.sep + "Summary.txt"
 VocabularyFile              = OutputDirectory + os.path.sep + "TokenfileOnlyTokens.dat"
 
 ModelDirectory              = OutputDirectory + os.path.sep + "SavedModel"
@@ -359,6 +362,7 @@ else:
 lossverification = str(verification(datasetForVerification))
 scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
 print(scoreString)
+model.save_model_summary_to_file(SummaryFile)
 
 if (train_model):
     AddScoresToScoreFile(ScoreFile, scoreString)

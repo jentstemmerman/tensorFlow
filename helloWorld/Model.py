@@ -40,31 +40,55 @@ def verification(datasetForVerification):
     return batch_mean_loss.numpy()
 
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectoryTraining):
-    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectoryTraining)
+
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSamples=None, removeDuplicates=False):
+    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory)
     ################# Create a dataset for training and throw all files that are in the training output dir in it
-    TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectoryTraining)
+    TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)
     tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
-    datasetForTraining = None
+    dataset = None
 
     while (tokenLogfileToProcess is not None):
         print("adding " + tokenLogfileToProcess + " to the dataset")
-        logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+
+        if ((ReductionInSamples is not None) and (ReductionInSamples is not 0)):
+            logTokenNumpyListTemp = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+            num_lines = len(logTokenNumpyListTemp)
+            num_linesToRead = int(num_lines / ReductionInSamples)
+            logTokenNumpyList = []
+
+            start_index = np.random.randint(0, num_lines - (seq_length + 1))
+            random_lines = logTokenNumpyListTemp[start_index:start_index + (seq_length + 1)]
+            logTokenNumpyList = random_lines
+            
+            for i in range(num_linesToRead):
+                start_index = np.random.randint(0, num_lines - (seq_length + 1))
+                random_lines = logTokenNumpyListTemp[start_index:start_index + (seq_length + 1)]
+                logTokenNumpyList = np.vstack((logTokenNumpyList, random_lines))
+        else:
+            logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+
         TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
         ids_from_logfile = id_from_token(TrainingLogTensor)
         sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
         # each sequence entry contains seq_length number of elements
         sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
         # run the function split_input_target accross all entries of sequences
-        if (datasetForTraining == None):
-            datasetForTraining = sequences.map(TokenParser.split_input_target)
+        if (dataset == None):
+            dataset = sequences.map(TokenParser.split_input_target)
             
         else:
-            datasetForTraining = datasetForTraining.concatenate(sequences.map(TokenParser.split_input_target))
+            dataset = dataset.concatenate(sequences.map(TokenParser.split_input_target))
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
         
-    return datasetForTraining
+        dataset_size_before = len(dataset)
+        if (removeDuplicates):
+            dataset = dataset.unique()
+        
+        dataset_size = len(dataset)
+
+    return dataset
 
 
 def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
@@ -135,6 +159,16 @@ def AddProbabilitiesToLogFile(Model, LogfileVerification, LogfileAnalyzed, token
     LogfileAnalyzed.close()
 
 
+def AnalyzeFiles(directory):
+
+    verificationFileIterator = TokenParser.LogfileIterator(directory)
+    
+    while (tokenLogfileToProcess is not None):
+        tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
+        LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlogparallel")
+        AddProbabilitiesToParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
+
+        tokenLogfileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
 def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken):
     TestFileNumpyList = np.loadtxt(LogfileVerification, delimiter=",", dtype=str)
@@ -223,14 +257,14 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = False
-
+force_train_model = True
+#os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
 EPOCHS = 10
 seq_length = 10
-trainingSet = 3
+trainingSet = 4
 
 start = time.time()
 
@@ -274,7 +308,8 @@ id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileN
 
 ################# Create a dataset for training and throw all files that are in the training output dir in it
 if (train_model):
-    datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining)        
+    removeDuplicates = True
+    datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
     datasetForTraining2 = datasetForTraining  # for the losstraining
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
@@ -305,7 +340,7 @@ if (train_model):
     # (TF data is designed to work with possibly infinite sequences,
     # so it doesn't attempt to shuffle the entire sequence in memory. Instead,
     # it maintains a buffer in which it shuffles elements).
-    BUFFER_SIZE = 10000
+    BUFFER_SIZE = 100000
 
     datasetForTraining = (
         datasetForTraining
@@ -370,12 +405,13 @@ if (train_model):
 
 verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
 tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
-LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlogparallel")
-AddProbabilitiesToParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
-LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlog")
-AddProbabilitiesToLogFile(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
 
+while (tokenLogfileToProcess is not None):
 
+    LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlogparallel")
+    AddProbabilitiesToParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
+
+    tokenLogfileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
 
 calculateAverage = 0
@@ -387,8 +423,7 @@ if (calculateAverage):
 
     if (tokenLogfileToProcess == None):
         exit()
-
-    
+  
 
     TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
 

@@ -4,27 +4,28 @@ from pathlib import Path
 ReForTokens = "[0-9A-F]{2}(?:\s[0-9A-F]{2}){3}"
 
 def process_files(input_file, output_file):
-    reading_file      = open(input_file,  "r", errors='ignore')
-    
-    file = Path(output_file)
-    file.parent.mkdir(parents=True, exist_ok=True)
-    LogfileOnlyTokens = open(output_file, "w")
-                                        
-    token_pattern = re.compile(ReForTokens)
-
-    for line in reading_file:
-        line = line.strip()
-        line = line[0:20]
+    if (not os.path.exists(output_file)):
+        reading_file      = open(input_file,  "r", errors='ignore')
         
-        stripped_line = re.search(token_pattern, line)
+        file = Path(output_file)
+        file.parent.mkdir(parents=True, exist_ok=True)
+        LogfileOnlyTokens = open(output_file, "w")
+                                            
+        token_pattern = re.compile(ReForTokens)
 
-        if  (stripped_line):
-            stripped_line_string = stripped_line.group()
-            stripped_line_string = stripped_line_string + '\n'
-            LogfileOnlyTokens.write(stripped_line_string)
-        
-    reading_file.close()
-    LogfileOnlyTokens.close()
+        for line in reading_file:
+            line = line.strip()
+            line = line[0:20]
+            
+            stripped_line = re.search(token_pattern, line)
+
+            if  (stripped_line):
+                stripped_line_string = stripped_line.group()
+                stripped_line_string = stripped_line_string + '\n'
+                LogfileOnlyTokens.write(stripped_line_string)
+            
+        reading_file.close()
+        LogfileOnlyTokens.close()
 
 def CrossReferenceTokens(directory, TokenFile):
     for root, dirs, files in os.walk(directory):
@@ -81,6 +82,7 @@ def process_log_files_to_tokens_recursive(directory, outputDirectory):
                 full_path = os.path.join(root, filename)
                 # Do something with the content of the log file
                 outputFile = outputDirectory + "/" + filename.replace(".log", "") + "_onlyTokens.log" 
+                
                 process_files(full_path, outputFile)
 
 

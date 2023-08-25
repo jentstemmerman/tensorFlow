@@ -11,6 +11,9 @@ class PrintfLogModel(tf.keras.Model):
     self.gru = tf.keras.layers.GRU(rnn_units,
                                    return_sequences=True,
                                    return_state=True)
+    self.gru2 = tf.keras.layers.GRU(rnn_units,
+                                return_sequences=True,
+                                return_state=True)
     self.dense = tf.keras.layers.Dense(vocab_size)
 
   def call(self, inputs, states=None, return_state=False, training=False):
@@ -18,7 +21,14 @@ class PrintfLogModel(tf.keras.Model):
     x = self.embedding(x, training=training)
     if states is None:
       states = self.gru.get_initial_state(x)
+      
     x, states = self.gru(x, initial_state=states, training=training)
+
+    if states is None:
+      states = self.gru2.get_initial_state(x)
+
+    x, states = self.gru2(x, initial_state=states, training=training)
+
     x = self.dense(x, training=training)
 
     if return_state:

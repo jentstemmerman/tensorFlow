@@ -71,8 +71,14 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
         TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
         ids_from_logfile = id_from_token(TrainingLogTensor)
         sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+        
         # each sequence entry contains seq_length number of elements
         sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
+
+        if (removeDuplicates):
+            sequences2 = sequences
+            sequences = sequences.unique()
+
         # run the function split_input_target accross all entries of sequences
         if (dataset == None):
             dataset = sequences.map(TokenParser.split_input_target)
@@ -82,12 +88,6 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
         
-        dataset_size_before = len(dataset)
-        if (removeDuplicates):
-            dataset = dataset.unique()
-        
-        dataset_size = len(dataset)
-
     return dataset
 
 
@@ -309,7 +309,7 @@ id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileN
 ################# Create a dataset for training and throw all files that are in the training output dir in it
 if (train_model):
     removeDuplicates = True
-    datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+    datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, removeDuplicates=removeDuplicates) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
     datasetForTraining2 = datasetForTraining  # for the losstraining
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it

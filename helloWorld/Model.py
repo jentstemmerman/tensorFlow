@@ -8,12 +8,18 @@ import ModelClass
 import os
 import re
 
+# To only run on the cpu:
+#os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+#os.environ["CUDA_VISIBLE_DEVICES"]=""  # or even "-1"
+
+
+
 # this gives a high result
-def verification(datasetForVerification):
+def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
     stacked_Predicted_Output_tensor = None
     stacked_realOutput_tensor       = None
 
-    for input_example_batch, target_example_batch in datasetForVerification.take(200):
+    for input_example_batch, target_example_batch in datasetForVerification.take(NumberOfSamples):
         inputTensorExpanded = tf.expand_dims(input_example_batch, 0)
         outputTensorExpanded = tf.expand_dims(target_example_batch, 0)
         example_batch_predictions = model(inputTensorExpanded, return_state=False)
@@ -38,8 +44,6 @@ def verification(datasetForVerification):
     print("Mean loss exp:        ", tf.exp(batch_mean_loss).numpy())
 
     return batch_mean_loss.numpy()
-
-
 
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSamples=None, removeDuplicates=False):
     TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory)
@@ -71,8 +75,9 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
         TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
         ids_from_logfile = id_from_token(TrainingLogTensor)
         sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
-        
-        # each sequence entry contains seq_length number of elements
+     
+       
+        # each sequence entry contains seq_length + 1 number of elements
         sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
 
         if (removeDuplicates):
@@ -320,7 +325,7 @@ OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
 ######################################################################################################
 id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
-
+t
 ################# Create a dataset for training and throw all files that are in the training output dir in it
 if (train_model):
     datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, removeDuplicates=removeDuplicates) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
@@ -397,15 +402,17 @@ if (train_model):
 
 ############################################################################################# Use the model
 
+NumberOfSamplesForLossCalculation = 2000 
+print("Calculation loss function: ")
 if (train_model):
-    losstraining     = str(verification(datasetForTraining2))
+    losstraining     = str(CalculateLossCrossEntropy(datasetForTraining2, NumberOfSamplesForLossCalculation))
 else:
     losstraining = "Not Appl"
 
-lossverification = str(verification(datasetForVerification))
+lossverification = str(CalculateLossCrossEntropy(datasetForVerification, NumberOfSamplesForLossCalculation))
 scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
 print(scoreString)
-#model.save_model_summary_to_file(SummaryFile)
+model.save_model_summary_to_file(SummaryFile)
 
 if (train_model):
     AddScoresToScoreFile(ScoreFile, scoreString)

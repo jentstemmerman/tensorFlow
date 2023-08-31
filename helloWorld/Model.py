@@ -51,7 +51,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
     while (tokenLogfileToProcess is not None):
         print("adding " + tokenLogfileToProcess + " to the dataset")
 
-        if ((ReductionInSamples is not None) and (ReductionInSamples is not 0)):
+        if ((ReductionInSamples is not None) and (ReductionInSamples != 0)):
             logTokenNumpyListTemp = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
             num_lines = len(logTokenNumpyListTemp)
             num_linesToRead = int(num_lines / ReductionInSamples)
@@ -212,6 +212,7 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
         Windows = []
         y = 0
 
+        startTime = time.time()
         while (y < numberOfParallelExecutions):
             window      = TestFileNumpyList[i:i + window_size]
             nextToken   = TestFileNumpyList[i + window_size]
@@ -233,8 +234,12 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
         inputTensor = tf.stack(inputTensor, axis=0)
         nexttokenIds = tf.stack(nexttokenIds, axis=0)
         y = 0
+        
+        
         nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
-        print("annotating line " + str(i) + " of " + str(TestFileNumpyList.shape[0]))
+        
+        
+        
         
         while (y < numberOfParallelExecutions):
             nextPredictedTokens[y] = nextPredictedTokens[y].decode('utf-8')  
@@ -250,7 +255,10 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
             
             y += 1
         
-        
+        Endtime = time.time()
+
+        print("annotated line " + str(i+y) + " of " + str(TestFileNumpyList.shape[0]) + ". Number of lines per second: {:2.2f}".format((numberOfParallelExecutions / (Endtime - startTime) )))
+
 
     LogfileToAnalyze.close()
     LogfileAnalyzed.close()
@@ -262,9 +270,16 @@ force_train_model = True
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
-EPOCHS = 10
+EPOCHS = 8
 seq_length = 10
-trainingSet = 4
+trainingSet = 3
+removeDuplicates = False
+
+# The embedding dimension: the output dimension of the embedding layer.
+embedding_dim = 256
+
+# Number of RNN units, to be checked out
+rnn_units = 512  
 
 start = time.time()
 
@@ -308,7 +323,6 @@ id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileN
 
 ################# Create a dataset for training and throw all files that are in the training output dir in it
 if (train_model):
-    removeDuplicates = True
     datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, removeDuplicates=removeDuplicates) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
     datasetForTraining2 = datasetForTraining  # for the losstraining
 
@@ -352,12 +366,6 @@ if (train_model):
 
 
     
-    # The embedding dimension, to be checked out
-    embedding_dim = 256
-
-    # Number of RNN units, to be checked out
-    rnn_units = 1024  
-
     model = ModelClass.PrintfLogModel(
         vocab_size=len(id_from_token.get_vocabulary()),
         embedding_dim=embedding_dim,
@@ -397,7 +405,7 @@ else:
 lossverification = str(verification(datasetForVerification))
 scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
 print(scoreString)
-model.save_model_summary_to_file(SummaryFile)
+#model.save_model_summary_to_file(SummaryFile)
 
 if (train_model):
     AddScoresToScoreFile(ScoreFile, scoreString)

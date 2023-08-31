@@ -270,7 +270,7 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = True
+force_train_model = False
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
@@ -325,7 +325,7 @@ OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
 ######################################################################################################
 id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
-t
+
 ################# Create a dataset for training and throw all files that are in the training output dir in it
 if (train_model):
     datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, removeDuplicates=removeDuplicates) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        

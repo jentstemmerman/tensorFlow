@@ -115,7 +115,7 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
     return id_from_token, token_from_id
 
 def AddScoresToScoreFile(Scorefile, scoreString):
-    Scorefilehandle  = open(Scorefile, "w")
+    Scorefilehandle = open(Scorefile, "w")
     Scorefilehandle.write(scoreString)
     Scorefilehandle.close()
 
@@ -272,12 +272,12 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = True
+force_train_model = False
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
-EPOCHS = 8
+EPOCHS = 3
 seq_length = 20
 trainingSet = 3
 removeDuplicates = False
@@ -401,20 +401,19 @@ if (train_model):
 
 ############################################################################################# Use the model
 
-NumberOfSamplesForLossCalculation = 20000
-print("Calculation loss function: ")
 if (train_model):
+    print("Calculation of losses: ")
+    NumberOfSamplesForLossCalculation = 20000
     losstraining = str(CalculateLossCrossEntropy(datasetForTraining2, NumberOfSamplesForLossCalculation))
+    lossverification = str(CalculateLossCrossEntropy(datasetForVerification2, NumberOfSamplesForLossCalculation))
+    scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
+    print(scoreString)
+    AddScoresToScoreFile(ScoreFile, scoreString)
 else:
     losstraining = "Not Appl"
 
-lossverification = str(CalculateLossCrossEntropy(datasetForVerification2, NumberOfSamplesForLossCalculation))
-scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
-print(scoreString)
-# model.save_model_summary_to_file(SummaryFile)
 
-if (train_model):
-    AddScoresToScoreFile(ScoreFile, scoreString)
+#model.save_model_summary_to_file(SummaryFile)
 
 
 verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)

@@ -8,12 +8,9 @@ class PrintfLogModel(tf.keras.Model):
   def __init__(self, vocab_size, embedding_dim, rnn_units):
     super().__init__(self)
     self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    
-    self.gru1 = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True)
-
-    self.gru2 = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True)
-
-    self.dense = tf.keras.layers.Dense(vocab_size)
+    self.gru1      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True)
+    self.gru2      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True)
+    self.dense     = tf.keras.layers.Dense(vocab_size)
 
   def call(self, inputs, states=None, return_state=False, training=False):
     x = inputs
@@ -23,9 +20,7 @@ class PrintfLogModel(tf.keras.Model):
       states = self.gru1.get_initial_state(x)
       
     x, states = self.gru1(x, initial_state=states, training=training)
-    
     x, states = self.gru2(x, initial_state=self.gru2.get_initial_state(x), training=training)
-
     x = self.dense(x, training=training)
 
     if return_state:
@@ -50,8 +45,7 @@ class PrintfLogModel(tf.keras.Model):
     
     
 class OneStep(tf.keras.Model):
-
-  
+ 
   def __init__(self, model, Tokens_from_ids, ids_from_tokens, temperature=1.0):
     super().__init__()
     self.temperature = temperature
@@ -103,6 +97,8 @@ class OneStep(tf.keras.Model):
     # Return the characters and model state.
     return predicted_token, probabilityPredictedToken, probabilityNextToken
   
+  
+  #@tf.function
   def generate_steps(self, inputTensor, nexttokenId, states=None):
 
     # Run the model.

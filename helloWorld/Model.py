@@ -16,34 +16,40 @@ import re
 
 # this gives a high result
 def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
-    stacked_Predicted_Output_tensor = None
-    stacked_realOutput_tensor       = None
 
-    for input_example_batch, target_example_batch in datasetForVerification.take(NumberOfSamples):
-        inputTensorExpanded = tf.expand_dims(input_example_batch, 0)
-        outputTensorExpanded = tf.expand_dims(target_example_batch, 0)
-        example_batch_predictions = model(inputTensorExpanded, return_state=False)
-        
-        if (stacked_Predicted_Output_tensor == None):
-            stacked_Predicted_Output_tensor = example_batch_predictions
-        else:
-            stacked_Predicted_Output_tensor = tf.concat([stacked_Predicted_Output_tensor, example_batch_predictions], axis=0)
-
-        if (stacked_realOutput_tensor == None):
-            stacked_realOutput_tensor = outputTensorExpanded
-        else:
-            stacked_realOutput_tensor = tf.concat([stacked_realOutput_tensor, outputTensorExpanded], axis=0)
-
-
+    numberOfSamplesPerCycle = 200
+    samplesAccumulated = 0
+    batch_mean_losses = [] 
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+    
+    for i in range(1, int(NumberOfSamples / numberOfSamplesPerCycle)):
+        stacked_Predicted_Output_tensor = None
+        stacked_realOutput_tensor       = None
 
-    batch_mean_loss = loss(stacked_realOutput_tensor, stacked_Predicted_Output_tensor)
-    print("Mean loss:        ", batch_mean_loss)
+        for input_example_batch, target_example_batch in datasetForVerification.take(numberOfSamplesPerCycle):
+            outputTensorExpanded = tf.expand_dims(target_example_batch, 0)
+            inputTensorExpanded  = tf.expand_dims(input_example_batch, 0)
+           # inputTensor = tf.stack(inputTensor, axis=0)
+           # nexttokenIds = tf.stack(nexttokenIds, axis=0)
+            batch_predictions    = model(inputTensorExpanded, return_state=False)
 
-    tf.exp(batch_mean_loss).numpy()
-    print("Mean loss exp:        ", tf.exp(batch_mean_loss).numpy())
+            if (stacked_Predicted_Output_tensor == None):
+                stacked_Predicted_Output_tensor = batch_predictions
+            else:
+                stacked_Predicted_Output_tensor = tf.concat([stacked_Predicted_Output_tensor, batch_predictions], axis=0)
 
-    return batch_mean_loss.numpy()
+            if (stacked_realOutput_tensor == None):
+                stacked_realOutput_tensor = outputTensorExpanded
+            else:
+                stacked_realOutput_tensor = tf.concat([stacked_realOutput_tensor, outputTensorExpanded], axis=0)
+
+            batch_mean_loss = loss(outputTensorExpanded, batch_predictions)
+            batch_mean_losses.append(batch_mean_loss)
+            #print("batch_mean_losses:        ", batch_mean_loss)
+
+    mean_loss = tf.reduce_mean(batch_mean_losses)
+    print("mean_loss.numpy():        ", mean_loss.numpy())
+    return mean_loss.numpy()
 
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSamples=None, removeDuplicates=False):
     TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory)
@@ -240,11 +246,7 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
         nexttokenIds = tf.stack(nexttokenIds, axis=0)
         y = 0
         
-        
         nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
-        
-        
-        
         
         while (y < numberOfParallelExecutions):
             nextPredictedTokens[y] = nextPredictedTokens[y].decode('utf-8')  
@@ -270,14 +272,14 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = False
+force_train_model = True
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
-EPOCHS = 10
+EPOCHS = 8
 seq_length = 20
-trainingSet = 6
+trainingSet = 3
 removeDuplicates = False
 
 # The embedding dimension: the output dimension of the embedding layer.
@@ -324,7 +326,7 @@ if (train_model):
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
 datasetForVerification = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification)    
-
+datasetForVerification2 = datasetForVerification # for the losstraining
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 
 
@@ -344,7 +346,7 @@ if (train_model):
 
     # jents: organize them in batches and also shuffle .
     # Batch size
-    BATCH_SIZE = 32
+    BATCH_SIZE = seq_length * 5
 
     # Buffer size to shuffle the dataset
     # (TF data is designed to work with possibly infinite sequences,
@@ -354,11 +356,17 @@ if (train_model):
 
     datasetForTraining = (
         datasetForTraining
-        #.shuffle(BUFFER_SIZE)
+        .shuffle(BUFFER_SIZE)
         .batch(BATCH_SIZE, drop_remainder=True)
         .prefetch(tf.data.experimental.AUTOTUNE))
 
     datasetForTraining  # python convention to show the variable is ready
+
+    datasetForVerification = (
+        datasetForVerification
+        .shuffle(BUFFER_SIZE)
+        .batch(BATCH_SIZE, drop_remainder=True)
+        .prefetch(tf.data.experimental.AUTOTUNE))
 
 
     
@@ -386,21 +394,21 @@ if (train_model):
     if (latest is not None):
         model.load_weights(latest)
 
-
-    history = model.fit(datasetForTraining, validation_data=datasetForVerification.batch(BATCH_SIZE, drop_remainder=True), epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback])
+    #datasetForVerification = datasetForTraining
+    history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback])
     
     model.save(ModelDirectory)
 
 ############################################################################################# Use the model
 
-NumberOfSamplesForLossCalculation = 2000 
+NumberOfSamplesForLossCalculation = 20000
 print("Calculation loss function: ")
 if (train_model):
     losstraining = str(CalculateLossCrossEntropy(datasetForTraining2, NumberOfSamplesForLossCalculation))
 else:
     losstraining = "Not Appl"
 
-lossverification = str(CalculateLossCrossEntropy(datasetForVerification, NumberOfSamplesForLossCalculation))
+lossverification = str(CalculateLossCrossEntropy(datasetForVerification2, NumberOfSamplesForLossCalculation))
 scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
 print(scoreString)
 # model.save_model_summary_to_file(SummaryFile)

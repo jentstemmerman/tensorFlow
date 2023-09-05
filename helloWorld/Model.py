@@ -203,7 +203,7 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 
     endIndex = TestFileNumpyList.shape[0] - window_size
     i = 0
-    maxNumberOfParallelExecutions = 200
+    maxNumberOfParallelExecutions = 500
 
 
     while (i <= endIndex):
@@ -275,29 +275,20 @@ force_train_model = False
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
-EPOCHS = 8
-seq_length = 10
-trainingSet = 3
+EPOCHS = 10
+seq_length = 20
+trainingSet = 6
 removeDuplicates = False
 
 # The embedding dimension: the output dimension of the embedding layer.
 embedding_dim = 256
 
 # Number of RNN units, to be checked out
-rnn_units = 512  
+rnn_units = 1024
 
 start = time.time()
 
-if (trainingSet == 1):
-    Directory = "TrainingSet1"
-elif (trainingSet == 2):
-    Directory = "TrainingSet2"
-elif (trainingSet == 3):
-    Directory = "TrainingSet3"
-elif (trainingSet == 4):
-    Directory = "TrainingSet4"
-elif (trainingSet == 5):
-    Directory = "TrainingSet5"
+Directory = "TrainingSet" + str(trainingSet)
 
 OriginalTokenFileName       = Directory + os.path.sep + "Tokens.dat"
 
@@ -363,7 +354,7 @@ if (train_model):
 
     datasetForTraining = (
         datasetForTraining
-        .shuffle(BUFFER_SIZE)
+        #.shuffle(BUFFER_SIZE)
         .batch(BATCH_SIZE, drop_remainder=True)
         .prefetch(tf.data.experimental.AUTOTUNE))
 
@@ -376,7 +367,6 @@ if (train_model):
         embedding_dim=embedding_dim,
         rnn_units=rnn_units)
 
-
     ############################################################################################# Train the model
 
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -388,15 +378,16 @@ if (train_model):
     # Name of the checkpoint files
     checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")
 
-    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
+    checkpoint_callback    = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
+    EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2)
     
     latest = tf.train.latest_checkpoint(checkpoint_dir)
     
     if (latest is not None):
         model.load_weights(latest)
 
-    
-    history = model.fit(datasetForTraining, epochs=EPOCHS, callbacks=[checkpoint_callback])
+
+    history = model.fit(datasetForTraining, validation_data=datasetForVerification.batch(BATCH_SIZE, drop_remainder=True), epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback])
     
     model.save(ModelDirectory)
 
@@ -405,14 +396,14 @@ if (train_model):
 NumberOfSamplesForLossCalculation = 2000 
 print("Calculation loss function: ")
 if (train_model):
-    losstraining     = str(CalculateLossCrossEntropy(datasetForTraining2, NumberOfSamplesForLossCalculation))
+    losstraining = str(CalculateLossCrossEntropy(datasetForTraining2, NumberOfSamplesForLossCalculation))
 else:
     losstraining = "Not Appl"
 
 lossverification = str(CalculateLossCrossEntropy(datasetForVerification, NumberOfSamplesForLossCalculation))
 scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
 print(scoreString)
-model.save_model_summary_to_file(SummaryFile)
+# model.save_model_summary_to_file(SummaryFile)
 
 if (train_model):
     AddScoresToScoreFile(ScoreFile, scoreString)

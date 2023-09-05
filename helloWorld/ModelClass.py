@@ -24,10 +24,10 @@ class PrintfLogModel(tf.keras.Model):
       
     x, states = self.gru(x, initial_state=states, training=training)
 
-    if states is None:
-      states = self.gru2.get_initial_state(x)
+    #if states is None:
+    #  states = self.gru2.get_initial_state(x)
 
-    x, states = self.gru2(x, initial_state=states, training=training)
+    #x, states = self.gru2(x, initial_state=states, training=training)
 
     x = self.dense(x, training=training)
 
@@ -109,7 +109,7 @@ class OneStep(tf.keras.Model):
   def generate_steps(self, inputTensor, nexttokenId, states=None):
 
     # Run the model.
-    predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
+    predicted_logits, statett = self.model(inputs=inputTensor, states=states, return_state=False)
     # Only use the last prediction.
     predicted_logits = predicted_logits[:, -1, :]
     #predicted_logits = predicted_logits/self.temperature

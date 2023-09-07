@@ -419,7 +419,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = False
+force_train_model = True
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
@@ -514,13 +514,28 @@ if (train_model):
         .shuffle(BUFFER_SIZE)
         .batch(BATCH_SIZE, drop_remainder=True)
         .prefetch(tf.data.experimental.AUTOTUNE))
-
-
     
-    model = ModelClass.PrintfLogModel(
-        vocab_size=len(id_from_token.get_vocabulary()),
-        embedding_dim=embedding_dim,
-        rnn_units=rnn_units)
+    Network = "GRU"
+    model
+
+    if (Network == "LSTM"):
+        model = tf.keras.Sequential([
+            id_from_token,
+            tf.keras.layers.Embedding(
+                input_dim=len(id_from_token.get_vocabulary()),
+                output_dim=64,
+                # Use masking to handle the variable sequence lengths
+                mask_zero=True),
+            tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64)),
+            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dense(1)
+        ])
+
+    if (Network == "GRU"):
+        model = ModelClass.PrintfLogModel(
+            vocab_size=len(id_from_token.get_vocabulary()),
+            embedding_dim=embedding_dim,
+            rnn_units=rnn_units)
 
     ############################################################################################# Train the model
 

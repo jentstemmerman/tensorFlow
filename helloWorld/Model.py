@@ -7,6 +7,7 @@ import TokenParser
 import ModelClass
 import os
 import re
+from pathlib import Path
 
 # To only run on the cpu:
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -170,23 +171,38 @@ def AddProbabilitiesToLogFile(Model, LogfileVerification, LogfileAnalyzed, token
     LogfileAnalyzed.close()
 
 
-def AnalyzeFiles(directory):
+def AnalyzeTokenFiles(directory):
 
-    verificationFileIterator = TokenParser.LogfileIterator(directory)
-    
+    verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
+    tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
+
     while (tokenLogfileToProcess is not None):
-        tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
         LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlogparallel")
-        AddProbabilitiesToParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
+        AddProbabilitiesTokenFileParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
 
         tokenLogfileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
-def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken):
+
+def AnalyzePrintfFiles(inputDirectory, outputDirectory):
+    verificationFileIterator = TokenParser.LogfileIterator(inputDirectory)
+    printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
+
+    while (printfFileToProcess is not None):
+        outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf.txt")
+        LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
+
+        AddProbabilitiesPrintfFileParallel(model, printfFileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
+
+        printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
+
+
+
+def AddProbabilitiesTokenFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken):
     TestFileNumpyList = np.loadtxt(LogfileVerification, delimiter=",", dtype=str)
     idsTestFile = id_from_token(TestFileNumpyList)
 
     one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
-    window_size = seq_length
+    window_size    = seq_length
 
     
     LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
@@ -269,6 +285,137 @@ def AddProbabilitiesToParallel(Model, LogfileVerification, FileNameAnalyzed, tok
 
     LogfileToAnalyze.close()
     LogfileAnalyzed.close()
+
+
+
+def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken):
+
+ #   idsTestFile = id_from_token(TestFileNumpyList)
+    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
+    window_size = seq_length
+
+    
+    LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
+    LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
+
+    tokenList, PrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, window_size, LogfileToAnalyze, 0)
+
+    for line in PrintfList:
+        LogfileAnalyzed.write(line)
+
+
+    maxNumberOfParallelExecutions = 500
+    numberOfAnalyzedLines = 0
+    EndOfFileReached = False 
+
+    while (not EndOfFileReached):
+        
+        numberOfParallelExecutions = maxNumberOfParallelExecutions
+        if (numberOfParallelExecutions == 0):
+            break
+
+        inputTensor = []
+        nexttokenIds = []
+        Windows = []
+        PrintfList = []
+
+        y = 0
+        i = 0
+        startTime = time.time()
+        while (y < numberOfParallelExecutions):
+            tokenList, printfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, window_size + 1, LogfileToAnalyze, 1)
+            
+            if (tokenList == None):
+                EndOfFileReached = True
+                break
+
+            window      = tokenList[0:window_size]
+            Windows.append(window)
+
+            PrintfList.append(printfList[-1])
+
+            nextToken   = tokenList[window_size]
+            IdsInWindow = id_from_token(window) 
+            NextId      = id_from_token(nextToken) 
+
+            tempTensor = tf.convert_to_tensor(IdsInWindow, dtype='int64')
+            inputTensor.append(tempTensor)
+            
+            nexttokenId = id_from_token(nextToken)
+            nexttokenId = tf.convert_to_tensor(nexttokenId, dtype='int64')
+            nexttokenIds.append(nexttokenId)  # make it a list of tensors
+
+            y += 1
+
+        if (tokenList == None):
+            EndOfFileReached = True
+            break
+        
+        numberOfAnalyzedLines += y
+
+        inputTensor  = tf.stack(inputTensor, axis=0)
+        nexttokenIds = tf.stack(nexttokenIds, axis=0)
+        y = 0
+        
+        nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
+        
+        while (y < numberOfParallelExecutions):
+            nextPredictedTokens[y] = nextPredictedTokens[y].decode('utf-8')  
+            nextToken = token_from_id(nexttokenIds.numpy()[y]).numpy().decode('utf-8')
+            nextPredictedToken = nextPredictedTokens[y]
+            
+            if (nextToken == nextPredictedToken):
+                nextPredictedToken = "Identical  "
+
+            lineToWrite = nextToken  + " Prob = " + "{:2.5f}".format((probabilityOfNextTokens[y]).numpy()) + ". Pred: " + nextPredictedToken + ". Prob: {:2.5f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " +  " :" + PrintfList[y]
+            LogfileAnalyzed.write(lineToWrite)
+            
+            y += 1
+        
+        Endtime = time.time()
+
+        print("annotated line " + str(numberOfAnalyzedLines) + ". Number of lines per second: {:2.2f}".format((numberOfParallelExecutions / (Endtime - startTime) )))
+
+
+    LogfileToAnalyze.close()
+    LogfileAnalyzed.close()   
+
+
+def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
+
+    calculateAverage = 0
+
+
+    if (calculateAverage):
+        verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
+        tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
+
+        if (tokenLogfileToProcess == None):
+            exit()
+    
+
+        TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+
+        idsTestFile = id_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
+
+        one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
+        window_size = 8
+        Accumulator = 0
+        AccumulatorCount = 0
+        for i in range(TestFileNumpyList.shape[0] - (window_size + 1)):
+            window    = TestFileNumpyList[i:i + window_size - 1]
+            nextToken = TestFileNumpyList[i + window_size]
+            idsLogFile = id_from_token(window) 
+            inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
+            probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
+            AccumulatorCount = AccumulatorCount + 1
+            Accumulator = Accumulator + probability
+
+    return Accumulator / AccumulatorCount
+
+
+
+
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
@@ -415,46 +562,9 @@ else:
 
 #model.save_model_summary_to_file(SummaryFile)
 
+AnalyzePrintfFiles(VerificationDirectory, OutputDirectoryVerification)
+#AnalyzeTokenFiles(OutputDirectoryVerification)
 
-verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
-tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
-
-while (tokenLogfileToProcess is not None):
-
-    LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlogparallel")
-    AddProbabilitiesToParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
-
-    tokenLogfileToProcess = verificationFileIterator.get_next_tokenlogfile()
-
-
-calculateAverage = 0
-
-
-if (calculateAverage):
-    verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
-    tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
-
-    if (tokenLogfileToProcess == None):
-        exit()
-  
-
-    TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
-
-    idsTestFile = id_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
-
-    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
-    window_size = 8
-    Accumulator = 0
-    AccumulatorCount = 0
-    for i in range(TestFileNumpyList.shape[0] - (window_size + 1)):
-        window    = TestFileNumpyList[i:i + window_size - 1]
-        nextToken = TestFileNumpyList[i + window_size]
-        idsLogFile = id_from_token(window) 
-        inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
-        probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
-        AccumulatorCount = AccumulatorCount + 1
-        Accumulator = Accumulator + probability
-    
 
 
 end = time.time()

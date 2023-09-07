@@ -3,9 +3,50 @@ from pathlib import Path
 
 ReForTokens = "[0-9A-F]{2}(?:\s[0-9A-F]{2}){3}"
 
+ 
+
+def getNextLinesAndTokens(token_pattern, numberOfTokens, reading_file, NumberOfLinesToMove): 
+
+    numberOfFoundTokens = 0
+    tokenList = []
+    PrintfList = []
+    next_initial_position = reading_file.tell() # in case NumberOfLinesToMove = 0
+
+
+    while True:
+        line = reading_file.readline()
+
+        if (not line):
+            tokenList = None
+            PrintfList = None
+            endOfFileReached = True
+            break
+
+        stripped_line = re.search(token_pattern, line)
+
+        if  (stripped_line):
+
+            numberOfFoundTokens += 1
+            
+            if  (numberOfFoundTokens == NumberOfLinesToMove):
+                next_initial_position = reading_file.tell()
+
+            stripped_line_string = stripped_line.group()
+            tokenList.append(stripped_line_string)
+
+            printf = line #.replace(stripped_line_string, "")
+            PrintfList.append(printf)
+
+            if (numberOfFoundTokens == numberOfTokens):
+                # leave the filepointer pointing to the next line we started from
+                reading_file.seek(next_initial_position)
+                break
+               
+    return tokenList, PrintfList
+
 def process_files(input_file, output_file):
     if (not os.path.exists(output_file)):
-        reading_file      = open(input_file,  "r", errors='ignore')
+        reading_file = open(input_file,  "r", errors='ignore')
         
         file = Path(output_file)
         file.parent.mkdir(parents=True, exist_ok=True)

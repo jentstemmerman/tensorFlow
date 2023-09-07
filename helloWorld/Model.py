@@ -367,7 +367,7 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
             if (nextToken == nextPredictedToken):
                 nextPredictedToken = "Identical  "
 
-            lineToWrite = nextToken  + " Prob = " + "{:2.5f}".format((probabilityOfNextTokens[y]).numpy()) + ". Pred: " + nextPredictedToken + ". Prob: {:2.5f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " +  " :" + PrintfList[y]
+            lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format((probabilityOfNextTokens[y]).numpy()) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " +  " :" + PrintfList[y]
             LogfileAnalyzed.write(lineToWrite)
             
             y += 1

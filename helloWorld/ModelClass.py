@@ -61,7 +61,7 @@ class OneStep(tf.keras.Model):
 
     return probabilities
   
- # @tf.function #  JENTS: this is a decorator. tf.function gets generate_one_step as an argument ( including parameters ) and does optimisation 
+  @tf.function #  JENTS: this is a decorator. tf.function gets generate_one_step as an argument ( including parameters ) and does optimisation 
   def generate_one_step(self, inputTensor, nextToken, states=None):
 
     # Run the model.
@@ -87,7 +87,7 @@ class OneStep(tf.keras.Model):
     return predicted_token, probabilityPredictedToken, probabilityNextToken
   
   
-  #@tf.function
+  @tf.function
   def generate_steps(self, inputTensor, nexttokenId, states=None):
 
     # Run the model.

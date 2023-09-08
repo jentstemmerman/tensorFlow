@@ -54,7 +54,9 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
     return mean_loss.numpy()
 
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSamples=None, removeDuplicates=False):
+
     TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory)
+    
     ################# Create a dataset for training and throw all files that are in the training output dir in it
     TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)
     tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
@@ -427,8 +429,8 @@ force_train_model = True
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
 EPOCHS = 10
-seq_length = 10
-trainingSet = 3
+seq_length = 5
+trainingSet = 4
 removeDuplicates = False
 
 # The embedding dimension: the output dimension of the embedding layer.
@@ -501,12 +503,28 @@ datasetForVerification2 = datasetForVerification # for the losstraining
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 
 
+# Count the number of elements in the dataset
+num_samples_datasetForTraining     = datasetForTraining.reduce(0, lambda x, _: x + 1).numpy()
+num_samples_datasetForVerification = datasetForVerification.reduce(0, lambda x, _: x + 1).numpy()
+
+cardinalitydatasetForTraining      = datasetForTraining.cardinality().numpy()
+cardinalitydatasetForVerification  = datasetForVerification.cardinality().numpy()
+
+#unique_datasetForTraining          = datasetForTraining.unique().numpy()
+#unique_datasetForVerification      = datasetForVerification.unique().numpy()
+print("Checking datasets:")
+# Print the cardinality
+print("Cardinality of the Training     dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining)) # + " unique: " + unique_datasetForTraining))
+print("Cardinality of the Verification dataset: " + str(cardinalitydatasetForVerification) + "/" + str(num_samples_datasetForVerification)) # + " unique: " + unique_datasetForVerification))
+
+CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
+
 if (train_model):
     CrossReferenceResultTraining = TokenParser.CrossReferenceTokens(OutputDirectoryTraining, VocabularyFile)
 else:
     CrossReferenceResultTraining = 0
 
-CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
+
 
 if (CrossReferenceResultTraining == -1) or (CrossReferenceResultVerification == -1):
     print("Logfile contains tokens that are not in the tokenfile!!")
@@ -517,7 +535,7 @@ if (train_model):
 
     # jents: organize them in batches and also shuffle .
     # Batch size
-    BATCH_SIZE = 16
+    BATCH_SIZE = 20
 
     # Buffer size to shuffle the dataset
     # (TF data is designed to work with possibly infinite sequences,
@@ -575,6 +593,14 @@ if (train_model):
     checkpoint_callback    = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
     EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2)
     
+    class BatchStartCallback(tf.keras.callbacks.Callback):
+        def on_batch_begin(self, batch, logs=None):
+            hello = 1
+
+
+
+    batch_start_callback = BatchStartCallback()
+    
     latest = tf.train.latest_checkpoint(checkpoint_dir)
     
     if (latest is not None):
@@ -583,7 +609,7 @@ if (train_model):
 
     sys.stdout = TokenParser.Logger(TrainingLogFile)
 
-    history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback])
+    history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback, batch_start_callback])
 
     sys.stdout = sys.__stdout__
 

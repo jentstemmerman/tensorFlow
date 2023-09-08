@@ -62,9 +62,10 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
     tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
     dataset = None
     trainingFiles = []
+    datasetList = []
 
     while (tokenLogfileToProcess is not None):
-        print("adding " + tokenLogfileToProcess + " to the dataset")
+        print("Adding " + tokenLogfileToProcess + " to the dataset")
         trainingFiles.append(tokenLogfileToProcess)
         if ((ReductionInSamples is not None) and (ReductionInSamples != 0)):
             logTokenNumpyListTemp = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
@@ -95,14 +96,22 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
             sequences2 = sequences
             sequences = sequences.unique()
 
+        dataSetFromFile = sequences.map(TokenParser.split_input_target)
+        datasetList.append(dataSetFromFile)
         # run the function split_input_target accross all entries of sequences
-        if (dataset == None):
-            dataset = sequences.map(TokenParser.split_input_target)
-            
-        else:
-            dataset = dataset.concatenate(sequences.map(TokenParser.split_input_target))
+        cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(dataSetFromFile)
+        print(" Cardinality of the dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining))
 
+        if (dataset == None):
+            dataset = dataSetFromFile
+        else:
+            dataset = dataset.concatenate(dataSetFromFile)
+        
+        
+        
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
+
+
         
     return dataset, trainingFiles
 
@@ -430,7 +439,7 @@ force_train_model = True
 
 EPOCHS = 10
 seq_length = 5
-trainingSet = 4
+trainingSet = 3
 removeDuplicates = False
 
 # The embedding dimension: the output dimension of the embedding layer.
@@ -486,6 +495,17 @@ if (train_model):
             print(f"Error: {e}")
 
 
+def GetDataSetInformation(dataSet):
+    # Count the number of elements in the dataset
+    num_samples_dataset     = dataSet.reduce(0, lambda x, _: x + 1).numpy()
+    cardinalitydataset      = dataSet.cardinality().numpy()
+
+    return cardinalitydataset, num_samples_dataset
+
+
+
+
+
 
 PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
 
@@ -503,20 +523,18 @@ datasetForVerification2 = datasetForVerification # for the losstraining
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 
 
-# Count the number of elements in the dataset
-num_samples_datasetForTraining     = datasetForTraining.reduce(0, lambda x, _: x + 1).numpy()
-num_samples_datasetForVerification = datasetForVerification.reduce(0, lambda x, _: x + 1).numpy()
 
-cardinalitydatasetForTraining      = datasetForTraining.cardinality().numpy()
-cardinalitydatasetForVerification  = datasetForVerification.cardinality().numpy()
-
-#unique_datasetForTraining          = datasetForTraining.unique().numpy()
-#unique_datasetForVerification      = datasetForVerification.unique().numpy()
 print("Checking datasets:")
-# Print the cardinality
+
+cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(datasetForTraining)
+cardinalitydatasetForVerification, num_samples_datasetForVerification = GetDataSetInformation(datasetForVerification)
+
 print("Cardinality of the Training     dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining)) # + " unique: " + unique_datasetForTraining))
 print("Cardinality of the Verification dataset: " + str(cardinalitydatasetForVerification) + "/" + str(num_samples_datasetForVerification)) # + " unique: " + unique_datasetForVerification))
 
+
+
+print("CrossReferenceTokens:")
 CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
 
 if (train_model):

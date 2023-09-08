@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+import sys
 
 ReForTokens = "[0-9A-F]{2}(?:\s[0-9A-F]{2}){3}"
 
@@ -153,3 +154,15 @@ class LogfileIterator():
                     
         return None
 
+class Logger:
+    def __init__(self, filename):
+        self.terminal = sys.stdout
+        self.logfile = open(filename, "w")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.logfile.write(message)
+        
+    def flush(self):
+        self.terminal.flush()
+        self.logfile.flush()

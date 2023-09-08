@@ -8,6 +8,7 @@ import ModelClass
 import os
 import re
 from pathlib import Path
+import sys
 
 # To only run on the cpu:
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
@@ -49,7 +50,7 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
             #print("batch_mean_losses:        ", batch_mean_loss)
 
     mean_loss = tf.reduce_mean(batch_mean_losses)
-    print("mean_loss.numpy():        ", mean_loss.numpy())
+
     return mean_loss.numpy()
 
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSamples=None, removeDuplicates=False):
@@ -58,10 +59,11 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
     TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)
     tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
     dataset = None
+    trainingFiles = []
 
     while (tokenLogfileToProcess is not None):
         print("adding " + tokenLogfileToProcess + " to the dataset")
-
+        trainingFiles.append(tokenLogfileToProcess)
         if ((ReductionInSamples is not None) and (ReductionInSamples != 0)):
             logTokenNumpyListTemp = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
             num_lines = len(logTokenNumpyListTemp)
@@ -100,7 +102,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
         
-    return dataset
+    return dataset, trainingFiles
 
 
 def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
@@ -115,9 +117,9 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
 
     return id_from_token, token_from_id
 
-def AddScoresToScoreFile(Scorefile, scoreString):
+def WriteStringToFile(Scorefile, stringToWrite):
     Scorefilehandle = open(Scorefile, "w")
-    Scorefilehandle.write(scoreString)
+    Scorefilehandle.write(stringToWrite)
     Scorefilehandle.close()
 
 
@@ -424,8 +426,8 @@ force_train_model = True
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
-EPOCHS = 3
-seq_length = 20
+EPOCHS = 10
+seq_length = 10
 trainingSet = 3
 removeDuplicates = False
 
@@ -433,7 +435,7 @@ removeDuplicates = False
 embedding_dim = 256
 
 # Number of RNN units, to be checked out
-rnn_units = 1024
+rnn_units = 2048
 
 start = time.time()
 
@@ -443,6 +445,7 @@ OriginalTokenFileName       = Directory + os.path.sep + "Tokens.dat"
 
 OutputDirectory             = Directory + os.path.sep + "out"
 ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
+TrainingLogFile             = OutputDirectory + os.path.sep + "TrainingLog.txt"
 SummaryFile                 = OutputDirectory + os.path.sep + "Summary.txt"
 VocabularyFile              = OutputDirectory + os.path.sep + "TokenfileOnlyTokens.dat"
 
@@ -462,17 +465,36 @@ VerificationDirectory       = Directory + os.path.sep + "Verification"
 OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
 OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
+if (train_model):
+
+    old_directory_name = OutputDirectory
+    new_directory_name = old_directory_name  # Start with the old name
+    counter = 1  # Start with the number 1
+
+    while os.path.exists(new_directory_name):
+        new_directory_name = f"{old_directory_name}_{counter}"
+        counter += 1
+
+    try:
+        os.rename(old_directory_name, new_directory_name)
+        print(f"Directory '{old_directory_name}' renamed to '{new_directory_name}' successfully.")
+    except OSError as e:
+        print(f"Error: {e}")
+
+
+
 PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
+
 ######################################################################################################
 id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
 
 ################# Create a dataset for training and throw all files that are in the training output dir in it
 if (train_model):
-    datasetForTraining = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, removeDuplicates=removeDuplicates) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+    datasetForTraining, trainingFileList = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, removeDuplicates=removeDuplicates) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
     datasetForTraining2 = datasetForTraining  # for the losstraining
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
-datasetForVerification = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification)    
+datasetForVerification, verificationFileList = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification)    
 datasetForVerification2 = datasetForVerification # for the losstraining
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 
@@ -493,7 +515,7 @@ if (train_model):
 
     # jents: organize them in batches and also shuffle .
     # Batch size
-    BATCH_SIZE = seq_length * 5
+    BATCH_SIZE = 16
 
     # Buffer size to shuffle the dataset
     # (TF data is designed to work with possibly infinite sequences,
@@ -556,30 +578,67 @@ if (train_model):
     if (latest is not None):
         model.load_weights(latest)
 
-    #datasetForVerification = datasetForTraining
+
+    sys.stdout = TokenParser.Logger(TrainingLogFile)
+
     history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback])
-    
+
+    sys.stdout = sys.__stdout__
+
     model.save(ModelDirectory)
 
 ############################################################################################# Use the model
 
 if (train_model):
-    print("Calculation of losses: ")
-    NumberOfSamplesForLossCalculation = 20000
-    losstraining = str(CalculateLossCrossEntropy(datasetForTraining2, NumberOfSamplesForLossCalculation))
-    lossverification = str(CalculateLossCrossEntropy(datasetForVerification2, NumberOfSamplesForLossCalculation))
-    scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
-    print(scoreString)
-    AddScoresToScoreFile(ScoreFile, scoreString)
+    end = time.time()
+
+
+    print("Files used to train: \n")
+    print(*trainingFileList, sep="\n")
+
+    print("\nCalculation of losses: ")
+    # Open a file in write mode
+    with open(ScoreFile, 'w') as f:
+        # Redirect the standard output to the file
+        original_stdout = sys.stdout
+        sys.stdout = f
+
+        print("\nSettings used: ")
+        ModelSummary = "EPOCHS: " + str(EPOCHS) + "\n"
+        ModelSummary = ModelSummary + "seq_lenth: " + str(seq_length) + "\n"
+        ModelSummary = ModelSummary + "trainingSet: " + str(trainingSet) + "\n"
+        ModelSummary = ModelSummary + "embedding_dim: " + str(embedding_dim) + "\n"
+        ModelSummary = ModelSummary + "rnn_units: " + str(rnn_units) + "\n"
+        print(ModelSummary + "\n")
+        print("Training finished in ", (end - start)/60, " minutes")
+        
+        print("\n")
+        print("Files used to train: \n")
+        print(*trainingFileList, sep="\n")
+
+        print("\n")
+        print("Files used in verification: \n")
+        print(*verificationFileList, sep="\n")
+        print("\n")
+
+        print("ModelSummary: \n")
+
+        # Print the model summary
+        model.summary()
+
+        print("\n")
+        NumberOfSamplesForLossCalculation = 20000
+        losstraining = str(CalculateLossCrossEntropy(datasetForTraining2, NumberOfSamplesForLossCalculation))
+        lossverification = str(CalculateLossCrossEntropy(datasetForVerification2, NumberOfSamplesForLossCalculation))
+        scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
+        print(scoreString)
+        # Reset the standard output
+        sys.stdout = original_stdout
 else:
     losstraining = "Not Appl"
 
 
-#model.save_model_summary_to_file(SummaryFile)
-
 AnalyzePrintfFiles(VerificationDirectory, OutputDirectoryVerification)
-#AnalyzeTokenFiles(OutputDirectoryVerification)
-
 
 
 end = time.time()

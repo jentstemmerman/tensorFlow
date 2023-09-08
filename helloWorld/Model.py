@@ -468,18 +468,20 @@ OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 if (train_model):
 
     old_directory_name = OutputDirectory
-    new_directory_name = old_directory_name  # Start with the old name
-    counter = 1  # Start with the number 1
+    
+    if os.path.exists(old_directory_name):
+        new_directory_name = old_directory_name  # Start with the old name
+        counter = 1  # Start with the number 1
 
-    while os.path.exists(new_directory_name):
-        new_directory_name = f"{old_directory_name}_{counter}"
-        counter += 1
+        while os.path.exists(new_directory_name):
+            new_directory_name = f"{old_directory_name}_{counter}"
+            counter += 1
 
-    try:
-        os.rename(old_directory_name, new_directory_name)
-        print(f"Directory '{old_directory_name}' renamed to '{new_directory_name}' successfully.")
-    except OSError as e:
-        print(f"Error: {e}")
+        try:
+            os.rename(old_directory_name, new_directory_name)
+            print(f"Directory '{old_directory_name}' renamed to '{new_directory_name}' successfully.")
+        except OSError as e:
+            print(f"Error: {e}")
 
 
 

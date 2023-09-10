@@ -14,7 +14,7 @@ import sys
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 #os.environ["CUDA_VISIBLE_DEVICES"]=""  # or even "-1"
 
-
+DataTypeForTensors = 'int64'
 
 # this gives a high result
 def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
@@ -86,7 +86,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
 
         TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
         ids_from_logfile = id_from_token(TrainingLogTensor)
-        sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+        sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
      
        
         # each sequence entry contains seq_length + 1 number of elements
@@ -134,56 +134,6 @@ def WriteStringToFile(Scorefile, stringToWrite):
     Scorefilehandle.close()
 
 
-
-def AddProbabilitiesToLogFile(Model, LogfileVerification, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken):
-    TestFileNumpyList = np.loadtxt(LogfileVerification, delimiter=",", dtype=str)
-    idsTestFile = id_from_token(TestFileNumpyList)
-
-    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
-    window_size = seq_length
-    
-    LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
-    LogfileAnalyzed  = open(LogfileAnalyzed,    "w")
-
-    token_pattern = re.compile(TokenParser.ReForTokens)
-    
-    lineNumber = 0
-
-    for lineLogfileToAnalyze in LogfileToAnalyze:
-            regexFound = re.search(token_pattern, lineLogfileToAnalyze)
-            if  (regexFound):
-                tokenString = regexFound.string
-                tokenString = tokenString.replace("\n", "")
-                lineLogfileToAnalyze = lineLogfileToAnalyze.replace(tokenString, tokenString + " Not Appl")
-                LogfileAnalyzed.write(lineLogfileToAnalyze)
-            lineNumber = lineNumber + 1
-            if (lineNumber == window_size):
-                break
-
-    
-    for i in range(TestFileNumpyList.shape[0] - (window_size + 1)):
-        window      = TestFileNumpyList[i:i + window_size]
-        nextToken   = TestFileNumpyList[i + window_size]
-        IdsInWindow = id_from_token(window) 
-        
-        inputTensor = tf.convert_to_tensor(IdsInWindow, dtype='int64')
-        nextPredictedToken, probabilityPrediction, probabilityOfNextToken = one_step_model.generate_one_step(tf.expand_dims(inputTensor, 0), nextToken, states=None)
-        nextPredictedToken = nextPredictedToken.decode('utf-8')  
-        
-        if (nextToken == nextPredictedToken):
-            nextPredictedToken = "Identical  "
-                       
-        printf = PrintfFromToken[nextToken]
-        lineToWrite = nextToken + " Probability = " + "{:2.5f}".format(probabilityOfNextToken) + ". Predicted: " + nextPredictedToken + ". Probability: {:2.5f}".format(probabilityPrediction) + ". " + "window = " + window[window_size - 2] + "  " + printf + "\n"
-        LogfileAnalyzed.write(lineToWrite)
-
-        if (i % 100 == 0):
-            print("annotating line " + str(i) + " of " + str(TestFileNumpyList.shape[0]))
-
-    LogfileToAnalyze.close()
-    LogfileAnalyzed.close()
-
-
 def AnalyzeTokenFiles(directory):
 
     verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
@@ -191,30 +141,30 @@ def AnalyzeTokenFiles(directory):
 
     while (tokenLogfileToProcess is not None):
         LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlogparallel")
-        AddProbabilitiesTokenFileParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
+        AddProbabilitiesTokenFileParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature=1)
 
         tokenLogfileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
 
-def AnalyzePrintfFiles(inputDirectory, outputDirectory):
+def AnalyzePrintfFiles(inputDirectory, outputDirectory, temperature):
     verificationFileIterator = TokenParser.LogfileIterator(inputDirectory)
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
     while (printfFileToProcess is not None):
-        outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf.txt")
+        outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".txt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        AddProbabilitiesPrintfFileParallel(model, printfFileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken)
+        AddProbabilitiesPrintfFileParallel(model, printfFileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature=temperature)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
 
 
-def AddProbabilitiesTokenFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken):
+def AddProbabilitiesTokenFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature):
     TestFileNumpyList = np.loadtxt(LogfileVerification, delimiter=",", dtype=str)
     idsTestFile = id_from_token(TestFileNumpyList)
 
-    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
+    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
     window_size    = seq_length
 
     
@@ -261,11 +211,11 @@ def AddProbabilitiesTokenFileParallel(Model, LogfileVerification, FileNameAnalyz
 
             Windows.append(window)
 
-            tempTensor = tf.convert_to_tensor(IdsInWindow, dtype='int64')
+            tempTensor = tf.convert_to_tensor(IdsInWindow, dtype=DataTypeForTensors)
             inputTensor.append(tempTensor)
             
             nexttokenId = id_from_token(nextToken)
-            nexttokenId = tf.convert_to_tensor(nexttokenId, dtype='int64')
+            nexttokenId = tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors)
             nexttokenIds.append(nexttokenId)  # make it a list of tensors
 
             i += 1
@@ -301,15 +251,17 @@ def AddProbabilitiesTokenFileParallel(Model, LogfileVerification, FileNameAnalyz
 
 
 
-def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken):
+def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature):
 
  #   idsTestFile = id_from_token(TestFileNumpyList)
-    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
+    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
     window_size = seq_length
 
     
     LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
     LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
+
+    LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
 
     tokenList, PrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, window_size, LogfileToAnalyze, 0)
 
@@ -320,6 +272,7 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
     maxNumberOfParallelExecutions = 500
     numberOfAnalyzedLines = 0
     EndOfFileReached = False 
+    accumulatedNextTokenProbability = 0.0
 
     while (not EndOfFileReached):
         
@@ -351,11 +304,11 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
             IdsInWindow = id_from_token(window) 
             NextId      = id_from_token(nextToken) 
 
-            tempTensor = tf.convert_to_tensor(IdsInWindow, dtype='int64')
+            tempTensor = tf.convert_to_tensor(IdsInWindow, dtype=DataTypeForTensors)
             inputTensor.append(tempTensor)
             
             nexttokenId = id_from_token(nextToken)
-            nexttokenId = tf.convert_to_tensor(nexttokenId, dtype='int64')
+            nexttokenId = tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors)
             nexttokenIds.append(nexttokenId)  # make it a list of tensors
 
             y += 1
@@ -364,7 +317,7 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
             EndOfFileReached = True
             break
         
-        numberOfAnalyzedLines += y
+
 
         inputTensor  = tf.stack(inputTensor, axis=0)
         nexttokenIds = tf.stack(nexttokenIds, axis=0)
@@ -379,17 +332,22 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
             
             if (nextToken == nextPredictedToken):
                 nextPredictedToken = "Identical  "
-
-            lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format((probabilityOfNextTokens[y]).numpy()) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " +  " :" + PrintfList[y]
+            nextTokenProbability = (probabilityOfNextTokens[y]).numpy()
+            lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format(nextTokenProbability) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " +  " :" + PrintfList[y]
             LogfileAnalyzed.write(lineToWrite)
             
+
+            accumulatedNextTokenProbability += nextTokenProbability
             y += 1
+            numberOfAnalyzedLines += 1
         
         Endtime = time.time()
 
-        print("annotated line " + str(numberOfAnalyzedLines) + ". Number of lines per second: {:2.2f}".format((numberOfParallelExecutions / (Endtime - startTime) )))
+        print("annotated line " + str(numberOfAnalyzedLines) + ". Number of lines per second: {:2.2f} ".format((numberOfParallelExecutions / (Endtime - startTime) )))
 
-
+    print("\n Total number of annotated lines " + str(y) + "Average next token probability = " + str(accumulatedNextTokenProbability/numberOfAnalyzedLines))
+    
+    
     LogfileToAnalyze.close()
     LogfileAnalyzed.close()   
 
@@ -411,7 +369,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
         idsTestFile = id_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
 
-        one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token)
+        one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
         window_size = 8
         Accumulator = 0
         AccumulatorCount = 0
@@ -419,14 +377,19 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
             window    = TestFileNumpyList[i:i + window_size - 1]
             nextToken = TestFileNumpyList[i + window_size]
             idsLogFile = id_from_token(window) 
-            inputTensor = tf.convert_to_tensor(idsLogFile, dtype='int64')
+            inputTensor = tf.convert_to_tensor(idsLogFile, dtype=DataTypeForTensors)
             probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
             AccumulatorCount = AccumulatorCount + 1
             Accumulator = Accumulator + probability
 
     return Accumulator / AccumulatorCount
 
+def GetDataSetInformation(dataSet):
+    # Count the number of elements in the dataset
+    num_samples_dataset     = dataSet.reduce(0, lambda x, _: x + 1).numpy()
+    cardinalitydataset      = dataSet.cardinality().numpy()
 
+    return cardinalitydataset, num_samples_dataset
 
 
 
@@ -439,7 +402,7 @@ force_train_model = True
 
 EPOCHS = 10
 seq_length = 5
-trainingSet = 3
+trainingSet = 7
 removeDuplicates = False
 
 # The embedding dimension: the output dimension of the embedding layer.
@@ -495,12 +458,7 @@ if (train_model):
             print(f"Error: {e}")
 
 
-def GetDataSetInformation(dataSet):
-    # Count the number of elements in the dataset
-    num_samples_dataset     = dataSet.reduce(0, lambda x, _: x + 1).numpy()
-    cardinalitydataset      = dataSet.cardinality().numpy()
 
-    return cardinalitydataset, num_samples_dataset
 
 
 
@@ -525,11 +483,11 @@ datasetForVerification2 = datasetForVerification # for the losstraining
 
 
 print("Checking datasets:")
+if (train_model):
+    cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(datasetForTraining)
+    print("Cardinality of the Training     dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining)) # + " unique: " + unique_datasetForTraining))
 
-cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(datasetForTraining)
 cardinalitydatasetForVerification, num_samples_datasetForVerification = GetDataSetInformation(datasetForVerification)
-
-print("Cardinality of the Training     dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining)) # + " unique: " + unique_datasetForTraining))
 print("Cardinality of the Verification dataset: " + str(cardinalitydatasetForVerification) + "/" + str(num_samples_datasetForVerification)) # + " unique: " + unique_datasetForVerification))
 
 
@@ -673,7 +631,7 @@ if (train_model):
         model.summary()
 
         print("\n")
-        NumberOfSamplesForLossCalculation = 20000
+        NumberOfSamplesForLossCalculation = 2000
         losstraining = str(CalculateLossCrossEntropy(datasetForTraining2, NumberOfSamplesForLossCalculation))
         lossverification = str(CalculateLossCrossEntropy(datasetForVerification2, NumberOfSamplesForLossCalculation))
         scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
@@ -683,8 +641,15 @@ if (train_model):
 else:
     losstraining = "Not Appl"
 
+start = 1.0
+stop = 5.0
+step = 0.1
 
-AnalyzePrintfFiles(VerificationDirectory, OutputDirectoryVerification)
+Temperature = start
+while Temperature < stop:
+    AnalyzePrintfFiles(VerificationDirectory, OutputDirectoryVerification, Temperature)
+    Temperature += step
+ 
 
 
 end = time.time()

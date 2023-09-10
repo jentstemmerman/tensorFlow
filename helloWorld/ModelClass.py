@@ -8,8 +8,8 @@ class PrintfLogModel(tf.keras.Model):
   def __init__(self, vocab_size, embedding_dim, rnn_units):
     super().__init__(self)
     self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    self.gru1      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True)
-    self.gru2      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True)
+    self.gru1      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True, dropout=0.1)
+    self.gru2      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True, dropout=0.1)
     self.dense     = tf.keras.layers.Dense(vocab_size)
 
   def call(self, inputs, states=None, return_state=False, training=False):
@@ -68,7 +68,7 @@ class OneStep(tf.keras.Model):
     predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
     # Only use the last prediction.
     predicted_logits = predicted_logits[:, -1, :]
-    #predicted_logits = predicted_logits/self.temperature
+    predicted_logits = predicted_logits/self.temperature
     # Apply the prediction mask: prevent "[UNK]" from being generated.
     #predicted_logits = predicted_logits + self.prediction_mask
     #predicted_id = tf.argmax(predicted_logits, axis=1)
@@ -87,14 +87,14 @@ class OneStep(tf.keras.Model):
     return predicted_token, probabilityPredictedToken, probabilityNextToken
   
   
-  @tf.function
+ # @tf.function
   def generate_steps(self, inputTensor, nexttokenId, states=None):
 
     # Run the model.
     predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
     # Only use the last prediction.
     predicted_logits = predicted_logits[:, -1, :]
-    #predicted_logits = predicted_logits/self.temperature
+    predicted_logits = predicted_logits/self.temperature
     # Apply the prediction mask: prevent "[UNK]" from being generated.
     #predicted_logits = predicted_logits + self.prediction_mask
     #predicted_id = tf.argmax(predicted_logits, axis=1)

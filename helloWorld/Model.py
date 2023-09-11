@@ -61,18 +61,20 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
     TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)
     tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
     dataset = None
-    trainingFiles = []
+    filesUsed = []
     datasetList = []
 
+    TrainingLogTensor = None
+
     while (tokenLogfileToProcess is not None):
+        logTokenNumpyList = []
         print("Adding " + tokenLogfileToProcess + " to the dataset")
-        trainingFiles.append(tokenLogfileToProcess)
+        filesUsed.append(tokenLogfileToProcess)
         if ((ReductionInSamples is not None) and (ReductionInSamples != 0)):
             logTokenNumpyListTemp = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
             num_lines = len(logTokenNumpyListTemp)
             num_linesToRead = int(num_lines / ReductionInSamples)
-            logTokenNumpyList = []
-
+            
             start_index = np.random.randint(0, num_lines - (seq_length + 1))
             random_lines = logTokenNumpyListTemp[start_index:start_index + (seq_length + 1)]
             logTokenNumpyList = random_lines
@@ -84,36 +86,54 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
         else:
             logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
 
-        TrainingLogTensor = tf.convert_to_tensor(logTokenNumpyList)
-        ids_from_logfile = id_from_token(TrainingLogTensor)
-        sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
-     
-       
-        # each sequence entry contains seq_length + 1 number of elements
-        sequences = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
+        TensorOfThisFile = tf.convert_to_tensor(logTokenNumpyList)
 
-        if (removeDuplicates):
-            sequences2 = sequences
-            sequences = sequences.unique()
-
-        dataSetFromFile = sequences.map(TokenParser.split_input_target)
-        datasetList.append(dataSetFromFile)
-        # run the function split_input_target accross all entries of sequences
-        cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(dataSetFromFile)
-        print(" Cardinality of the dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining))
-
-        if (dataset == None):
-            dataset = dataSetFromFile
+        if (TrainingLogTensor is None):
+            TrainingLogTensor = TensorOfThisFile
         else:
-            dataset = dataset.concatenate(dataSetFromFile)
-        
-        
-        
+            TrainingLogTensor = np.concatenate((TrainingLogTensor, TensorOfThisFile), axis=0)
+
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
 
 
-        
-    return dataset, trainingFiles
+
+    ids_from_logfile = id_from_token(TrainingLogTensor)
+    #keras.backend.print_tensor(ids_from_logfile)
+    #sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
+    # Slide the window over the tensor
+    windows = []
+    windowsAcc = []
+    print(ids_from_logfile.shape[0])
+    for i in range(ids_from_logfile.shape[0] - (seq_length + 1) + 1):
+        window = ids_from_logfile[i:i+seq_length]
+        print(window)
+        windowsAcc.append(window)
+        #
+    #print(windowsAcc)
+
+    # Stack the windows into a new tensor
+    sequences = tf.stack(windowsAcc, axis=0)
+    dataset = tf.data.Dataset.from_tensor_slices(sequences)
+    #sequencesSliced = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
+    #patches = tf.image.extract_patches(sliced_ids_from_logfile, sizes=seq_length, strides=strides, rates=[1, 1, 1, 1], padding='VALID')
+    # each sequence entry contains seq_length + 1 number of elements
+    # Jents: dit is niet goed. Dit moet een window worden dat over de tesnore schuift
+   # sequences = sliding_windows.batch(seq_length+1, drop_remainder=True)
+    
+    if (removeDuplicates):
+        sequences2 = sequencesSliced
+        sequencesSliced = sequencesSliced.unique()
+
+    dataset = dataset.map(TokenParser.split_input_target)  
+
+   
+       
+
+    # run the function split_input_target accross all entries of sequences
+    cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(dataset)
+    print(" Cardinality of the dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining) + " ( " + str(sys.getsizeof(dataset)) + ")")
+ 
+    return dataset, filesUsed
 
 
 def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
@@ -386,8 +406,10 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
 def GetDataSetInformation(dataSet):
     # Count the number of elements in the dataset
-    num_samples_dataset     = dataSet.reduce(0, lambda x, _: x + 1).numpy()
-    cardinalitydataset      = dataSet.cardinality().numpy()
+    dataSetTemp = dataSet
+    num_samples_dataset     = dataSetTemp.reduce(0, lambda x, _: x + 1).numpy()
+    dataSetTemp = dataSet
+    cardinalitydataset      = dataSetTemp.cardinality().numpy()
 
     return cardinalitydataset, num_samples_dataset
 
@@ -402,7 +424,7 @@ force_train_model = True
 
 EPOCHS = 10
 seq_length = 5
-trainingSet = 7
+trainingSet = 3
 removeDuplicates = False
 
 # The embedding dimension: the output dimension of the embedding layer.
@@ -595,7 +617,6 @@ if (train_model):
 
 if (train_model):
     end = time.time()
-
 
     print("Files used to train: \n")
     print(*trainingFileList, sep="\n")

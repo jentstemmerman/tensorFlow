@@ -83,7 +83,7 @@ def CrossReferenceTokens(directory, TokenFile):
                 for line in log_File:
                     line = line.strip()
                     if (TokenFileString.find(line) == -1):
-                        print("Token " + line + "not found in tokenfile")
+                        print("Token " + line + " not found in tokenfile")
                         result = -1
                     total = total + 1
     return result

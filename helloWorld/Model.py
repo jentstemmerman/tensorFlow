@@ -16,6 +16,20 @@ import sys
 
 DataTypeForTensors = 'int64'
 
+
+def WriteDatasetToFile(filename, dataset):
+    with open(filename, 'w') as file:
+        for element in dataset:
+            data = [element.numpy().decode()]
+            for item in data:
+                file.write(f"{item}\n")
+
+# Specify the file name
+output_file = "dataset_output.txt"
+
+# Iterate through the dataset and write each element to the file
+
+
 # this gives a high result
 def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
@@ -95,36 +109,22 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
 
-
-
     ids_from_logfile = id_from_token(TrainingLogTensor)
+
     #keras.backend.print_tensor(ids_from_logfile)
     #sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
     # Slide the window over the tensor
-    windows = []
-    windowsAcc = []
-    print(ids_from_logfile.shape[0])
-    for i in range(ids_from_logfile.shape[0] - (seq_length + 1) + 1):
-        window = ids_from_logfile[i:i+seq_length]
-        print(window)
-        windowsAcc.append(window)
-        #
-    #print(windowsAcc)
 
-    # Stack the windows into a new tensor
-    sequences = tf.stack(windowsAcc, axis=0)
-    dataset = tf.data.Dataset.from_tensor_slices(sequences)
-    #sequencesSliced = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
-    #patches = tf.image.extract_patches(sliced_ids_from_logfile, sizes=seq_length, strides=strides, rates=[1, 1, 1, 1], padding='VALID')
-    # each sequence entry contains seq_length + 1 number of elements
-    # Jents: dit is niet goed. Dit moet een window worden dat over de tesnore schuift
-   # sequences = sliding_windows.batch(seq_length+1, drop_remainder=True)
-    
+    dataset = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+    dataset = dataset.window(seq_length + 1, shift=1, drop_remainder=True)
+    dataset = dataset.flat_map(lambda window: window.batch(seq_length+1))
+    dataset = dataset.map(TokenParser.split_input_target) 
+
     if (removeDuplicates):
         sequences2 = sequencesSliced
         sequencesSliced = sequencesSliced.unique()
 
-    dataset = dataset.map(TokenParser.split_input_target)  
+ 
 
    
        
@@ -423,8 +423,8 @@ force_train_model = True
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
 EPOCHS = 10
-seq_length = 5
-trainingSet = 3
+seq_length = 30
+trainingSet = 7
 removeDuplicates = False
 
 # The embedding dimension: the output dimension of the embedding layer.
@@ -444,6 +444,8 @@ ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
 TrainingLogFile             = OutputDirectory + os.path.sep + "TrainingLog.txt"
 SummaryFile                 = OutputDirectory + os.path.sep + "Summary.txt"
 VocabularyFile              = OutputDirectory + os.path.sep + "TokenfileOnlyTokens.dat"
+DatasetDumpfile             = OutputDirectory + os.path.sep + "TrainingDataset.dat"
+
 
 ModelDirectory              = OutputDirectory + os.path.sep + "SavedModel"
 
@@ -496,6 +498,7 @@ id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileN
 if (train_model):
     datasetForTraining, trainingFileList = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, removeDuplicates=removeDuplicates) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
     datasetForTraining2 = datasetForTraining  # for the losstraining
+    WriteDatasetToFile(DatasetDumpfile, datasetForTraining)
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
 datasetForVerification, verificationFileList = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification)    

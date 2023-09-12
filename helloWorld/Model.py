@@ -365,7 +365,7 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
 
         print("annotated line " + str(numberOfAnalyzedLines) + ". Number of lines per second: {:2.2f} ".format((numberOfParallelExecutions / (Endtime - startTime) )))
 
-    print("\n Total number of annotated lines " + str(y) + "Average next token probability = " + str(accumulatedNextTokenProbability/numberOfAnalyzedLines))
+    print("\n Total number of annotated lines " + str(y) + "Average next token probability = " + str(accumulatedNextTokenProbability/numberOfAnalyzedLines)+ "\n")
     
     
     LogfileToAnalyze.close()

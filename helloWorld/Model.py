@@ -95,12 +95,17 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
 
-
-
     ids_from_logfile = id_from_token(TrainingLogTensor)
+
     #keras.backend.print_tensor(ids_from_logfile)
     #sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
     # Slide the window over the tensor
+    SLOW_PATH = False
+
+    datasetSlow = None
+    datasetfast = None
+
+
     windows = []
     windowsAcc = []
     print(ids_from_logfile.shape[0])
@@ -113,21 +118,33 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
 
     # Stack the windows into a new tensor
     sequences = tf.stack(windowsAcc, axis=0)
-    dataset = tf.data.Dataset.from_tensor_slices(sequences)
+    datasetSlow = tf.data.Dataset.from_tensor_slices(sequences)
     #sequencesSliced = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
     #patches = tf.image.extract_patches(sliced_ids_from_logfile, sizes=seq_length, strides=strides, rates=[1, 1, 1, 1], padding='VALID')
     # each sequence entry contains seq_length + 1 number of elements
     # Jents: dit is niet goed. Dit moet een window worden dat over de tesnore schuift
-   # sequences = sliding_windows.batch(seq_length+1, drop_remainder=True)
+    # sequences = sliding_windows.batch(seq_length+1, drop_remainder=True)
+
+    datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+    datasetfast = datasetfast.window(seq_length + 1, shift=1, drop_remainder=True)
+    datasetfast = datasetfast.flat_map(lambda window2: window2.batch(seq_length+1))
+    #datasetfast = datasetfast.batch(seq_length+1)
+    #datasetfast = datasetfast.flat_map(lambda window2: window2)
+    CompareDatasets(datasetSlow, datasetSlow)
     
+    if (SLOW_PATH):
+        dataset = datasetSlow
+    else:
+        dataset = datasetfast
+
+    dataset = dataset.map(TokenParser.split_input_target) 
+
+
+
+
     if (removeDuplicates):
         sequences2 = sequencesSliced
         sequencesSliced = sequencesSliced.unique()
-
-    dataset = dataset.map(TokenParser.split_input_target)  
-
-   
-       
 
     # run the function split_input_target accross all entries of sequences
     cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(dataset)
@@ -135,6 +152,14 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
  
     return dataset, filesUsed
 
+def CompareDatasets(dataSet1, dataSet2):
+    def compare_elements(x, y):
+        return tf.math.equal(x, y)
+
+    compared_dataset = tf.data.Dataset.zip((dataSet1, dataSet2)).map(compare_elements)
+
+    for element in compared_dataset:
+        print(element.numpy())
 
 def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
     TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
@@ -363,9 +388,9 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
         
         Endtime = time.time()
 
-        print("annotated line " + str(numberOfAnalyzedLines) + ". Number of lines per second: {:2.2f} ".format((numberOfParallelExecutions / (Endtime - startTime) )))
+        print("  annotated line " + str(numberOfAnalyzedLines) + ". Number of lines per second: {:2.2f} ".format((numberOfParallelExecutions / (Endtime - startTime) )))
 
-    print("\n Total number of annotated lines " + str(y) + "Average next token probability = " + str(accumulatedNextTokenProbability/numberOfAnalyzedLines)+ "\n")
+    print("\n Total number of annotated lines " + str(y) + ". Average next token probability = " + str(accumulatedNextTokenProbability/numberOfAnalyzedLines)+ "\n")
     
     
     LogfileToAnalyze.close()
@@ -422,8 +447,8 @@ force_train_model = True
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
-EPOCHS = 10
-seq_length = 5
+EPOCHS = 20
+seq_length = 6
 trainingSet = 3
 removeDuplicates = False
 

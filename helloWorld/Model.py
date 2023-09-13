@@ -53,113 +53,7 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSamples=None, removeDuplicates=False):
 
-    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory)
-    
-    ################# Create a dataset for training and throw all files that are in the training output dir in it
-    TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)
-    tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
-    dataset = None
-    filesUsed = []
-    datasetList = []
-
-    TrainingLogTensor = None
-
-    while (tokenLogfileToProcess is not None):
-        logTokenNumpyList = []
-        print("Adding " + tokenLogfileToProcess + " to the dataset")
-        filesUsed.append(tokenLogfileToProcess)
-        if ((ReductionInSamples is not None) and (ReductionInSamples != 0)):
-            logTokenNumpyListTemp = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
-            num_lines = len(logTokenNumpyListTemp)
-            num_linesToRead = int(num_lines / ReductionInSamples)
-            
-            start_index = np.random.randint(0, num_lines - (seq_length + 1))
-            random_lines = logTokenNumpyListTemp[start_index:start_index + (seq_length + 1)]
-            logTokenNumpyList = random_lines
-            
-            for i in range(num_linesToRead):
-                start_index = np.random.randint(0, num_lines - (seq_length + 1))
-                random_lines = logTokenNumpyListTemp[start_index:start_index + (seq_length + 1)]
-                logTokenNumpyList = np.vstack((logTokenNumpyList, random_lines))
-        else:
-            logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
-
-        TensorOfThisFile = tf.convert_to_tensor(logTokenNumpyList)
-
-        if (TrainingLogTensor is None):
-            TrainingLogTensor = TensorOfThisFile
-        else:
-            TrainingLogTensor = np.concatenate((TrainingLogTensor, TensorOfThisFile), axis=0)
-
-        tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
-
-    ids_from_logfile = id_from_token(TrainingLogTensor)
-
-    #keras.backend.print_tensor(ids_from_logfile)
-    #sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
-    # Slide the window over the tensor
-    SLOW_PATH = False
-
-    datasetSlow = None
-    datasetfast = None
-
-
-    windows = []
-    windowsAcc = []
-    print(ids_from_logfile.shape[0])
-    for i in range(ids_from_logfile.shape[0] - (seq_length + 1) + 1):
-        window = ids_from_logfile[i:i+seq_length]
-        print(window)
-        windowsAcc.append(window)
-        #
-    #print(windowsAcc)
-
-    # Stack the windows into a new tensor
-    sequences = tf.stack(windowsAcc, axis=0)
-    datasetSlow = tf.data.Dataset.from_tensor_slices(sequences)
-    #sequencesSliced = sliced_ids_from_logfile.batch(seq_length+1, drop_remainder=True)
-    #patches = tf.image.extract_patches(sliced_ids_from_logfile, sizes=seq_length, strides=strides, rates=[1, 1, 1, 1], padding='VALID')
-    # each sequence entry contains seq_length + 1 number of elements
-    # Jents: dit is niet goed. Dit moet een window worden dat over de tesnore schuift
-    # sequences = sliding_windows.batch(seq_length+1, drop_remainder=True)
-
-    datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
-    datasetfast = datasetfast.window(seq_length + 1, shift=1, drop_remainder=True)
-    datasetfast = datasetfast.flat_map(lambda window2: window2.batch(seq_length+1))
-    #datasetfast = datasetfast.batch(seq_length+1)
-    #datasetfast = datasetfast.flat_map(lambda window2: window2)
-    CompareDatasets(datasetSlow, datasetSlow)
-    
-    if (SLOW_PATH):
-        dataset = datasetSlow
-    else:
-        dataset = datasetfast
-
-    dataset = dataset.map(TokenParser.split_input_target) 
-
-
-
-
-    if (removeDuplicates):
-        sequences2 = sequencesSliced
-        sequencesSliced = sequencesSliced.unique()
-
-    # run the function split_input_target accross all entries of sequences
-    cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(dataset)
-    print(" Cardinality of the dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining) + " ( " + str(sys.getsizeof(dataset)) + ")")
- 
-    return dataset, filesUsed
-
-def CompareDatasets(dataSet1, dataSet2):
-    def compare_elements(x, y):
-        return tf.math.equal(x, y)
-
-    compared_dataset = tf.data.Dataset.zip((dataSet1, dataSet2)).map(compare_elements)
-
-    for element in compared_dataset:
-        print(element.numpy())
 
 def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
     TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
@@ -438,7 +332,143 @@ def GetDataSetInformation(dataSet):
 
     return cardinalitydataset, num_samples_dataset
 
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSamples=None, removeDuplicates=False, verbose=False):
 
+    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory)
+    
+    ################# Create a dataset for training and throw all files that are in the training output dir in it
+    TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)
+    tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
+    dataset = None
+    filesUsed = []
+    datasetList = []
+
+    TrainingLogTensor = None
+
+    while (tokenLogfileToProcess is not None):
+        logTokenNumpyList = []
+        print("Adding " + tokenLogfileToProcess + " to the dataset")
+        filesUsed.append(tokenLogfileToProcess)
+        if ((ReductionInSamples is not None) and (ReductionInSamples != 0)):
+            logTokenNumpyListTemp = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+            num_lines = len(logTokenNumpyListTemp)
+            num_linesToRead = int(num_lines / ReductionInSamples)
+            
+            start_index = np.random.randint(0, num_lines - (seq_length + 1))
+            random_lines = logTokenNumpyListTemp[start_index:start_index + (seq_length + 1)]
+            logTokenNumpyList = random_lines
+            
+            for i in range(num_linesToRead):
+                start_index = np.random.randint(0, num_lines - (seq_length + 1))
+                random_lines = logTokenNumpyListTemp[start_index:start_index + (seq_length + 1)]
+                logTokenNumpyList = np.vstack((logTokenNumpyList, random_lines))
+        else:
+            logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+
+        TensorOfThisFile = tf.convert_to_tensor(logTokenNumpyList)
+
+        if (TrainingLogTensor is None):
+            TrainingLogTensor = TensorOfThisFile
+        else:
+            TrainingLogTensor = np.concatenate((TrainingLogTensor, TensorOfThisFile), axis=0)
+
+        tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
+
+    ids_from_logfile = id_from_token(TrainingLogTensor)
+
+    #keras.backend.print_tensor(ids_from_logfile)
+    #sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
+    # Slide the window over the tensor
+    EXECUTE_SLOW_PATH = False
+    SLOW_PATH = False
+
+
+    datasetSlow = None
+    datasetfast = None
+
+    if (EXECUTE_SLOW_PATH):
+        windows = []
+        windowsAcc = []
+        print(ids_from_logfile.shape[0])
+        for i in range(ids_from_logfile.shape[0] - (seq_length + 1) + 1):
+            window = ids_from_logfile[i:i+seq_length+1]
+            windowsAcc.append(window)
+
+        # Stack the windows into a new tensor
+        sequences = tf.stack(windowsAcc, axis=0)
+        datasetSlow = tf.data.Dataset.from_tensor_slices(sequences)
+
+    datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+    datasetfast = datasetfast.window(seq_length + 1, shift=1, drop_remainder=True)
+    #datasetfast = datasetfast.flat_map(lambda window2: window2.batch(seq_length+1))
+    datasetfast = datasetfast.flat_map(lambda window2: window2)
+    datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = 1)
+
+    if (verbose):
+        PrintDataset(datasetSlow)
+        PrintDataset(datasetfast)
+    
+    if (EXECUTE_SLOW_PATH):
+        datasetSlow = datasetfast.map(TokenParser.split_input_target) 
+
+    datasetfast = datasetfast.map(TokenParser.split_input_target) 
+    
+    if (verbose):
+        PrintDatasetTuple(datasetSlow)
+        PrintDatasetTuple(datasetfast)
+
+    if (SLOW_PATH) and (EXECUTE_SLOW_PATH):
+        dataset = datasetSlow
+    else:
+        dataset = datasetfast
+
+    if (verbose) and (SLOW_PATH) and (EXECUTE_SLOW_PATH):
+        CompareDatasets(datasetSlow, datasetSlow)
+
+    if (removeDuplicates):
+        sequences2      = sequencesSliced
+        sequencesSliced = sequencesSliced.unique()
+
+    # run the function split_input_target accross all entries of sequences
+    cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(dataset)
+    print(" Cardinality of the dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining) + " ( " + str(sys.getsizeof(dataset)) + ")")
+ 
+    return dataset, filesUsed
+
+def PrintDataset(dataSet):
+    if (dataSet is not None):
+        i = 0
+        print ("PrintDataset \n")
+        for element in dataSet:
+            print(element.numpy())
+            i += 1
+
+        print ("number of elements ", i, "\n")
+
+
+def PrintDatasetTuple(dataSet):
+    if (dataSet is not None):
+        i = 0
+        print ("PrintDatasetTuple \n")
+        for element in dataSet:
+            print(element[0].numpy(), element[1].numpy())
+            i += 1
+
+        print ("number of elements ", i, "\n")
+
+def CompareDatasets(dataSet1, dataSet2):
+    def compare_elements(x, y):
+        return tf.math.equal(x, y)
+
+    compared_dataset = tf.data.Dataset.zip((dataSet1, dataSet2)).map(compare_elements)
+
+    i = 0
+    
+    for element in compared_dataset:
+        print(element.numpy())
+        i += 1
+
+    print ("number of elements ", i, "\n")
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
@@ -448,7 +478,7 @@ force_train_model = True
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
 EPOCHS = 20
-seq_length = 6
+seq_length = 5
 trainingSet = 3
 removeDuplicates = False
 
@@ -465,11 +495,11 @@ Directory = "TrainingSet" + str(trainingSet)
 OriginalTokenFileName       = Directory + os.path.sep + "Tokens.dat"
 
 OutputDirectory             = Directory + os.path.sep + "out"
+
 ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
 TrainingLogFile             = OutputDirectory + os.path.sep + "TrainingLog.txt"
 SummaryFile                 = OutputDirectory + os.path.sep + "Summary.txt"
 VocabularyFile              = OutputDirectory + os.path.sep + "TokenfileOnlyTokens.dat"
-
 ModelDirectory              = OutputDirectory + os.path.sep + "SavedModel"
 
 if (force_train_model):
@@ -519,7 +549,7 @@ id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileN
 
 ################# Create a dataset for training and throw all files that are in the training output dir in it
 if (train_model):
-    datasetForTraining, trainingFileList = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, removeDuplicates=removeDuplicates) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+    datasetForTraining, trainingFileList = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, removeDuplicates=removeDuplicates, verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
     datasetForTraining2 = datasetForTraining  # for the losstraining
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it

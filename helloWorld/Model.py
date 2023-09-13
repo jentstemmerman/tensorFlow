@@ -67,12 +67,6 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
 
     return id_from_token, token_from_id
 
-def WriteStringToFile(Scorefile, stringToWrite):
-    Scorefilehandle = open(Scorefile, "w")
-    Scorefilehandle.write(stringToWrite)
-    Scorefilehandle.close()
-
-
 def AnalyzeTokenFiles(directory):
 
     verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
@@ -327,10 +321,8 @@ def GetDataSetInformation(dataSet):
     # Count the number of elements in the dataset
     dataSetTemp = dataSet
     num_samples_dataset     = dataSetTemp.reduce(0, lambda x, _: x + 1).numpy()
-    dataSetTemp = dataSet
-    cardinalitydataset      = dataSetTemp.cardinality().numpy()
 
-    return cardinalitydataset, num_samples_dataset
+    return num_samples_dataset
 
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSamples=None, removeDuplicates=False, verbose=False):
 
@@ -402,7 +394,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
     datasetfast = datasetfast.window(seq_length + 1, shift=1, drop_remainder=True)
     #datasetfast = datasetfast.flat_map(lambda window2: window2.batch(seq_length+1))
     datasetfast = datasetfast.flat_map(lambda window2: window2)
-    datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = 1)
+    datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = 10)
 
     if (verbose):
         PrintDataset(datasetSlow)
@@ -429,10 +421,8 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
         sequences2      = sequencesSliced
         sequencesSliced = sequencesSliced.unique()
 
-    # run the function split_input_target accross all entries of sequences
-    cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(dataset)
-    print(" Cardinality of the dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining) + " ( " + str(sys.getsizeof(dataset)) + ")")
- 
+        print("Adding " + InputDirectory + " to the dataset has finished \n")
+
     return dataset, filesUsed
 
 def PrintDataset(dataSet):
@@ -478,8 +468,8 @@ force_train_model = True
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
 EPOCHS = 20
-seq_length = 5
-trainingSet = 3
+seq_length = 20
+trainingSet = 4
 removeDuplicates = False
 
 # The embedding dimension: the output dimension of the embedding layer.
@@ -536,17 +526,11 @@ if (train_model):
 
 
 
-
-
-
-
-
-
 PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
 
 ######################################################################################################
 id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
-
+print("Creating datasets:")
 ################# Create a dataset for training and throw all files that are in the training output dir in it
 if (train_model):
     datasetForTraining, trainingFileList = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, removeDuplicates=removeDuplicates, verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
@@ -557,31 +541,31 @@ datasetForVerification, verificationFileList = CreateDatasetFromDirectory(Verifi
 datasetForVerification2 = datasetForVerification # for the losstraining
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 
+CheckCardinality = False
+if (CheckCardinality):
+    print("Checking datasets:")
+    if (train_model):
+        num_samples_datasetForTraining     = GetDataSetInformation(datasetForTraining)
+        print("num_samples_datasetForTraining: " + str(num_samples_datasetForTraining)) 
+
+    num_samples_datasetForVerification = GetDataSetInformation(datasetForVerification)
+    print("num_samples_datasetForTraining: " + str(num_samples_datasetForVerification)) 
 
 
-print("Checking datasets:")
-if (train_model):
-    cardinalitydatasetForTraining,     num_samples_datasetForTraining     = GetDataSetInformation(datasetForTraining)
-    print("Cardinality of the Training     dataset: " + str(cardinalitydatasetForTraining) + "/" + str(num_samples_datasetForTraining)) # + " unique: " + unique_datasetForTraining))
+CrossReferenceTokens = False
 
-cardinalitydatasetForVerification, num_samples_datasetForVerification = GetDataSetInformation(datasetForVerification)
-print("Cardinality of the Verification dataset: " + str(cardinalitydatasetForVerification) + "/" + str(num_samples_datasetForVerification)) # + " unique: " + unique_datasetForVerification))
+if (CrossReferenceTokens):
+    print("CrossReferenceTokens:")
+    CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
 
-
-
-print("CrossReferenceTokens:")
-CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
-
-if (train_model):
-    CrossReferenceResultTraining = TokenParser.CrossReferenceTokens(OutputDirectoryTraining, VocabularyFile)
-else:
-    CrossReferenceResultTraining = 0
-
-
-
-if (CrossReferenceResultTraining == -1) or (CrossReferenceResultVerification == -1):
-    print("Logfile contains tokens that are not in the tokenfile!!")
-    exit()
+    if (train_model):
+        CrossReferenceResultTraining = TokenParser.CrossReferenceTokens(OutputDirectoryTraining, VocabularyFile)
+    else:
+        CrossReferenceResultTraining = 0
+    
+    if (CrossReferenceResultTraining == -1) or (CrossReferenceResultVerification == -1):
+        print("Logfile contains tokens that are not in the tokenfile!!")
+        exit()
 
 
 if (train_model):
@@ -589,7 +573,8 @@ if (train_model):
     # jents: organize them in batches and also shuffle .
     # Batch size
     BATCH_SIZE = 20
-
+    numberOfSamplesToTrainPerEon    = 10000
+    numberOfSamplesToValidatePerEon = 10000
     # Buffer size to shuffle the dataset
     # (TF data is designed to work with possibly infinite sequences,
     # so it doesn't attempt to shuffle the entire sequence in memory. Instead,
@@ -598,7 +583,7 @@ if (train_model):
 
     datasetForTraining = (
         datasetForTraining
-        .shuffle(BUFFER_SIZE)
+        #.shuffle(BUFFER_SIZE)
         .batch(BATCH_SIZE, drop_remainder=True)
         .prefetch(tf.data.experimental.AUTOTUNE))
 
@@ -646,13 +631,24 @@ if (train_model):
     checkpoint_callback    = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
     EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2)
     
-    class BatchStartCallback(tf.keras.callbacks.Callback):
-        def on_batch_begin(self, batch, logs=None):
-            hello = 1
+    class EpochEndCallback(tf.keras.callbacks.Callback):
+        def __init__(self, numberOfSamplesToTrainPerEpoch, numberOfSamplesToValidatePerEpoch):
+            print("EpochEndCallback start newcreating new subsetForBatchTraining")
+            self.numberOfSamplesToTrainPerEpoch = numberOfSamplesToTrainPerEpoch
+            self.numberOfSamplesToValidatePerEpoch = numberOfSamplesToValidatePerEpoch
+            self.subsetForBatchTraining = datasetForTraining.shuffle(BUFFER_SIZE).take(self.numberOfSamplesToTrainPerEpoch)
+            self.subsetForBatchVerification = datasetForVerification.shuffle(BUFFER_SIZE).take(self.numberOfSamplesToValidatePerEpoch)
+            print("EpochEndCallback start newcreating new subsetForBatchTraining done")
+
+        def on_epoch_end(self, epoch, logs=None):
+            print("on_epoch_end -> Creating new subsetForBatchTraining")
+            self.subsetForBatchTraining = datasetForTraining.shuffle(BUFFER_SIZE).take(self.numberOfSamplesToTrainPerEpoch)
+            self.subsetForBatchVerification = datasetForVerification.shuffle(BUFFER_SIZE).take(self.numberOfSamplesToValidatePerEpoch)
+            print("on_epoch_end Creating new subsetForBatchTraining done")
 
 
 
-    batch_start_callback = BatchStartCallback()
+    Epoch_End_callback = EpochEndCallback(numberOfSamplesToTrainPerEon, numberOfSamplesToValidatePerEon)
     
     latest = tf.train.latest_checkpoint(checkpoint_dir)
     
@@ -662,7 +658,8 @@ if (train_model):
 
     sys.stdout = TokenParser.Logger(TrainingLogFile)
 
-    history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback, batch_start_callback])
+    history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
+    #history = model.fit(subsetForBatchTraining, validation_data=datasetForVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback, batch_start_callback])
 
     sys.stdout = sys.__stdout__
 
@@ -689,6 +686,9 @@ if (train_model):
         ModelSummary = ModelSummary + "trainingSet: " + str(trainingSet) + "\n"
         ModelSummary = ModelSummary + "embedding_dim: " + str(embedding_dim) + "\n"
         ModelSummary = ModelSummary + "rnn_units: " + str(rnn_units) + "\n"
+        ModelSummary = ModelSummary + "numberOfSamplesToTrainPerEon: " + str(numberOfSamplesToTrainPerEon) + "\n"
+        ModelSummary = ModelSummary + "numberOfSamplesToValidatePerEon: " + str(numberOfSamplesToTrainPerEon) + "\n"
+
         print(ModelSummary + "\n")
         print("Training finished in ", (end - start)/60, " minutes")
         

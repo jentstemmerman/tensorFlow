@@ -341,21 +341,8 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, ReductionInSampl
         logTokenNumpyList = []
         print("Adding " + tokenLogfileToProcess + " to the dataset")
         filesUsed.append(tokenLogfileToProcess)
-        if ((ReductionInSamples is not None) and (ReductionInSamples != 0)):
-            logTokenNumpyListTemp = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
-            num_lines = len(logTokenNumpyListTemp)
-            num_linesToRead = int(num_lines / ReductionInSamples)
-            
-            start_index = np.random.randint(0, num_lines - (seq_length + 1))
-            random_lines = logTokenNumpyListTemp[start_index:start_index + (seq_length + 1)]
-            logTokenNumpyList = random_lines
-            
-            for i in range(num_linesToRead):
-                start_index = np.random.randint(0, num_lines - (seq_length + 1))
-                random_lines = logTokenNumpyListTemp[start_index:start_index + (seq_length + 1)]
-                logTokenNumpyList = np.vstack((logTokenNumpyList, random_lines))
-        else:
-            logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+
+        logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
 
         TensorOfThisFile = tf.convert_to_tensor(logTokenNumpyList)
 
@@ -467,8 +454,8 @@ force_train_model = True
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
-EPOCHS = 20
-seq_length = 20
+EPOCHS = 5
+seq_length = 30
 trainingSet = 4
 removeDuplicates = False
 
@@ -572,28 +559,18 @@ if (train_model):
 
     # jents: organize them in batches and also shuffle .
     # Batch size
-    BATCH_SIZE = 20
-    numberOfSamplesToTrainPerEon    = 10000
-    numberOfSamplesToValidatePerEon = 10000
+    BATCH_SIZE = 32
+
     # Buffer size to shuffle the dataset
     # (TF data is designed to work with possibly infinite sequences,
     # so it doesn't attempt to shuffle the entire sequence in memory. Instead,
     # it maintains a buffer in which it shuffles elements).
-    BUFFER_SIZE = 100000
 
-    datasetForTraining = (
-        datasetForTraining
-        #.shuffle(BUFFER_SIZE)
-        .batch(BATCH_SIZE, drop_remainder=True)
-        .prefetch(tf.data.experimental.AUTOTUNE))
 
-    datasetForTraining  # python convention to show the variable is ready
+    numberOfSamplesToTrainPerEon    = 20000
+    numberOfSamplesToValidatePerEon = 20000
 
-    datasetForVerification = (
-        datasetForVerification
-        .shuffle(BUFFER_SIZE)
-        .batch(BATCH_SIZE, drop_remainder=True)
-        .prefetch(tf.data.experimental.AUTOTUNE))
+    BUFFER_SIZE = numberOfSamplesToTrainPerEon
     
     Network = "GRU"
     model
@@ -612,12 +589,30 @@ if (train_model):
         ])
 
     if (Network == "GRU"):
-        model = ModelClass.PrintfLogModel(
+        model = ModelClass.GruPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
             embedding_dim=embedding_dim,
             rnn_units=rnn_units)
 
     ############################################################################################# Train the model
+
+    SampleDataSet = True
+
+
+    datasetForTraining = (
+        datasetForTraining
+        .shuffle(BUFFER_SIZE)
+        .batch(BATCH_SIZE, drop_remainder=True)
+        .prefetch(tf.data.experimental.AUTOTUNE))
+
+    datasetForTraining  # python convention to show the variable is ready
+
+    datasetForVerification = (
+        datasetForVerification
+        .shuffle(BUFFER_SIZE)
+        .batch(BATCH_SIZE, drop_remainder=True)
+        .prefetch(tf.data.experimental.AUTOTUNE))
+
 
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
     model.compile(optimizer='adam', loss=loss)
@@ -629,27 +624,7 @@ if (train_model):
     checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")
 
     checkpoint_callback    = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
-    EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2)
-    
-    class EpochEndCallback(tf.keras.callbacks.Callback):
-        def __init__(self, numberOfSamplesToTrainPerEpoch, numberOfSamplesToValidatePerEpoch):
-            print("EpochEndCallback start newcreating new subsetForBatchTraining")
-            self.numberOfSamplesToTrainPerEpoch = numberOfSamplesToTrainPerEpoch
-            self.numberOfSamplesToValidatePerEpoch = numberOfSamplesToValidatePerEpoch
-            self.subsetForBatchTraining = datasetForTraining.shuffle(BUFFER_SIZE).take(self.numberOfSamplesToTrainPerEpoch)
-            self.subsetForBatchVerification = datasetForVerification.shuffle(BUFFER_SIZE).take(self.numberOfSamplesToValidatePerEpoch)
-            print("EpochEndCallback start newcreating new subsetForBatchTraining done")
 
-        def on_epoch_end(self, epoch, logs=None):
-            print("on_epoch_end -> Creating new subsetForBatchTraining")
-            self.subsetForBatchTraining = datasetForTraining.shuffle(BUFFER_SIZE).take(self.numberOfSamplesToTrainPerEpoch)
-            self.subsetForBatchVerification = datasetForVerification.shuffle(BUFFER_SIZE).take(self.numberOfSamplesToValidatePerEpoch)
-            print("on_epoch_end Creating new subsetForBatchTraining done")
-
-
-
-    Epoch_End_callback = EpochEndCallback(numberOfSamplesToTrainPerEon, numberOfSamplesToValidatePerEon)
-    
     latest = tf.train.latest_checkpoint(checkpoint_dir)
     
     if (latest is not None):
@@ -658,8 +633,32 @@ if (train_model):
 
     sys.stdout = TokenParser.Logger(TrainingLogFile)
 
-    history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
-    #history = model.fit(subsetForBatchTraining, validation_data=datasetForVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback, batch_start_callback])
+
+    EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2)
+    
+    Epoch_End_callback = None
+    
+    if (SampleDataSet):
+        # dit werkt niet zo goed
+        class EpochEndCallback(tf.keras.callbacks.Callback):
+            def __init__(self, numberOfSamplesToTrainPerEpoch, numberOfSamplesToValidatePerEpoch):
+                print("EpochEndCallback start newcreating new subsetForBatchTraining")
+                self.numberOfSamplesToTrainPerEpoch    = numberOfSamplesToTrainPerEpoch
+                self.numberOfSamplesToValidatePerEpoch = numberOfSamplesToValidatePerEpoch
+                self.subsetForBatchTraining            = datasetForTraining.take(self.numberOfSamplesToTrainPerEpoch)
+                self.subsetForBatchVerification        = None
+                print("EpochEndCallback start newcreating new subsetForBatchTraining done")
+
+            def on_epoch_end(self, epoch, logs=None):
+                print("on_epoch_end -> Creating new subsetForBatchTraining")
+                self.subsetForBatchTraining     = datasetForTraining.shuffle(BUFFER_SIZE).take(self.numberOfSamplesToTrainPerEpoch)
+                print("on_epoch_end Creating new subsetForBatchTraining done")
+        
+
+        Epoch_End_callback = EpochEndCallback(numberOfSamplesToTrainPerEon, numberOfSamplesToValidatePerEon)
+        history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
+    else:
+        history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback])
 
     sys.stdout = sys.__stdout__
 

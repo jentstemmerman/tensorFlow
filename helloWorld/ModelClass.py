@@ -8,8 +8,8 @@ class GruPrintfLogModel(tf.keras.Model):
   def __init__(self, vocab_size, embedding_dim, rnn_units):
     super().__init__(self)
     self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    self.gru1      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True, dropout=0.1)
-    self.gru2      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True, dropout=0.1)
+    self.gru1      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True, dropout=0.2)
+    self.gru2      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True, dropout=0.2)
     self.dense     = tf.keras.layers.Dense(vocab_size)
 
   def call(self, inputs, states=None, return_state=False, training=False):
@@ -17,10 +17,11 @@ class GruPrintfLogModel(tf.keras.Model):
     x = self.embedding(x, training=training)
     
     if states is None:
-      states = self.gru1.get_initial_state(x)
+      initial_states = self.gru1.get_initial_state(x)
       
-    x, states = self.gru1(x, initial_state=states, training=training)
-    x, states = self.gru2(x, initial_state=self.gru2.get_initial_state(x), training=training)
+    x, states = self.gru1(x, initial_state=initial_states, training=training)
+    x, states = self.gru2(x, initial_state=states,         training=training)
+    
     x = self.dense(x, training=training)
 
     if return_state:
@@ -28,14 +29,12 @@ class GruPrintfLogModel(tf.keras.Model):
     else:
       return x
     
-class PrintfLogModel(tf.keras.Model):
-
-
+class SimpleRnnPrintfLogModel(tf.keras.Model):
   def __init__(self, vocab_size, embedding_dim, rnn_units):
     super().__init__(self)
     self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    self.gru1      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True, dropout=0.1)
-    self.gru2      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=True, dropout=0.1)
+    self.simple_rnn1 = tf.keras.layers.SimpleRNN(rnn_units, return_sequences=True, return_state=True)
+    self.simple_rnn2 = tf.keras.layers.SimpleRNN(rnn_units, return_sequences=True, return_state=True)
     self.dense     = tf.keras.layers.Dense(vocab_size)
 
   def call(self, inputs, states=None, return_state=False, training=False):
@@ -43,10 +42,10 @@ class PrintfLogModel(tf.keras.Model):
     x = self.embedding(x, training=training)
     
     if states is None:
-      states = self.gru1.get_initial_state(x)
-      
-    x, states = self.gru1(x, initial_state=states, training=training)
-    x, states = self.gru2(x, initial_state=self.gru2.get_initial_state(x), training=training)
+      states1 = self.simple_rnn1.get_initial_state(x)
+
+    x, states = self.simple_rnn1(x, initial_state=states1, training=training)
+    x, states = self.simple_rnn2(x, initial_state=states, training=training)
     x = self.dense(x, training=training)
 
     if return_state:

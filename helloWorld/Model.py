@@ -324,7 +324,7 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stride, ReductionInSamples=None, removeDuplicates=False, verbose=False):
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stride, shuffle, ReductionInSamples=None, removeDuplicates=False, verbose=False):
     
     TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory)
     
@@ -361,7 +361,6 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stri
     EXECUTE_SLOW_PATH = False
     SLOW_PATH = False
 
-
     datasetSlow = None
     datasetfast = None
 
@@ -383,7 +382,9 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stri
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
     datasetfast = datasetfast.flat_map(lambda window2: window2)
     datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = 10)
-
+    if (removeDuplicates):
+        datasetfast      = datasetfast
+        datasetfast = datasetfast.unique()
 
     if (verbose):
         PrintDataset(datasetSlow, 10)
@@ -394,6 +395,10 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stri
         datasetSlow = datasetfast.map(TokenParser.split_input_target) 
 
     datasetfast = datasetfast.map(TokenParser.split_input_target) 
+    
+    if (shuffle):
+        datasetfast = datasetfast.shuffle(BUFFER_SIZE)
+
     datasetfast = datasetfast.batch(batch_size, drop_remainder=True)
     datasetfast = datasetfast.prefetch(tf.data.experimental.AUTOTUNE)
 
@@ -412,9 +417,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stri
     if (verbose) and (SLOW_PATH) and (EXECUTE_SLOW_PATH):
         CompareDatasets(datasetSlow, datasetSlow)
 
-    if (removeDuplicates):
-        sequences2      = sequencesSliced
-        sequencesSliced = sequencesSliced.unique()
+
 
         print("Adding " + InputDirectory + " to the dataset has finished \n")
 
@@ -459,32 +462,40 @@ def CompareDatasets(dataSet1, dataSet2):
 
     print ("number of elements ", i, "\n")
 
-# https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = True
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
+
+# https://www.tensorflow.org/text/tutorials/text_generation
+
+force_train_model = True
+
+Network = "GRU"
 BATCH_SIZE = 32
 EPOCHS = 5
 seq_length = 8
 trainingSet = 4
-removeDuplicates = False
-stride_dataset = 11 
-# The embedding dimension: the output dimension of the embedding layer.
+removeDuplicates = True
+stride_dataset = 7 
 embedding_dim = 256
-
-# Number of RNN units, to be checked out
 rnn_units = 1024
+SampleDataSet = False
+shuffleTraining = True
+BUFFER_SIZE = 10000
+if (SampleDataSet):
+    # dit werkt niet goed. 
+    numberOfBatchesToTrainPerEpoch    = 10
+    numberOfBatchesToValidatePerEpoch = 10
+    BUFFER_SIZE = numberOfBatchesToTrainPerEpoch
+
 
 start = time.time()
 
 Directory = "TrainingSet" + str(trainingSet)
 
 OriginalTokenFileName       = Directory + os.path.sep + "Tokens.dat"
-
 OutputDirectory             = Directory + os.path.sep + "out"
-
 ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
 TrainingLogFile             = OutputDirectory + os.path.sep + "TrainingLog.txt"
 SummaryFile                 = OutputDirectory + os.path.sep + "Summary.txt"
@@ -498,6 +509,7 @@ else:
         model = tf.keras.models.load_model(ModelDirectory, compile=True)
     except:
         model = None
+
 train_model = (model == None)
 
 TrainingDirectory           = Directory + os.path.sep + "Training"
@@ -532,10 +544,10 @@ id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileN
 print("Creating datasets:")
 ################# Create a dataset for training and throw all files that are in the training output dir in it
 if (train_model):
-    datasetForTraining, trainingFileList = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, BATCH_SIZE, stride_dataset, removeDuplicates=removeDuplicates, verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+    datasetForTraining, trainingFileList = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, BATCH_SIZE, stride_dataset, shuffle=shuffleTraining, removeDuplicates=removeDuplicates, verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
-datasetForVerification, verificationFileList = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification, BATCH_SIZE, stride_dataset)    
+datasetForVerification, verificationFileList = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification, BATCH_SIZE, stride_dataset, shuffle=False)    
 
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 
@@ -543,7 +555,7 @@ CheckCardinality = True
 if (CheckCardinality):
     print("Checking datasets:")
     if (train_model):
-        num_batches_datasetForTraining     = GetDataSetInformation(datasetForTraining)
+        num_batches_datasetForTraining = GetDataSetInformation(datasetForTraining)
         print("num_batches_datasetForTraining: " + str(num_batches_datasetForTraining)) 
 
     num_batches_datasetForVerification = GetDataSetInformation(datasetForVerification)
@@ -567,13 +579,7 @@ if (CrossReferenceTokens):
 
 
 if (train_model):
-    SampleDataSet = False
-    numberOfBatchesToTrainPerEpoch    = 10
-    numberOfBatchesToValidatePerEpoch = 10
 
-    BUFFER_SIZE = numberOfBatchesToTrainPerEpoch
-    
-    Network = "GRU"
     model
 
     if (Network == "LSTM"):  # does not work yet
@@ -631,8 +637,9 @@ if (train_model):
     ModelSummary = ModelSummary + "trainingSet: " + str(trainingSet) + "\n"
     ModelSummary = ModelSummary + "embedding_dim: " + str(embedding_dim) + "\n"
     ModelSummary = ModelSummary + "rnn_units: " + str(rnn_units) + "\n"
-    ModelSummary = ModelSummary + "numberOfBatchesToTrainPerEpoch: " + str(numberOfBatchesToTrainPerEpoch) + "\n"
-    ModelSummary = ModelSummary + "numberOfBatchesToValidatePerEpoch: " + str(numberOfBatchesToValidatePerEpoch) + "\n"
+    if (SampleDataSet):
+        ModelSummary = ModelSummary + "numberOfBatchesToTrainPerEpoch: " + str(numberOfBatchesToTrainPerEpoch) + "\n"
+        ModelSummary = ModelSummary + "numberOfBatchesToValidatePerEpoch: " + str(numberOfBatchesToValidatePerEpoch) + "\n"
 
     print(ModelSummary + "\n")
 
@@ -662,8 +669,8 @@ if (train_model):
         Epoch_End_callback = EpochEndCallback(numberOfBatchesToTrainPerEpoch, numberOfBatchesToValidatePerEpoch)
         history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
     else:
-        history = model.fit(datasetForTraining, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback])
-
+        #history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=EPOCHS, steps_per_epoch=num_batches_datasetForTraining, callbacks=[checkpoint_callback, EarlyStopping_callback])
+        history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback])
     sys.stdout = sys.__stdout__
 
     model.save(ModelDirectory)

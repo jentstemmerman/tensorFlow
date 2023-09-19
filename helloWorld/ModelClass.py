@@ -3,8 +3,6 @@ import tensorflow as tf
 from tensorflow import keras
 
 class GruPrintfLogModel(tf.keras.Model):
-
-
   def __init__(self, vocab_size, embedding_dim, rnn_units):
     super().__init__(self)
     self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)

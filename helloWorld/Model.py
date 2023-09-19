@@ -461,16 +461,16 @@ def CompareDatasets(dataSet1, dataSet2):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = False
+force_train_model = True
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 BATCH_SIZE = 32
 EPOCHS = 5
-seq_length = 20
+seq_length = 8
 trainingSet = 4
 removeDuplicates = False
-stride_dataset = 23 
+stride_dataset = 11 
 # The embedding dimension: the output dimension of the embedding layer.
 embedding_dim = 256
 
@@ -544,10 +544,10 @@ if (CheckCardinality):
     print("Checking datasets:")
     if (train_model):
         num_batches_datasetForTraining     = GetDataSetInformation(datasetForTraining)
-        print("num_samples_datasetForTraining: " + str(num_batches_datasetForTraining)) 
+        print("num_batches_datasetForTraining: " + str(num_batches_datasetForTraining)) 
 
     num_batches_datasetForVerification = GetDataSetInformation(datasetForVerification)
-    print("num_samples_datasetForVerification: " + str(num_batches_datasetForVerification)) 
+    print("num_batches_datasetForVerification: " + str(num_batches_datasetForVerification)) 
 
 
 CrossReferenceTokens = False
@@ -567,9 +567,6 @@ if (CrossReferenceTokens):
 
 
 if (train_model):
-
-
-
     SampleDataSet = False
     numberOfBatchesToTrainPerEpoch    = 10
     numberOfBatchesToValidatePerEpoch = 10
@@ -634,8 +631,8 @@ if (train_model):
     ModelSummary = ModelSummary + "trainingSet: " + str(trainingSet) + "\n"
     ModelSummary = ModelSummary + "embedding_dim: " + str(embedding_dim) + "\n"
     ModelSummary = ModelSummary + "rnn_units: " + str(rnn_units) + "\n"
-    ModelSummary = ModelSummary + "numberOfSamplesToTrainPerEon: " + str(numberOfBatchesToTrainPerEpoch) + "\n"
-    ModelSummary = ModelSummary + "numberOfSamplesToValidatePerEon: " + str(numberOfBatchesToTrainPerEpoch) + "\n"
+    ModelSummary = ModelSummary + "numberOfBatchesToTrainPerEpoch: " + str(numberOfBatchesToTrainPerEpoch) + "\n"
+    ModelSummary = ModelSummary + "numberOfBatchesToValidatePerEpoch: " + str(numberOfBatchesToValidatePerEpoch) + "\n"
 
     print(ModelSummary + "\n")
 
@@ -705,10 +702,10 @@ if (train_model):
 
         print("\n")
         NumberOfSamplesForLossCalculation = 2000
-        losstraining = str(CalculateLossCrossEntropy(datasetForTraining, NumberOfSamplesForLossCalculation))
-        lossverification = str(CalculateLossCrossEntropy(datasetForVerification, NumberOfSamplesForLossCalculation))
-        scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
-        print(scoreString)
+        #losstraining = str(CalculateLossCrossEntropy(datasetForTraining, NumberOfSamplesForLossCalculation))
+        #lossverification = str(CalculateLossCrossEntropy(datasetForVerification, NumberOfSamplesForLossCalculation))
+        #scoreString = "loss at training: " + losstraining + ", Loss at verification: " + lossverification
+        #print(scoreString)
         # Reset the standard output
         sys.stdout = original_stdout
 else:

@@ -67,19 +67,8 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
 
     return id_from_token, token_from_id
 
-def AnalyzeTokenFiles(directory):
 
-    verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
-    tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
-
-    while (tokenLogfileToProcess is not None):
-        LogfileAnalyzed = tokenLogfileToProcess.replace(".log", ".analyzedlogparallel")
-        AddProbabilitiesTokenFileParallel(model, tokenLogfileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature=1)
-
-        tokenLogfileToProcess = verificationFileIterator.get_next_tokenlogfile()
-
-
-def AnalyzePrintfFiles(inputDirectory, outputDirectory, temperature):
+def AnalyzePrintfFiles(inputDirectory, outputDirectory, temperature, seq_length):
     verificationFileIterator = TokenParser.LogfileIterator(inputDirectory)
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
@@ -87,104 +76,13 @@ def AnalyzePrintfFiles(inputDirectory, outputDirectory, temperature):
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".txt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        AddProbabilitiesPrintfFileParallel(model, printfFileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature=temperature)
+        AddProbabilitiesPrintfFileParallel(model, printfFileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
 
 
-def AddProbabilitiesTokenFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature):
-    TestFileNumpyList = np.loadtxt(LogfileVerification, delimiter=",", dtype=str)
-    idsTestFile = id_from_token(TestFileNumpyList)
-
-    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
-    window_size    = seq_length
-
-    
-    LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
-    LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
-
-    token_pattern = re.compile(TokenParser.ReForTokens)
-    
-    lineNumber = 0
-
-    for lineLogfileToAnalyze in LogfileToAnalyze:
-            regexFound = re.search(token_pattern, lineLogfileToAnalyze)
-            if  (regexFound):
-                tokenString = regexFound.string
-                tokenString = tokenString.replace("\n", "")
-                lineLogfileToAnalyze = lineLogfileToAnalyze.replace(tokenString, tokenString + " Not Appl")
-                LogfileAnalyzed.write(lineLogfileToAnalyze)
-            lineNumber = lineNumber + 1
-            if (lineNumber == window_size):
-                break
-
-    endIndex = TestFileNumpyList.shape[0] - window_size
-    i = 0
-    maxNumberOfParallelExecutions = 500
-
-
-    while (i <= endIndex):
-        
-        numberOfParallelExecutions = min(endIndex - i, maxNumberOfParallelExecutions)
-        if (numberOfParallelExecutions == 0):
-            break
-
-        inputTensor = []
-        nexttokenIds = []
-        Windows = []
-        y = 0
-
-        startTime = time.time()
-        while (y < numberOfParallelExecutions):
-            window      = TestFileNumpyList[i:i + window_size]
-            nextToken   = TestFileNumpyList[i + window_size]
-            IdsInWindow = id_from_token(window) 
-            NextId      = id_from_token(nextToken) 
-
-            Windows.append(window)
-
-            tempTensor = tf.convert_to_tensor(IdsInWindow, dtype=DataTypeForTensors)
-            inputTensor.append(tempTensor)
-            
-            nexttokenId = id_from_token(nextToken)
-            nexttokenId = tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors)
-            nexttokenIds.append(nexttokenId)  # make it a list of tensors
-
-            i += 1
-            y += 1
-    
-        inputTensor = tf.stack(inputTensor, axis=0)
-        nexttokenIds = tf.stack(nexttokenIds, axis=0)
-        y = 0
-        
-        nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
-        
-        while (y < numberOfParallelExecutions):
-            nextPredictedTokens[y] = nextPredictedTokens[y].decode('utf-8')  
-            nextToken = token_from_id(nexttokenIds.numpy()[y]).numpy().decode('utf-8')
-            nextPredictedToken = nextPredictedTokens[y]
-            if (nextToken == nextPredictedToken):
-                nextPredictedToken = "Identical  "
-
-            
-            printf = PrintfFromToken[nextToken]
-            lineToWrite = nextToken  + " Probability = " + "{:2.5f}".format((probabilityOfNextTokens[y]).numpy()) + ". Predicted: " + nextPredictedToken + ". Probability: {:2.5f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " + printf + "\n"
-            LogfileAnalyzed.write(lineToWrite)
-            
-            y += 1
-        
-        Endtime = time.time()
-
-        print("annotated line " + str(i+y) + " of " + str(TestFileNumpyList.shape[0]) + ". Number of lines per second: {:2.2f}".format((numberOfParallelExecutions / (Endtime - startTime) )))
-
-
-    LogfileToAnalyze.close()
-    LogfileAnalyzed.close()
-
-
-
-def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature):
+def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length):
 
  #   idsTestFile = id_from_token(TestFileNumpyList)
     one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
@@ -324,7 +222,7 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stride, shuffle, ReductionInSamples=None, removeDuplicates=False, verbose=False):
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, verbose=False):
     
     TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory)
     
@@ -375,7 +273,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stri
         # Stack the windows into a new tensor
         sequences = tf.stack(windowsAcc, axis=0)
         datasetSlow = tf.data.Dataset.from_tensor_slices(sequences)
-        datasetSlow = datasetSlow.batch(BATCH_SIZE, drop_remainder=True)
+        datasetSlow = datasetSlow.batch(batch_size, drop_remainder=True)
         datasetfast = datasetfast.prefetch(tf.data.experimental.AUTOTUNE)
 
     datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
@@ -470,25 +368,31 @@ def CompareDatasets(dataSet1, dataSet2):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = tRUE
+force_train_model = False
 
-Network = "GRU"  
-BATCH_SIZE = 32
-EPOCHS = 3
-seq_length = 8
+TrainingsParameter = {"Network":"GRU",
+                      "EPOCHS":1,
+                      "Use_Validation":True,
+                      "BatchSize":32 ,
+                      "seq_length":8 ,
+                      "removeDuplicates":False,
+                      "stride_dataset": 5,
+                      "embedding_dim":256,
+                      "rnn_units":1024,
+                      "shuffleTraining":True,
+                      "BUFFER_SIZE":10000,
+                      "SampleDataSet":False,   # does not really work, using stride is better
+                    }
+
+
 trainingSet = 4
-removeDuplicates = False
-stride_dataset = 5 
-embedding_dim = 256
-rnn_units = 1024
-SampleDataSet = False
-shuffleTraining = True
-BUFFER_SIZE = 10000
-if (SampleDataSet):
+
+
+if ( TrainingsParameter["SampleDataSet"]):
     # dit werkt niet goed. 
     numberOfBatchesToTrainPerEpoch    = 10
     numberOfBatchesToValidatePerEpoch = 10
-    BUFFER_SIZE = numberOfBatchesToTrainPerEpoch
+    TrainingsParameter["BUFFER_SIZE"] = numberOfBatchesToTrainPerEpoch
 
 
 start = time.time()
@@ -545,10 +449,26 @@ id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileN
 print("Creating datasets:")
 ################# Create a dataset for training and throw all files that are in the training output dir in it
 if (train_model):
-    datasetForTraining, trainingFileList = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, BATCH_SIZE, stride_dataset, shuffle=shuffleTraining, removeDuplicates=removeDuplicates, verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+    datasetForTraining, trainingFileList = CreateDatasetFromDirectory(InputDirectory=TrainingDirectory, 
+                                                                      OutputDirectory=OutputDirectoryTraining, 
+                                                                      batch_size=TrainingsParameter["BatchSize"], 
+                                                                      stride=TrainingsParameter["stride_dataset"], 
+                                                                      shuffle=TrainingsParameter["shuffleTraining"], 
+                                                                      BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
+                                                                      seq_length=TrainingsParameter["seq_length"], 
+                                                                      removeDuplicates=TrainingsParameter["removeDuplicates"], 
+                                                                      verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
-datasetForVerification, verificationFileList = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification, BATCH_SIZE, 1, shuffle=False)    
+datasetForVerification, verificationFileList = CreateDatasetFromDirectory(InputDirectory=VerificationDirectory, 
+                                                                          OutputDirectory=OutputDirectoryVerification, 
+                                                                          batch_size=TrainingsParameter["BatchSize"], 
+                                                                          stride=TrainingsParameter["stride_dataset"], 
+                                                                          shuffle=TrainingsParameter["shuffleTraining"], 
+                                                                          BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
+                                                                          seq_length=TrainingsParameter["seq_length"],
+                                                                          removeDuplicates=TrainingsParameter["removeDuplicates"], 
+                                                                          verbose = False)    
 
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 
@@ -583,22 +503,22 @@ if (train_model):
 
     model
 
-    if (Network == "LSTM"):  # does not work yet
+    if (TrainingsParameter["Network"] == "LSTM"):  # does not work yet
         model = ModelClass.LSTMPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
-            embedding_dim=embedding_dim,
-            rnn_units=rnn_units)
-    if (Network == "GRU"):
+            embedding_dim=TrainingsParameter["embedding_dim"],
+            rnn_units=TrainingsParameter["rnn_units"])
+    if (TrainingsParameter["Network"] == "GRU"):
         model = ModelClass.GruPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
-            embedding_dim=embedding_dim,
-            rnn_units=rnn_units)
+            embedding_dim=TrainingsParameter["embedding_dim"],
+            rnn_units=TrainingsParameter["rnn_units"])
     
-    if (Network == "SimpleRnn"):    # supposed to be faster. I don't see it.
+    if (TrainingsParameter["Network"] == "SimpleRnn"):    # supposed to be faster. I don't see it.
         model = ModelClass.SimpleRnnPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
-            embedding_dim=embedding_dim,
-            rnn_units=rnn_units)
+            embedding_dim=TrainingsParameter["embedding_dim"],
+            rnn_units=TrainingsParameter["rnn_units"])
         
     ############################################################################################# Train the model
 
@@ -623,14 +543,17 @@ if (train_model):
     sys.stdout = TokenParser.Logger(TrainingLogFile)
     print("\nSettings used: ")
 
-    ModelSummary = "EPOCHS: " + str(EPOCHS) + "\n"
-    ModelSummary = ModelSummary + "BATCH_SIZE: " + str(BATCH_SIZE) + "\n"
-    ModelSummary = ModelSummary + "stride_dataset: " + str(stride_dataset) + "\n"
-    ModelSummary = ModelSummary + "seq_length: " + str(seq_length) + "\n"
-    ModelSummary = ModelSummary + "trainingSet: " + str(trainingSet) + "\n"
-    ModelSummary = ModelSummary + "embedding_dim: " + str(embedding_dim) + "\n"
-    ModelSummary = ModelSummary + "rnn_units: " + str(rnn_units) + "\n"
-    if (SampleDataSet):
+    ModelSummary = "EPOCHS: " + str(TrainingsParameter["EPOCHS"]) + "\n"
+    ModelSummary = ModelSummary + "BATCH_SIZE:       " + str(TrainingsParameter["BatchSize"]) + "\n"
+    ModelSummary = ModelSummary + "removeDuplicates: " + str(TrainingsParameter["removeDuplicates"]) + "\n"
+    ModelSummary = ModelSummary + "stride:           " + str(TrainingsParameter["stride_dataset"]) + "\n"
+    ModelSummary = ModelSummary + "seq_length:       " + str(TrainingsParameter["seq_length"]) + "\n"
+    ModelSummary = ModelSummary + "trainingSet:      " + str(trainingSet) + "\n"
+    ModelSummary = ModelSummary + "embedding_dim:    " + str(TrainingsParameter["embedding_dim"]) + "\n"
+    ModelSummary = ModelSummary + "rnn_units:        " + str(TrainingsParameter["rnn_units"]) + "\n"
+
+
+    if ( TrainingsParameter["SampleDataSet"]):
         ModelSummary = ModelSummary + "numberOfBatchesToTrainPerEpoch: " + str(numberOfBatchesToTrainPerEpoch) + "\n"
         ModelSummary = ModelSummary + "numberOfBatchesToValidatePerEpoch: " + str(numberOfBatchesToValidatePerEpoch) + "\n"
 
@@ -640,7 +563,7 @@ if (train_model):
     
     Epoch_End_callback = None
     
-    if (SampleDataSet):
+    if ( TrainingsParameter["SampleDataSet"]):
         # dit werkt niet zo goed
         class EpochEndCallback(tf.keras.callbacks.Callback):
             def __init__(self, numberOfSamplesToTrainPerEpoch, numberOfSamplesToValidatePerEpoch):
@@ -654,16 +577,16 @@ if (train_model):
 
             def on_epoch_end(self, epoch, logs=None):
                 print("on_epoch_end -> Creating new subsetForBatchTraining")
-                self.subsetForBatchTraining     = datasetForTraining.shuffle(BUFFER_SIZE).take(self.numberOfBatchesToTrainPerEpoch)
+                self.subsetForBatchTraining     = datasetForTraining.shuffle(TrainingsParameter["BUFFER_SIZE"]).take(self.numberOfBatchesToTrainPerEpoch)
                 PrintDatasetTuple(self.subsetForBatchTraining)
                 print("on_epoch_end Creating new subsetForBatchTraining done")
         
 
         Epoch_End_callback = EpochEndCallback(numberOfBatchesToTrainPerEpoch, numberOfBatchesToValidatePerEpoch)
-        history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
+        history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
     else:
-        #history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=EPOCHS, steps_per_epoch=num_batches_datasetForTraining, callbacks=[checkpoint_callback, EarlyStopping_callback])
-        history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=EPOCHS, callbacks=[checkpoint_callback, EarlyStopping_callback])
+        #history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], steps_per_epoch=num_batches_datasetForTraining, callbacks=[checkpoint_callback, EarlyStopping_callback])
+        history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
     sys.stdout = sys.__stdout__
 
     model.save(ModelDirectory)
@@ -711,14 +634,8 @@ if (train_model):
 else:
     losstraining = "Not Appl"
 
-start = 1.0
-stop = 1.2
-step = 0.1
 
-Temperature = start
-while Temperature < stop:
-    AnalyzePrintfFiles(VerificationDirectory, OutputDirectoryVerification, Temperature)
-    Temperature += step
+AnalyzePrintfFiles(VerificationDirectory, OutputDirectoryVerification, 0, TrainingsParameter["seq_length"])
  
 
 

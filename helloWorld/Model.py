@@ -382,8 +382,9 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stri
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
     datasetfast = datasetfast.flat_map(lambda window2: window2)
     datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = 10)
+    
     if (removeDuplicates):
-        datasetfast      = datasetfast
+        datasetfast = datasetfast
         datasetfast = datasetfast.unique()
 
     if (verbose):
@@ -469,15 +470,15 @@ def CompareDatasets(dataSet1, dataSet2):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = True
+force_train_model = tRUE
 
-Network = "GRU"
+Network = "GRU"  
 BATCH_SIZE = 32
-EPOCHS = 5
+EPOCHS = 3
 seq_length = 8
 trainingSet = 4
-removeDuplicates = True
-stride_dataset = 7 
+removeDuplicates = False
+stride_dataset = 5 
 embedding_dim = 256
 rnn_units = 1024
 SampleDataSet = False
@@ -547,7 +548,7 @@ if (train_model):
     datasetForTraining, trainingFileList = CreateDatasetFromDirectory(TrainingDirectory, OutputDirectoryTraining, BATCH_SIZE, stride_dataset, shuffle=shuffleTraining, removeDuplicates=removeDuplicates, verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
-datasetForVerification, verificationFileList = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification, BATCH_SIZE, stride_dataset, shuffle=False)    
+datasetForVerification, verificationFileList = CreateDatasetFromDirectory(VerificationDirectory, OutputDirectoryVerification, BATCH_SIZE, 1, shuffle=False)    
 
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 
@@ -583,18 +584,10 @@ if (train_model):
     model
 
     if (Network == "LSTM"):  # does not work yet
-        model = tf.keras.Sequential([
-            id_from_token,
-            tf.keras.layers.Embedding(
-                input_dim=len(id_from_token.get_vocabulary()),
-                output_dim=64,
-                # Use masking to handle the variable sequence lengths
-                mask_zero=True),
-            tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(64)),
-            tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(1)
-        ])
-
+        model = ModelClass.LSTMPrintfLogModel(
+            vocab_size=len(id_from_token.get_vocabulary()),
+            embedding_dim=embedding_dim,
+            rnn_units=rnn_units)
     if (Network == "GRU"):
         model = ModelClass.GruPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
@@ -643,7 +636,7 @@ if (train_model):
 
     print(ModelSummary + "\n")
 
-    EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2)
+    EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True)
     
     Epoch_End_callback = None
     

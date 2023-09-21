@@ -158,3 +158,37 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+Compares/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Snv_Latency_QuickCheck_drive_log_onlyTokens_5_EONS.analyzedlogparallel
+Compares/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Snv_Latency_QuickCheck_drive_log_onlyTokens_8_EONS_512GRUs_SeqLength_5.analyzedlogparallel
+Compares/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Snv_Latency_QuickCheck_drive_log_onlyTokens_8_EONS_512GRUs_SeqLength_10_more_training_data.analyzedlogparallel
+Compares/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Snv_Latency_QuickCheck_drive_log_onlyTokens_8_EONS_512GRUs.analyzedlogparallel
+Compares/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Snv_Latency_QuickCheck_drive_log_onlyTokens_8_EONS_SegLength_20.analyzedlogparallel
+Compares/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Snv_Latency_QuickCheck_drive_log_onlyTokens_8_EONS_SegLength_50.analyzedlogparallel
+Compares/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Snv_Latency_QuickCheck_drive_log_onlyTokens_8_EONS.analyzedlogparallel
+helloWorld/cuda_12.2.1_535.86.10_linux.run
+helloWorld/cuda-repo-wsl-ubuntu-11-8-local_11.8.0-1_amd64.deb
+helloWorld/executionlog.txt
+helloWorld/.vscode/launch.json
+helloWorld/TrainingSet3/Tokens.dat
+helloWorld/TrainingSet3/out/TokenfileOnlyTokens.dat
+helloWorld/TrainingSet4/Tokens.dat
+helloWorld/TrainingSet4/out/TokenfileOnlyTokens.dat
+helloWorld/TrainingSet4/out/TrainingDataSetFile.dataset/dataset_spec.pb
+helloWorld/TrainingSet4/out/TrainingDataSetFile.dataset/snapshot.metadata
+helloWorld/TrainingSet4/out/TrainingDataSetFile.dataset/14714535758523722379/00000000.shard/00000000.snapshot
+helloWorld/TrainingSet4/out/VerificationDataSetFile.dataset/dataset_spec.pb
+helloWorld/TrainingSet4/out/VerificationDataSetFile.dataset/snapshot.metadata
+helloWorld/TrainingSet4/out/VerificationDataSetFile.dataset/5836716936330191809/00000000.shard/00000000.snapshot
+helloWorld/TrainingSet5/Tokens.dat
+helloWorld/TrainingSet5/out/TokenfileOnlyTokens.dat
+helloWorld/TrainingSet5/out/TrainingLog.txt
+helloWorld/TrainingSet6/Tokens.dat
+helloWorld/TrainingSet6/SavedModel_seq_length50/fingerprint.pb
+helloWorld/TrainingSet6/SavedModel_seq_length50/keras_metadata.pb
+helloWorld/TrainingSet6/SavedModel_seq_length50/saved_model.pb
+helloWorld/TrainingSet6/SavedModel_seq_length50/variables/variables.data-00000-of-00001
+helloWorld/TrainingSet6/SavedModel_seq_length50/variables/variables.index
+helloWorld/TrainingSet7/Tokens.dat
+Working helloworld/Model.py
+Working helloworld/ModelClass.py
+Working helloworld/TokenParser.py

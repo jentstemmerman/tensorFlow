@@ -226,8 +226,9 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 force_train_model     = True
 CreateNewOutDirectory = False
 
-TrainingsParameter = {"Network":"GRU",
-                      "returnState":False,
+TrainingsParameter = {"Model": {"Network":"GRU",
+                                "returnState":False
+                                },
                       "EPOCHS":1,
                       "Use_Validation":True,
                       "BatchSize":32 ,
@@ -375,22 +376,21 @@ if (CrossReferenceTokens):
 
 
 if (train_model):
-
     model
 
-    if (TrainingsParameter["Network"] == "LSTM"):  # does not work yet
+    if (TrainingsParameter["Model"]["Network"] == "LSTM"):  # does not work yet
         model = ModelClass.LSTMPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
             embedding_dim=TrainingsParameter["embedding_dim"],
             rnn_units=TrainingsParameter["rnn_units"])
-    if (TrainingsParameter["Network"] == "GRU"):
+    if (TrainingsParameter["Model"]["Network"] == "GRU"):
         model = ModelClass.GruPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
             embedding_dim=TrainingsParameter["embedding_dim"],
             rnn_units=TrainingsParameter["rnn_units"],
-            return_state=TrainingsParameter["returnState"])
+            return_state=TrainingsParameter["Model"]["returnState"])
     
-    if (TrainingsParameter["Network"] == "SimpleRnn"):    # supposed to be faster. I don't see it.
+    if (TrainingsParameter["Model"]["Network"] == "SimpleRnn"):    # supposed to be faster. I don't see it.
         model = ModelClass.SimpleRnnPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
             embedding_dim=TrainingsParameter["embedding_dim"],

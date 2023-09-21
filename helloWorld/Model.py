@@ -17,6 +17,21 @@ import sys
 
 DataTypeForTensors = 'int64'
 
+def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile):
+    CrossReferenceTokens = False
+    if (CrossReferenceTokens):
+        print("CrossReferenceTokens:")
+        CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
+
+        if (train_model):
+            CrossReferenceResultTraining = TokenParser.CrossReferenceTokens(OutputDirectoryTraining, VocabularyFile)
+        else:
+            CrossReferenceResultTraining = 0
+        
+        if (CrossReferenceResultTraining == -1) or (CrossReferenceResultVerification == -1):
+            print("Logfile contains tokens that are not in the tokenfile!!")
+            exit()
+
 # this gives a high result
 def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
@@ -149,8 +164,6 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
             EndOfFileReached = True
             break
         
-
-
         inputTensor  = tf.stack(inputTensor, axis=0)
         nexttokenIds = tf.stack(nexttokenIds, axis=0)
         y = 0
@@ -234,11 +247,11 @@ TrainingsParameter = {"Model": {"Network":"GRU",
                       "BatchSize":32 ,
                       "seq_length":8 ,
                       "removeDuplicates":False,
-                      "stride_dataset": 5000,
+                      "stride_dataset": 5,
                       "embedding_dim":256,
                       "rnn_units":2048,
                       "shuffleTraining":True,
-                      "BUFFER_SIZE":10000,
+                      "BUFFER_SIZE":100000,
                       "SampleDataSet":False,   # does not really work, using stride is better
                     }
 
@@ -304,16 +317,15 @@ if (CreateNewOutDirectory):
 
 
 PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
-
-######################################################################################################
 id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
-print("Creating datasets:")
-################# Create a dataset for training and throw all files that are in the training output dir in it
 
+
+
+print("Creating datasets:")
 
 if (train_model):
-    
 
+    ################# Create a dataset for training and throw all files that are in the training output dir in it
     if os.path.exists(TrainingDataSetFile.strip()):
         datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())
         trainingFileList = None
@@ -349,31 +361,9 @@ else:
 
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 
-CheckCardinality = False
-if (CheckCardinality):
-    print("Checking datasets:")
-    if (train_model):
-        num_batches_datasetForTraining = Dataset.GetDataSetInformation(datasetForTraining)
-        print("num_batches_datasetForTraining: " + str(num_batches_datasetForTraining)) 
-
-    num_batches_datasetForVerification = Dataset.GetDataSetInformation(datasetForVerification)
-    print("num_batches_datasetForVerification: " + str(num_batches_datasetForVerification)) 
 
 
-CrossReferenceTokens = False
-if (CrossReferenceTokens):
-    print("CrossReferenceTokens:")
-    CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
-
-    if (train_model):
-        CrossReferenceResultTraining = TokenParser.CrossReferenceTokens(OutputDirectoryTraining, VocabularyFile)
-    else:
-        CrossReferenceResultTraining = 0
-    
-    if (CrossReferenceResultTraining == -1) or (CrossReferenceResultVerification == -1):
-        print("Logfile contains tokens that are not in the tokenfile!!")
-        exit()
-
+CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile)
 
 if (train_model):
     model

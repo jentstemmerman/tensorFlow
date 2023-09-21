@@ -151,9 +151,10 @@ def CompareDatasets(dataSet1, dataSet2):
 def SaveDataset(dataSet, fileName):
     dataSet.save(fileName, compression="GZIP")
     
-
-
 def LoadDataset(fileName):
-    
     dataset = tf.data.Dataset.load(fileName)
     return dataset
+
+def MergeDatasets(dataSet1, dataSet2):
+    datasetMerged = dataSet1.concatenate(dataSet2)
+    return datasetMerged

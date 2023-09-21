@@ -5,6 +5,7 @@ from tensorflow import keras
 import numpy as np
 import TokenParser
 import ModelClass
+import Dataset
 import os
 import re
 from pathlib import Path
@@ -215,152 +216,6 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
     return Accumulator / AccumulatorCount
 
-def GetDataSetInformation(dataSet):
-    # Count the number of elements in the dataset
-    dataSetTemp = dataSet
-    num_batches_dataset     = dataSetTemp.reduce(0, lambda x, _: x + 1).numpy()
-
-    return num_batches_dataset
-
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, verbose=False):
-    
-    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory)
-    
-    ################# Create a dataset for training and throw all files that are in the training output dir in it
-    TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)
-    tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
-    dataset = None
-    filesUsed = []
-    datasetList = []
-
-    TrainingLogTensor = None
-
-    while (tokenLogfileToProcess is not None):
-        logTokenNumpyList = []
-        print("Adding " + tokenLogfileToProcess + " to the dataset")
-        filesUsed.append(tokenLogfileToProcess)
-
-        logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
-
-        TensorOfThisFile = tf.convert_to_tensor(logTokenNumpyList)
-
-        if (TrainingLogTensor is None):
-            TrainingLogTensor = TensorOfThisFile
-        else:
-            TrainingLogTensor = np.concatenate((TrainingLogTensor, TensorOfThisFile), axis=0)
-
-        tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
-
-    ids_from_logfile = id_from_token(TrainingLogTensor)
-
-    #keras.backend.print_tensor(ids_from_logfile)
-    #sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
-    # Slide the window over the tensor
-    EXECUTE_SLOW_PATH = False
-    SLOW_PATH = False
-
-    datasetSlow = None
-    datasetfast = None
-
-    if (EXECUTE_SLOW_PATH):
-        windows = []
-        windowsAcc = []
-        print(ids_from_logfile.shape[0])
-        for i in range(ids_from_logfile.shape[0] - (seq_length + 1) + 1):
-            window = ids_from_logfile[i:i+seq_length+1]
-            windowsAcc.append(window)
-
-        # Stack the windows into a new tensor
-        sequences = tf.stack(windowsAcc, axis=0)
-        datasetSlow = tf.data.Dataset.from_tensor_slices(sequences)
-        datasetSlow = datasetSlow.batch(batch_size, drop_remainder=True)
-        datasetfast = datasetfast.prefetch(tf.data.experimental.AUTOTUNE)
-
-    datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
-    datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
-    datasetfast = datasetfast.flat_map(lambda window2: window2)
-    datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = 10)
-    
-    if (removeDuplicates):
-        datasetfast = datasetfast
-        datasetfast = datasetfast.unique()
-
-    if (verbose):
-        PrintDataset(datasetSlow, 10)
-        PrintDataset(datasetfast, 10)
-
-    
-    if (EXECUTE_SLOW_PATH):
-        datasetSlow = datasetfast.map(TokenParser.split_input_target) 
-
-    datasetfast = datasetfast.map(TokenParser.split_input_target) 
-    
-    if (shuffle):
-        datasetfast = datasetfast.shuffle(BUFFER_SIZE)
-
-    datasetfast = datasetfast.batch(batch_size, drop_remainder=True)
-    datasetfast = datasetfast.prefetch(tf.data.experimental.AUTOTUNE)
-
-    if (verbose):
-        PrintDatasetTuple(datasetSlow)
-        PrintDatasetTuple(datasetfast)
-    else:
-        PrintDatasetTuple(datasetSlow, 5)
-        PrintDatasetTuple(datasetfast, 5)
-
-    if (SLOW_PATH) and (EXECUTE_SLOW_PATH):
-        dataset = datasetSlow
-    else:
-        dataset = datasetfast
-
-    if (verbose) and (SLOW_PATH) and (EXECUTE_SLOW_PATH):
-        CompareDatasets(datasetSlow, datasetSlow)
-
-
-
-        print("Adding " + InputDirectory + " to the dataset has finished \n")
-
-    return dataset, filesUsed
-
-def PrintDataset(dataSet, count = 0):
-    if (dataSet is not None):
-        i = 0
-        print ("PrintDataset \n")
-        
-        for element in dataSet:
-            if (i < count):
-                print(element.numpy())
-            i += 1
-
-        print ("number of elements ", i, "\n")
-
-
-def PrintDatasetTuple(dataSet, count = 0):
-    if (dataSet is not None):
-        i = 0
-        print ("PrintDatasetTuple \n")
-
-        for element in dataSet:
-            if (i < count):
-                print(element[0].numpy(), element[1].numpy())
-            i += 1
-
-        print ("number of elements ", i, "\n")
-
-def CompareDatasets(dataSet1, dataSet2):
-    def compare_elements(x, y):
-        return tf.math.equal(x, y)
-
-    compared_dataset = tf.data.Dataset.zip((dataSet1, dataSet2)).map(compare_elements)
-
-    i = 0
-    
-    for element in compared_dataset:
-        print(element.numpy())
-        i += 1
-
-    print ("number of elements ", i, "\n")
-
 
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
@@ -368,17 +223,19 @@ def CompareDatasets(dataSet1, dataSet2):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model = False
+force_train_model     = True
+CreateNewOutDirectory = False
 
 TrainingsParameter = {"Network":"GRU",
+                      "returnState":False,
                       "EPOCHS":1,
                       "Use_Validation":True,
                       "BatchSize":32 ,
                       "seq_length":8 ,
                       "removeDuplicates":False,
-                      "stride_dataset": 5,
+                      "stride_dataset": 5000,
                       "embedding_dim":256,
-                      "rnn_units":1024,
+                      "rnn_units":2048,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":10000,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -400,11 +257,14 @@ start = time.time()
 Directory = "TrainingSet" + str(trainingSet)
 
 OriginalTokenFileName       = Directory + os.path.sep + "Tokens.dat"
+
 OutputDirectory             = Directory + os.path.sep + "out"
 ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
 TrainingLogFile             = OutputDirectory + os.path.sep + "TrainingLog.txt"
 SummaryFile                 = OutputDirectory + os.path.sep + "Summary.txt"
 VocabularyFile              = OutputDirectory + os.path.sep + "TokenfileOnlyTokens.dat"
+TrainingDataSetFile         = OutputDirectory + os.path.sep + "TrainingDataSetFile.dataset"
+VerificationDataSetFile     = OutputDirectory + os.path.sep + "VerificationDataSetFile.dataset"
 ModelDirectory              = OutputDirectory + os.path.sep + "SavedModel"
 
 if (force_train_model):
@@ -422,7 +282,7 @@ VerificationDirectory       = Directory + os.path.sep + "Verification"
 OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
 OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
-if (train_model):
+if (CreateNewOutDirectory):
 
     old_directory_name = OutputDirectory
     
@@ -448,43 +308,58 @@ PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
 id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
 print("Creating datasets:")
 ################# Create a dataset for training and throw all files that are in the training output dir in it
+
+
 if (train_model):
-    datasetForTraining, trainingFileList = CreateDatasetFromDirectory(InputDirectory=TrainingDirectory, 
-                                                                      OutputDirectory=OutputDirectoryTraining, 
-                                                                      batch_size=TrainingsParameter["BatchSize"], 
-                                                                      stride=TrainingsParameter["stride_dataset"], 
-                                                                      shuffle=TrainingsParameter["shuffleTraining"], 
-                                                                      BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
-                                                                      seq_length=TrainingsParameter["seq_length"], 
-                                                                      removeDuplicates=TrainingsParameter["removeDuplicates"], 
-                                                                      verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+    
+
+    if os.path.exists(TrainingDataSetFile.strip()):
+        datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())
+        trainingFileList = None
+    else:
+        datasetForTraining, trainingFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=TrainingDirectory, 
+                                                                                    OutputDirectory=OutputDirectoryTraining, 
+                                                                                    id_from_token=id_from_token,
+                                                                                    batch_size=TrainingsParameter["BatchSize"], 
+                                                                                    stride=TrainingsParameter["stride_dataset"], 
+                                                                                    shuffle=TrainingsParameter["shuffleTraining"], 
+                                                                                    BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
+                                                                                    seq_length=TrainingsParameter["seq_length"], 
+                                                                                    removeDuplicates=TrainingsParameter["removeDuplicates"], 
+                                                                                    verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+        Dataset.SaveDataset(datasetForTraining, TrainingDataSetFile.strip())
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
-datasetForVerification, verificationFileList = CreateDatasetFromDirectory(InputDirectory=VerificationDirectory, 
-                                                                          OutputDirectory=OutputDirectoryVerification, 
-                                                                          batch_size=TrainingsParameter["BatchSize"], 
-                                                                          stride=TrainingsParameter["stride_dataset"], 
-                                                                          shuffle=TrainingsParameter["shuffleTraining"], 
-                                                                          BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
-                                                                          seq_length=TrainingsParameter["seq_length"],
-                                                                          removeDuplicates=TrainingsParameter["removeDuplicates"], 
-                                                                          verbose = False)    
+if os.path.exists(VerificationDataSetFile.strip()):
+    datasetForTraining = Dataset.LoadDataset(VerificationDataSetFile.strip())
+    verificationFileList = None
+else:
+    datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=VerificationDirectory, 
+                                                                                        OutputDirectory=OutputDirectoryVerification, 
+                                                                                        id_from_token=id_from_token,
+                                                                                        batch_size=TrainingsParameter["BatchSize"], 
+                                                                                        stride=TrainingsParameter["stride_dataset"], 
+                                                                                        shuffle=TrainingsParameter["shuffleTraining"], 
+                                                                                        BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
+                                                                                        seq_length=TrainingsParameter["seq_length"],
+                                                                                        removeDuplicates=TrainingsParameter["removeDuplicates"], 
+                                                                                        verbose = False)    
+    Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
 
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 
-CheckCardinality = True
+CheckCardinality = False
 if (CheckCardinality):
     print("Checking datasets:")
     if (train_model):
-        num_batches_datasetForTraining = GetDataSetInformation(datasetForTraining)
+        num_batches_datasetForTraining = Dataset.GetDataSetInformation(datasetForTraining)
         print("num_batches_datasetForTraining: " + str(num_batches_datasetForTraining)) 
 
-    num_batches_datasetForVerification = GetDataSetInformation(datasetForVerification)
+    num_batches_datasetForVerification = Dataset.GetDataSetInformation(datasetForVerification)
     print("num_batches_datasetForVerification: " + str(num_batches_datasetForVerification)) 
 
 
 CrossReferenceTokens = False
-
 if (CrossReferenceTokens):
     print("CrossReferenceTokens:")
     CrossReferenceResultVerification = TokenParser.CrossReferenceTokens(OutputDirectoryVerification, VocabularyFile)
@@ -512,7 +387,8 @@ if (train_model):
         model = ModelClass.GruPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
             embedding_dim=TrainingsParameter["embedding_dim"],
-            rnn_units=TrainingsParameter["rnn_units"])
+            rnn_units=TrainingsParameter["rnn_units"],
+            return_state=TrainingsParameter["returnState"])
     
     if (TrainingsParameter["Network"] == "SimpleRnn"):    # supposed to be faster. I don't see it.
         model = ModelClass.SimpleRnnPrintfLogModel(
@@ -571,14 +447,14 @@ if (train_model):
                 self.numberOfBatchesToTrainPerEpoch    = numberOfSamplesToTrainPerEpoch
                 self.numberOfBatchesToValidatePerEpoch = numberOfSamplesToValidatePerEpoch
                 self.subsetForBatchTraining            = datasetForTraining.take(self.numberOfBatchesToTrainPerEpoch)
-                PrintDatasetTuple(self.subsetForBatchTraining)
+                Dataset.PrintDatasetTuple(self.subsetForBatchTraining)
                 self.subsetForBatchVerification        = None
                 print("EpochEndCallback start newcreating new subsetForBatchTraining done")
 
             def on_epoch_end(self, epoch, logs=None):
                 print("on_epoch_end -> Creating new subsetForBatchTraining")
                 self.subsetForBatchTraining     = datasetForTraining.shuffle(TrainingsParameter["BUFFER_SIZE"]).take(self.numberOfBatchesToTrainPerEpoch)
-                PrintDatasetTuple(self.subsetForBatchTraining)
+                Dataset.PrintDatasetTuple(self.subsetForBatchTraining)
                 print("on_epoch_end Creating new subsetForBatchTraining done")
         
 
@@ -610,13 +486,15 @@ if (train_model):
         print("Training finished in ", (end - start)/60, " minutes")
         
         print("\n")
-        print("Files used to train: \n")
-        print(*trainingFileList, sep="\n")
+        if (trainingFileList is not None):
+            print("Files used to train: \n")
+            print(*trainingFileList, sep="\n")
 
-        print("\n")
-        print("Files used in verification: \n")
-        print(*verificationFileList, sep="\n")
-        print("\n")
+        if (verificationFileList is not None):
+            print("\n")
+            print("Files used in verification: \n")
+            print(*verificationFileList, sep="\n")
+            print("\n")
 
         print("ModelSummary: \n")
 

@@ -343,8 +343,10 @@ if (train_model):
         Dataset.SaveDataset(datasetForTraining, TrainingDataSetFile.strip())
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
+
+
 if os.path.exists(VerificationDataSetFile.strip()):
-    datasetForTraining = Dataset.LoadDataset(VerificationDataSetFile.strip())
+    datasetForVerification = Dataset.LoadDataset(VerificationDataSetFile.strip())
     verificationFileList = None
 else:
     datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=VerificationDirectory, 

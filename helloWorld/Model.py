@@ -265,7 +265,7 @@ TrainingsParameter = {"Model": {"Network":"GRU",
                       "BatchSize":32 ,
                       "seq_length":8 ,
                       "removeDuplicates":False,
-                      "stride_dataset": 500,
+                      "stride_dataset": 5,
                       "embedding_dim":256,
                       "rnn_units":2048,
                       "shuffleTraining":True,
@@ -273,8 +273,10 @@ TrainingsParameter = {"Model": {"Network":"GRU",
                       "SampleDataSet":False,   # does not really work, using stride is better
                     }
 
+ValidationsParameter = {"temperature": 1 }
 
-trainingSet = 4
+
+trainingSet = 3
 
 
 if ( TrainingsParameter["SampleDataSet"]):
@@ -522,7 +524,7 @@ if (train_model):
 else:
     losstraining = "Not Appl"
 
-AnalyzePrintfFiles(inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=0, seq_length=TrainingsParameter["seq_length"])
+AnalyzePrintfFiles(inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["seq_length"])
 
 end = time.time()
 

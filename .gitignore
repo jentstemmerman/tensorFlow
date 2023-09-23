@@ -192,3 +192,5 @@ helloWorld/TrainingSet7/Tokens.dat
 Working helloworld/Model.py
 Working helloworld/ModelClass.py
 Working helloworld/TokenParser.py
+helloWorld/TrainingSet4/out/TrainingDataSetFile.dataset/6073474720042464301/00000000.shard/00000000.snapshot
+helloWorld/TrainingSet4/out/VerificationDataSetFile.dataset/2923680061876911396/00000000.shard/00000000.snapshot

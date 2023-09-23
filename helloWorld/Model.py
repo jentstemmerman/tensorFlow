@@ -99,6 +99,11 @@ def AnalyzePrintfFiles(inputDirectory, outputDirectory, temperature, seq_length)
 
 
 def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length):
+    numberOfIdenticals = 0
+    averageNextTokenProbability = 0
+    averagePredictedTokenProbability = 0
+    accumulatedNextTokenProbability = 0.0
+    accumulatedPredictedTokenProbability = 0.0
 
  #   idsTestFile = id_from_token(TestFileNumpyList)
     one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
@@ -119,7 +124,7 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
     maxNumberOfParallelExecutions = 500
     numberOfAnalyzedLines = 0
     EndOfFileReached = False 
-    accumulatedNextTokenProbability = 0.0
+
 
     while (not EndOfFileReached):
         
@@ -177,21 +182,35 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
             
             if (nextToken == nextPredictedToken):
                 nextPredictedToken = "Identical  "
+                numberOfIdenticals += 1
             nextTokenProbability = (probabilityOfNextTokens[y]).numpy()
             lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format(nextTokenProbability) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " +  " :" + PrintfList[y]
+            print(lineToWrite)
             LogfileAnalyzed.write(lineToWrite)
             
-
             accumulatedNextTokenProbability += nextTokenProbability
+            accumulatedPredictedTokenProbability += probabilityPredictions[y].numpy()
+
             y += 1
             numberOfAnalyzedLines += 1
         
         Endtime = time.time()
 
-        print("  annotated line " + str(numberOfAnalyzedLines) + ". Number of lines per second: {:2.2f} ".format((numberOfParallelExecutions / (Endtime - startTime) )))
+        averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
+        averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
+        print("  annotated line " + str(numberOfAnalyzedLines) + 
+              ". Number of lines per second: {:2.2f}. ".format((numberOfParallelExecutions / (Endtime - startTime) )) + 
+              "  Number Of Identicals: " + str(numberOfIdenticals) + 
+              "  Average next token probability = {:2.3f}".format(averageNextTokenProbability) + 
+              "  Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n")
 
-    print("\n Total number of annotated lines " + str(y) + ". Average next token probability = " + str(accumulatedNextTokenProbability/numberOfAnalyzedLines)+ "\n")
-    
+
+    averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
+    averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
+
+    Result = "\n\nTotal number of annotated lines " + str(y) + ".\n Number Of Identicals: " + str(numberOfIdenticals) + ".\n Average next token probability = {:2.3f}".format(averageNextTokenProbability) + ".\n Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n"
+    print(Result)
+    LogfileAnalyzed.write(Result)
     
     LogfileToAnalyze.close()
     LogfileAnalyzed.close()   
@@ -237,17 +256,17 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 # https://www.tensorflow.org/text/tutorials/text_generation
 
 force_train_model     = True
-CreateNewOutDirectory = False
+CreateNewOutDirectory = True
 
 TrainingsParameter = {"Model": {"Network":"GRU",
                                 "returnState":False
                                 },
-                      "EPOCHS":1,
+                      "EPOCHS":3,
                       "Use_Validation":True,
                       "BatchSize":32 ,
                       "seq_length":8 ,
                       "removeDuplicates":False,
-                      "stride_dataset": 5,
+                      "stride_dataset": 500,
                       "embedding_dim":256,
                       "rnn_units":2048,
                       "shuffleTraining":True,

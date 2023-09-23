@@ -182,9 +182,10 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
             if (nextToken == nextPredictedToken):
                 nextPredictedToken = "Identical  "
                 numberOfIdenticals += 1
+
             nextTokenProbability = (probabilityOfNextTokens[y]).numpy()
             lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format(nextTokenProbability) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[y].numpy()) + ". " + "window = " + Windows[y][window_size - 2] + "  " +  " :" + PrintfList[y]
-            print(lineToWrite)
+            #print(lineToWrite)
             LogfileAnalyzed.write(lineToWrite)
             
             accumulatedNextTokenProbability += nextTokenProbability
@@ -206,8 +207,8 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
 
     averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
     averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
-
-    Result = "\n\nTotal number of annotated lines " + str(y) + ".\n Number Of Identicals: " + str(numberOfIdenticals) + ".\n Average next token probability = {:2.3f}".format(averageNextTokenProbability) + ".\n Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n"
+    IdenticalsToNumberOfLinesRatio   = numberOfIdenticals / numberOfAnalyzedLines
+    Result = "\n\nTotal number of annotated lines " + str(numberOfAnalyzedLines) + ".\n Number Of Identicals: " + str(numberOfIdenticals) + ", ({:2.3f})".format(IdenticalsToNumberOfLinesRatio) + ".\n Average next token probability = {:2.3f}".format(averageNextTokenProbability) + ".\n Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n"
     print(Result)
     LogfileAnalyzed.write(Result)
     
@@ -256,18 +257,19 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
 force_train_model     = True
 CreateNewOutDirectory = True
+AnalyzeFiles = True
 
-TrainingsParameter = {"Model": {"Network":"GRU",
+TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "returnState":True,
                                 "embedding_dim":256,
                                 "rnn_units":2048,
                                 "seq_length":8 ,
                                 },
-                      "EPOCHS":3,
+                      "EPOCHS":20,
                       "Use_Validation":True,
                       "BatchSize":32 ,
                       "removeDuplicates":False,
-                      "stride_dataset": 5,
+                      "stride_dataset": 1,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":100000,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -524,7 +526,8 @@ if (train_model):
 else:
     losstraining = "Not Appl"
 
-AnalyzePrintfFiles(inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"])
+if (AnalyzeFiles):
+    AnalyzePrintfFiles(inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"])
 
 end = time.time()
 

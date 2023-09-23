@@ -257,18 +257,18 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
 force_train_model     = True
 CreateNewOutDirectory = True
-AnalyzeFiles = True
+AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "returnState":True,
                                 "embedding_dim":256,
                                 "rnn_units":2048,
-                                "seq_length":8 ,
+                                "seq_length":16 ,
                                 },
-                      "EPOCHS":20,
-                      "Use_Validation":True,
+                      "EPOCHS":5,
+                      "Use_Validation":False,
                       "BatchSize":32 ,
-                      "removeDuplicates":False,
+                      "removeDuplicates":True,
                       "stride_dataset": 1,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":100000,
@@ -278,7 +278,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
 ValidationsParameter = {"temperature": 1 }
 
 
-trainingSet = 3
+trainingSet = 4
 
 
 if ( TrainingsParameter["SampleDataSet"]):

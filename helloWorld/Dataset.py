@@ -93,8 +93,8 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, id_from_token, b
         PrintDatasetTuple(datasetSlow)
         PrintDatasetTuple(datasetfast)
     else:
-        PrintDatasetTuple(datasetSlow, 5)
-        PrintDatasetTuple(datasetfast, 5)
+        PrintDatasetTuple(datasetSlow, 2)
+        PrintDatasetTuple(datasetfast, 2)
 
     if (SLOW_PATH) and (EXECUTE_SLOW_PATH):
         dataset = datasetSlow
@@ -123,15 +123,16 @@ def PrintDataset(dataSet, count = 0):
 
 def PrintDatasetTuple(dataSet, count = 0):
     if (dataSet is not None):
-        i = 0
+        numberOfElements = 0
         print ("PrintDatasetTuple \n")
 
         for element in dataSet:
-            if (i < count):
+            if (numberOfElements < count):
                 print(element[0].numpy(), element[1].numpy())
-            i += 1
+            numberOfElements += 1
 
-        print ("number of elements ", i, "\n")
+        print ("number of elements ", numberOfElements, "\n")
+        return numberOfElements
 
 def CompareDatasets(dataSet1, dataSet2):
     def compare_elements(x, y):

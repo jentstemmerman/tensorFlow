@@ -258,16 +258,16 @@ force_train_model     = True
 CreateNewOutDirectory = True
 
 TrainingsParameter = {"Model": {"Network":"GRU",
-                                "returnState":True
+                                "returnState":True,
+                                "embedding_dim":256,
+                                "rnn_units":2048,
+                                "seq_length":8 ,
                                 },
                       "EPOCHS":3,
                       "Use_Validation":True,
                       "BatchSize":32 ,
-                      "seq_length":8 ,
                       "removeDuplicates":False,
                       "stride_dataset": 5,
-                      "embedding_dim":256,
-                      "rnn_units":2048,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":100000,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -357,7 +357,7 @@ if (train_model):
                                                                                     stride=TrainingsParameter["stride_dataset"], 
                                                                                     shuffle=TrainingsParameter["shuffleTraining"], 
                                                                                     BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
-                                                                                    seq_length=TrainingsParameter["seq_length"], 
+                                                                                    seq_length=TrainingsParameter["Model"]["seq_length"], 
                                                                                     removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                                                                     verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
         Dataset.SaveDataset(datasetForTraining, TrainingDataSetFile.strip())
@@ -376,7 +376,7 @@ else:
                                                                                         stride=TrainingsParameter["stride_dataset"], 
                                                                                         shuffle=TrainingsParameter["shuffleTraining"], 
                                                                                         BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
-                                                                                        seq_length=TrainingsParameter["seq_length"],
+                                                                                        seq_length=TrainingsParameter["Model"]["seq_length"],
                                                                                         removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                                                                         verbose = False)    
     Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
@@ -393,20 +393,20 @@ if (train_model):
     if (TrainingsParameter["Model"]["Network"] == "LSTM"):  # does not work yet
         model = ModelClass.LSTMPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
-            embedding_dim=TrainingsParameter["embedding_dim"],
-            rnn_units=TrainingsParameter["rnn_units"])
+            embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
+            rnn_units=TrainingsParameter["Model"]["rnn_units"])
     if (TrainingsParameter["Model"]["Network"] == "GRU"):
         model = ModelClass.GruPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
-            embedding_dim=TrainingsParameter["embedding_dim"],
-            rnn_units=TrainingsParameter["rnn_units"],
+            embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
+            rnn_units=TrainingsParameter["Model"]["rnn_units"],
             return_state=TrainingsParameter["Model"]["returnState"])
     
     if (TrainingsParameter["Model"]["Network"] == "SimpleRnn"):    # supposed to be faster. I don't see it.
         model = ModelClass.SimpleRnnPrintfLogModel(
             vocab_size=len(id_from_token.get_vocabulary()),
-            embedding_dim=TrainingsParameter["embedding_dim"],
-            rnn_units=TrainingsParameter["rnn_units"])
+            embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
+            rnn_units=TrainingsParameter["Model"]["rnn_units"])
         
     ############################################################################################# Train the model
 
@@ -435,10 +435,10 @@ if (train_model):
     ModelSummary = ModelSummary + "BATCH_SIZE:       " + str(TrainingsParameter["BatchSize"]) + "\n"
     ModelSummary = ModelSummary + "removeDuplicates: " + str(TrainingsParameter["removeDuplicates"]) + "\n"
     ModelSummary = ModelSummary + "stride:           " + str(TrainingsParameter["stride_dataset"]) + "\n"
-    ModelSummary = ModelSummary + "seq_length:       " + str(TrainingsParameter["seq_length"]) + "\n"
+    ModelSummary = ModelSummary + "seq_length:       " + str(TrainingsParameter["Model"]["seq_length"]) + "\n"
     ModelSummary = ModelSummary + "trainingSet:      " + str(trainingSet) + "\n"
-    ModelSummary = ModelSummary + "embedding_dim:    " + str(TrainingsParameter["embedding_dim"]) + "\n"
-    ModelSummary = ModelSummary + "rnn_units:        " + str(TrainingsParameter["rnn_units"]) + "\n"
+    ModelSummary = ModelSummary + "embedding_dim:    " + str(TrainingsParameter["Model"]["embedding_dim"]) + "\n"
+    ModelSummary = ModelSummary + "rnn_units:        " + str(TrainingsParameter["Model"]["rnn_units"]) + "\n"
 
 
     if ( TrainingsParameter["SampleDataSet"]):
@@ -524,7 +524,7 @@ if (train_model):
 else:
     losstraining = "Not Appl"
 
-AnalyzePrintfFiles(inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["seq_length"])
+AnalyzePrintfFiles(inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"])
 
 end = time.time()
 

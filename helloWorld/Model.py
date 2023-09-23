@@ -92,7 +92,7 @@ def AnalyzePrintfFiles(inputDirectory, outputDirectory, temperature, seq_length)
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".txt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        AddProbabilitiesPrintfFileParallel(model, printfFileToProcess, LogfileAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length)
+        AddProbabilitiesPrintfFileParallel(Model=model, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_token, PrintfFromToken=PrintfFromToken, temperature=temperature, seq_length=seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -105,7 +105,6 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
     accumulatedNextTokenProbability = 0.0
     accumulatedPredictedTokenProbability = 0.0
 
- #   idsTestFile = id_from_token(TestFileNumpyList)
     one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
     window_size = seq_length
 
@@ -259,7 +258,7 @@ force_train_model     = True
 CreateNewOutDirectory = True
 
 TrainingsParameter = {"Model": {"Network":"GRU",
-                                "returnState":False
+                                "returnState":True
                                 },
                       "EPOCHS":3,
                       "Use_Validation":True,
@@ -523,10 +522,7 @@ if (train_model):
 else:
     losstraining = "Not Appl"
 
-
-AnalyzePrintfFiles(VerificationDirectory, OutputDirectoryVerification, 0, TrainingsParameter["seq_length"])
- 
-
+AnalyzePrintfFiles(inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=0, seq_length=TrainingsParameter["seq_length"])
 
 end = time.time()
 

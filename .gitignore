@@ -167,6 +167,8 @@ Compares/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Snv_Latency_QuickCheck_drive_log_onlyT
 Compares/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Snv_Latency_QuickCheck_drive_log_onlyTokens_8_EONS.analyzedlogparallel
 helloWorld/cuda_12.2.1_535.86.10_linux.run
 helloWorld/cuda-repo-wsl-ubuntu-11-8-local_11.8.0-1_amd64.deb
+helloWorld/out
+helloWorld/out_*
 helloWorld/executionlog.txt
 helloWorld/.vscode/launch.json
 helloWorld/TrainingSet3/Tokens.dat
@@ -194,3 +196,4 @@ Working helloworld/ModelClass.py
 Working helloworld/TokenParser.py
 helloWorld/TrainingSet4/out/TrainingDataSetFile.dataset/6073474720042464301/00000000.shard/00000000.snapshot
 helloWorld/TrainingSet4/out/VerificationDataSetFile.dataset/2923680061876911396/00000000.shard/00000000.snapshot
+helloWorld/TrainingSet3/out/TrainingLog.txt

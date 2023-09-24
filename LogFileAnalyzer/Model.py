@@ -84,7 +84,7 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
     return id_from_token, token_from_id
 
 
-def AnalyzePrintfFiles(inputDirectory, outputDirectory, temperature, seq_length):
+def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, temperature, seq_length):
     verificationFileIterator = TokenParser.LogfileIterator(inputDirectory)
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
@@ -92,13 +92,13 @@ def AnalyzePrintfFiles(inputDirectory, outputDirectory, temperature, seq_length)
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".txt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        AddProbabilitiesPrintfFileParallel(Model=model, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_token, PrintfFromToken=PrintfFromToken, temperature=temperature, seq_length=seq_length)
+        AddProbabilitiesPrintfFileParallel(model=model, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_token, PrintfFromToken=PrintfFromToken, temperature=temperature, seq_length=seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
 
 
-def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length):
+def AddProbabilitiesPrintfFileParallel(model, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length):
     numberOfIdenticals = 0
     averageNextTokenProbability = 0
     averagePredictedTokenProbability = 0
@@ -202,7 +202,7 @@ def AddProbabilitiesPrintfFileParallel(Model, LogfileVerification, FileNameAnaly
               ". Number of lines per second: {:2.2f}. ".format((numberOfParallelExecutions / (Endtime - startTime) )) + 
               "  Number Of Identicals: " + str(numberOfIdenticals) + 
               "  Average next token probability = {:2.3f}".format(averageNextTokenProbability) + 
-              "  Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n")
+              "  Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability))
 
 
     averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
@@ -255,8 +255,8 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model     = True
-CreateNewOutDirectory = True
+force_train_model     = False
+CreateNewOutDirectory = False
 AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",
@@ -527,7 +527,7 @@ else:
     losstraining = "Not Appl"
 
 if (AnalyzeFiles):
-    AnalyzePrintfFiles(inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"])
+    AnalyzePrintfFiles(model, inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"])
 
 end = time.time()
 

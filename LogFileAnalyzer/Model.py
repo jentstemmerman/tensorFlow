@@ -97,8 +97,6 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, temperature, seq_
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
 
-
-
 def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
     calculateAverage = 0

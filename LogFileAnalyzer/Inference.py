@@ -5,7 +5,8 @@ import numpy as np
 import TokenParser
 import ModelClass
 from pathlib import Path
-
+import threading
+import queue
 
 def GetNextTokenWindow(oldWindow, newToken):
     newWindow = oldWindow[1:]  
@@ -72,16 +73,18 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     PrintfTemp = PrintfList[-1] 
     inputTensor = []
     nexttokenIds = []
+    nextTokens = []
     Windows = []
     PrintfList = []
 
     Windows.append(window)
+    nextTokens.append(nextToken)
     inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
     nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  # make it a list of tensors
     PrintfList.append(PrintfTemp)
     PrintfTemp = None
     y = 1
-    maxNumberOfParallelExecutions = 100
+    maxNumberOfParallelExecutions = 500
     numberOfAnalyzedLines = 0
 
     while (True):
@@ -89,12 +92,10 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         numberOfParallelExecutions = maxNumberOfParallelExecutions
         if (numberOfParallelExecutions == 0):
             break
-
         
         i = 0
         
         while (y < numberOfParallelExecutions):
-                  
             window, nextToken, nexttokenId, tokenIdWindow, printf = GetNextSequenceData(LogfileToAnalyze, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
             
             if (window is None):
@@ -104,6 +105,7 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
                 PrintfList.append(printf)
                 inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
                 nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  # make it a list of tensors
+                nextTokens.append(nextToken)
             
             y += 1
         
@@ -113,14 +115,17 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         inputTensorForInference  = tf.stack(inputTensor, axis=0)
         nexttokenIdsForInference = tf.stack(nexttokenIds, axis=0)
 
+        TimeNeededForAssembly = (time.time() - startTime) 
+        print("     TimeNeededForAssembly: {:2.3f}".format(TimeNeededForAssembly) )
+        startTimeGenerateSteps = time.time()
         nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensorForInference, nexttokenIdsForInference, states=None)
-      
+        TimeNeededForGenerateSteps = (time.time() - startTimeGenerateSteps) 
+        print("     TimeNeededForGenerateSteps: {:2.3f}".format(TimeNeededForGenerateSteps) )
         y = 0
-
+        startTimeWriteAnalysis = time.time()
         while (y < numberOfParallelExecutions):
-            nextPredictedTokens[y] = nextPredictedTokens[y].decode('utf-8')  
-            nextToken = token_from_id(nexttokenIdsForInference.numpy()[y]).numpy().decode('utf-8')
-            nextPredictedToken = nextPredictedTokens[y]
+            nextToken = nextTokens[y] 
+            nextPredictedToken = nextPredictedTokens[y].decode('utf-8')  
             
             if (nextToken == nextPredictedToken):
                 nextPredictedToken = "Identical  "
@@ -136,21 +141,26 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
 
             y += 1
             numberOfAnalyzedLines += 1
-
-        inputTensor = []
+        print("     TimeNeededWriteAnalysis: {:2.3f}".format(time.time() - startTimeWriteAnalysis) )
+        
+        inputTensor  = []
+        nextTokens   = []
         nexttokenIds = []
-        Windows = []
-        PrintfList = []    
+        Windows      = []
+        PrintfList   = []    
+        
         y = 0
         Endtime = time.time()
 
         averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
         averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
-        print("  annotated line " + str(numberOfAnalyzedLines) + 
-              ". Number of lines per second: {:2.2f}. ".format((numberOfParallelExecutions / (Endtime - startTime) )) + 
-              "  Number Of Identicals: " + str(numberOfIdenticals) + 
-              "  Average next token probability = {:2.3f}".format(averageNextTokenProbability) + 
-              "  Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability))
+
+        print("  annotated line " + str(numberOfAnalyzedLines) + "."
+              ". Number of lines per second: {:2.2f}.".format((numberOfParallelExecutions / (Endtime - startTime) )) + 
+              "  Number Of Identicals: " + str(numberOfIdenticals) + "."
+              "  Average next token probability = {:2.3f}.".format(averageNextTokenProbability) + 
+              "  Average predicted token probability = {:2.3f}.".format(averagePredictedTokenProbability) + 
+              "  Time: {:3.3f}\n".format(Endtime - startTime))
 
 
     averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
@@ -162,4 +172,8 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     
     LogfileToAnalyze.close()
     LogfileAnalyzed.close()   
+
+
+
+
 

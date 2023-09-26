@@ -36,17 +36,39 @@ def GetFirstSequenceData(LogfileToAnalyze, id_from_token, window_size):
 
     return tokenWindow, outputToken, nextTokenIdWindow, outputTokenId, PrintfList
 
-def GetNextSequenceData(LogfileToAnalyze, id_from_token, prevWindow, prevInputTokens, prevOutputToken, prevOutputTokenId):
-    newToken, newPrintf = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, 1, LogfileToAnalyze)
-    newToken            = newToken[0]
-    newPrintf           = newPrintf[0]
+def GetNextSequenceData(newToken, newPrintf, id_from_token, prevWindow, prevInputTokens, prevOutputToken, prevOutputTokenId):
     
     newWindow           = GetNextTokenWindow(prevWindow, prevOutputToken)
     newTokenId          = id_from_token(newToken)
     nextTokenIdWindow   = GetNextTokenIdWindow(prevInputTokens, prevOutputTokenId)
 
-
     return newWindow, newToken, newTokenId, nextTokenIdWindow, newPrintf
+
+def AssembleInputs(DataTypeForTensors, startIndex, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
+    
+    y = startIndex
+    inputTensor  = []
+    nexttokenIds = []
+    nextTokens   = []
+    Windows      = []
+    PrintfList   = []
+
+    while (y < numberOfParallelExecutions):
+        
+        window, nextToken, nexttokenId, tokenIdWindow, printf = GetNextSequenceData(newTokenList[y-startIndex], newPrintfList[y-startIndex], id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+        
+        if (window is None):
+            break
+        else:
+            Windows.append(window) 
+            PrintfList.append(printf)
+            inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
+            nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
+            nextTokens.append(nextToken)
+        
+        y += 1
+
+    return Windows, nextTokens, PrintfList, inputTensor, nexttokenIds, window, tokenIdWindow, nextToken, nexttokenId
 
 def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length):
 
@@ -71,11 +93,11 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         LogfileAnalyzed.write(line)
     
     PrintfTemp = PrintfList[-1] 
-    inputTensor = []
+    inputTensor  = []
     nexttokenIds = []
-    nextTokens = []
-    Windows = []
-    PrintfList = []
+    nextTokens   = []
+    Windows      = []
+    PrintfList   = []
 
     Windows.append(window)
     nextTokens.append(nextToken)
@@ -93,21 +115,18 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         if (numberOfParallelExecutions == 0):
             break
         
-        i = 0
-        
-        while (y < numberOfParallelExecutions):
-            window, nextToken, nexttokenId, tokenIdWindow, printf = GetNextSequenceData(LogfileToAnalyze, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
-            
-            if (window is None):
-                break
-            else:
-                Windows.append(window) # the next token is now the last of the input
-                PrintfList.append(printf)
-                inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
-                nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  # make it a list of tensors
-                nextTokens.append(nextToken)
-            
-            y += 1
+        startIndex = y
+
+        newTokenList, newPrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, numberOfParallelExecutions - startIndex, LogfileToAnalyze)
+        Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = AssembleInputs(DataTypeForTensors, startIndex, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+                                                                                         
+        inputTensor  = inputTensor + inputTensor2
+        nexttokenIds = nexttokenIds + nexttokenIds2
+        nextTokens   = nextTokens + nextTokens2
+        Windows      = Windows + Windows2
+        PrintfList   = PrintfList + PrintfList2
+
+
         
         if (window == None):
             break

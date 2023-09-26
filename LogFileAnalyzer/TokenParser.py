@@ -15,7 +15,6 @@ def getNextLinesAndTokens(token_pattern, numberOfTokens, reading_file):
         if (not line):
             tokenList = None
             PrintfList = None
-            endOfFileReached = True
             break
 
         stripped_line = re.search(token_pattern, line)

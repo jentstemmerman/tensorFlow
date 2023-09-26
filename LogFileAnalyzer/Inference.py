@@ -105,9 +105,10 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  # make it a list of tensors
     PrintfList.append(PrintfTemp)
     PrintfTemp = None
-    y = 1
-    maxNumberOfParallelExecutions = 500
-    numberOfAnalyzedLines = 0
+    numberOfAssembledItemsInThisCycle = 1
+
+    maxNumberOfParallelExecutions     = 500
+    numberOfAnalyzedLines             = 0
 
     while (True):
         startTime = time.time()
@@ -115,10 +116,8 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         if (numberOfParallelExecutions == 0):
             break
         
-        startIndex = y
-
-        newTokenList, newPrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, numberOfParallelExecutions - startIndex, LogfileToAnalyze)
-        Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = AssembleInputs(DataTypeForTensors, startIndex, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+        newTokenList, newPrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, numberOfParallelExecutions - numberOfAssembledItemsInThisCycle, LogfileToAnalyze)
+        Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = AssembleInputs(DataTypeForTensors, numberOfAssembledItemsInThisCycle, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
                                                                                          
         inputTensor  = inputTensor + inputTensor2
         nexttokenIds = nexttokenIds + nexttokenIds2
@@ -167,7 +166,8 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         nexttokenIds = []
         Windows      = []
         PrintfList   = []    
-        
+        numberOfAssembledItemsInThisCycle = 0
+
         y = 0
         Endtime = time.time()
 

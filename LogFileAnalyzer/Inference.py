@@ -71,7 +71,27 @@ def GetNextSequenceData(newToken, newPrintf, id_from_token, prevWindow, prevInpu
     return newWindow, newToken, newTokenId, nextTokenIdWindow, newPrintf
 
 
+def ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
+    
+    linesToWrite = []
+    numberOfIdenticals = 0
+    accumulatedNextTokenProbability = 0
+    accumulatedPredictedTokenProbability = 0
 
+    for executionIndex in range(numberOfParallelExecutions):
+        nextToken = nextTokens[executionIndex] 
+        nextPredictedToken = nextPredictedTokens[executionIndex].decode('utf-8')  
+        
+        if (nextToken == nextPredictedToken):
+            nextPredictedToken = "Identical  "
+            numberOfIdenticals += 1
+
+        nextTokenProbability = (probabilityOfNextTokens[executionIndex]).numpy()
+        lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format(nextTokenProbability) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[executionIndex].numpy()) + ". " + PrintfList[executionIndex]
+        linesToWrite.append(lineToWrite)
+        accumulatedNextTokenProbability += nextTokenProbability
+        accumulatedPredictedTokenProbability += probabilityPredictions[executionIndex].numpy()
+    return linesToWrite, numberOfIdenticals, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
 
 def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length):
 
@@ -130,40 +150,30 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         nextTokens   = nextTokens + nextTokens2
         Windows      = Windows + Windows2
         PrintfList   = PrintfList + PrintfList2
-
+        
+        TimeNeededForAssembly = (time.time() - startTime) 
+        print("     TimeNeededForAssembly: {:2.3f}".format(TimeNeededForAssembly) )
  
         if (window == None):
             break
         
 
-
-        TimeNeededForAssembly = (time.time() - startTime) 
-        print("     TimeNeededForAssembly: {:2.3f}".format(TimeNeededForAssembly) )
         startTimeGenerateSteps = time.time()
         nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
         TimeNeededForGenerateSteps = (time.time() - startTimeGenerateSteps) 
         print("     TimeNeededForGenerateSteps: {:2.3f}".format(TimeNeededForGenerateSteps) )
-       
+
+
         startTimeWriteAnalysis = time.time()
         
-        for executionIndex in range(numberOfParallelExecutions):
-            nextToken = nextTokens[executionIndex] 
-            nextPredictedToken = nextPredictedTokens[executionIndex].decode('utf-8')  
-            
-            if (nextToken == nextPredictedToken):
-                nextPredictedToken = "Identical  "
-                numberOfIdenticals += 1
+        linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability = ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions)
 
-            nextTokenProbability = (probabilityOfNextTokens[executionIndex]).numpy()
-            lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format(nextTokenProbability) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[executionIndex].numpy()) + ". " + PrintfList[executionIndex]
-            #print(lineToWrite)
+        numberOfIdenticals    += numberOfIdenticalsInThisCycle
+        numberOfAnalyzedLines += numberOfParallelExecutions
+
+        for lineToWrite in linesToWrite:
             LogfileAnalyzed.write(lineToWrite)
-            
-            accumulatedNextTokenProbability += nextTokenProbability
-            accumulatedPredictedTokenProbability += probabilityPredictions[executionIndex].numpy()
 
-
-            numberOfAnalyzedLines += 1
 
         print("     TimeNeededWriteAnalysis: {:2.3f}".format(time.time() - startTimeWriteAnalysis) )
         

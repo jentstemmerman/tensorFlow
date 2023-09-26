@@ -8,6 +8,32 @@ from pathlib import Path
 import threading
 import queue
 
+
+class AssembleInferenceDataClass:
+    def AssembleInputs(self, DataTypeForTensors, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
+        
+        inputTensor  = []
+        nexttokenIds = []
+        nextTokens   = []
+        Windows      = []
+        PrintfList   = []
+
+        for executionIndex in range(numberOfParallelExecutions):
+            
+            window, nextToken, nexttokenId, tokenIdWindow, printf = GetNextSequenceData(newTokenList[executionIndex], newPrintfList[executionIndex], id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+            
+            if (window is None):
+                break
+            else:
+                Windows.append(window) 
+                PrintfList.append(printf)
+                inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
+                nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
+                nextTokens.append(nextToken)
+        
+        return Windows, nextTokens, PrintfList, inputTensor, nexttokenIds, window, tokenIdWindow, nextToken, nexttokenId
+
+
 def GetNextTokenWindow(oldWindow, newToken):
     newWindow = oldWindow[1:]  
     newWindow.append(newToken)
@@ -44,28 +70,7 @@ def GetNextSequenceData(newToken, newPrintf, id_from_token, prevWindow, prevInpu
 
     return newWindow, newToken, newTokenId, nextTokenIdWindow, newPrintf
 
-def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
-    
-    inputTensor  = []
-    nexttokenIds = []
-    nextTokens   = []
-    Windows      = []
-    PrintfList   = []
 
-    for executionIndex in range(numberOfParallelExecutions):
-        
-        window, nextToken, nexttokenId, tokenIdWindow, printf = GetNextSequenceData(newTokenList[executionIndex], newPrintfList[executionIndex], id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
-        
-        if (window is None):
-            break
-        else:
-            Windows.append(window) 
-            PrintfList.append(printf)
-            inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
-            nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
-            nextTokens.append(nextToken)
-    
-    return Windows, nextTokens, PrintfList, inputTensor, nexttokenIds, window, tokenIdWindow, nextToken, nexttokenId
 
 
 def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length):
@@ -117,8 +122,8 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         numberOfRemainingItemsToAssemble = numberOfParallelExecutions - numberOfAssembledItemsInThisCycle
         newTokenList, newPrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, numberOfRemainingItemsToAssemble, LogfileToAnalyze)
         
-
-        Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = AssembleInputs(DataTypeForTensors, numberOfRemainingItemsToAssemble, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+        AssembleInferenceData = AssembleInferenceDataClass()
+        Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = AssembleInferenceData.AssembleInputs(DataTypeForTensors, numberOfRemainingItemsToAssemble, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
                                                                                          
         inputTensor  = inputTensor + inputTensor2
         nexttokenIds = nexttokenIds + nexttokenIds2
@@ -130,13 +135,12 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         if (window == None):
             break
         
-        inputTensorForInference  = tf.stack(inputTensor,  axis=0)
-        nexttokenIdsForInference = tf.stack(nexttokenIds, axis=0)
+
 
         TimeNeededForAssembly = (time.time() - startTime) 
         print("     TimeNeededForAssembly: {:2.3f}".format(TimeNeededForAssembly) )
         startTimeGenerateSteps = time.time()
-        nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensorForInference, nexttokenIdsForInference, states=None)
+        nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
         TimeNeededForGenerateSteps = (time.time() - startTimeGenerateSteps) 
         print("     TimeNeededForGenerateSteps: {:2.3f}".format(TimeNeededForGenerateSteps) )
        

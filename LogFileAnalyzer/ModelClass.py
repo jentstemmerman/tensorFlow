@@ -133,8 +133,9 @@ class OneStep(tf.keras.Model):
   
   
  # @tf.function
-  def generate_steps(self, inputTensor, nexttokenId, states=None):
-
+  def generate_steps(self, inputTensor, nexttokenIds, states=None):
+    inputTensor  = tf.stack(inputTensor,  axis=0)
+    nexttokenIds = tf.stack(nexttokenIds, axis=0)
     # Run the model.
     predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
     # Only use the last prediction.
@@ -153,6 +154,6 @@ class OneStep(tf.keras.Model):
     probabilityPredictedToken = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id)
     
 
-    probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, nexttokenId)
+    probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, nexttokenIds)
     # Return the characters and model state.
     return predicted_tokens, probabilityPredictedToken, probabilityNextToken

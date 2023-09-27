@@ -7,68 +7,33 @@ import ModelClass
 from pathlib import Path
 import threading
 import queue
+import InferenceAssembly
 
 
-class AssembleInferenceDataClass:
-    def AssembleInputs(self, DataTypeForTensors, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
-        
-        inputTensor  = []
-        nexttokenIds = []
-        nextTokens   = []
-        Windows      = []
-        PrintfList   = []
-
-        for executionIndex in range(numberOfParallelExecutions):
-            
-            window, nextToken, nexttokenId, tokenIdWindow, printf = GetNextSequenceData(newTokenList[executionIndex], newPrintfList[executionIndex], id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
-            
-            if (window is None):
-                break
-            else:
-                Windows.append(window) 
-                PrintfList.append(printf)
-                inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
-                nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
-                nextTokens.append(nextToken)
-        
-        return Windows, nextTokens, PrintfList, inputTensor, nexttokenIds, window, tokenIdWindow, nextToken, nexttokenId
-
-
-def GetNextTokenWindow(oldWindow, newToken):
-    newWindow = oldWindow[1:]  
-    newWindow.append(newToken)
-    return newWindow
-
-def GetNextTokenIdWindow(oldTokenIdWindow, newTokenId):
-    nextTokenIdWindow = np.roll(oldTokenIdWindow, -1)
-    nextTokenIdWindow[-1] = newTokenId
-    return nextTokenIdWindow
-
-def GetFirstSequenceData(LogfileToAnalyze, id_from_token, window_size):
-    tokenList, PrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, window_size+1, LogfileToAnalyze)
-
-    if (tokenList is not None):
-        tokenWindow = tokenList[0:window_size]  
-        outputToken = tokenList[window_size]
-
-        nextTokenIdWindow = id_from_token(tokenWindow)
-        outputTokenId     = id_from_token(outputToken)
-    else:
-        tokenWindow = None 
-        outputToken = None 
-        nextTokenIdWindow = None  
-        outputTokenId = None 
-        PrintfList = None 
-
-    return tokenWindow, outputToken, nextTokenIdWindow, outputTokenId, PrintfList
-
-def GetNextSequenceData(newToken, newPrintf, id_from_token, prevWindow, prevInputTokens, prevOutputToken, prevOutputTokenId):
+def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
     
-    newWindow           = GetNextTokenWindow(prevWindow, prevOutputToken)
-    newTokenId          = id_from_token(newToken)
-    nextTokenIdWindow   = GetNextTokenIdWindow(prevInputTokens, prevOutputTokenId)
+    inputTensor  = []
+    nexttokenIds = []
+    nextTokens   = []
+    Windows      = []
+    PrintfList   = []
 
-    return newWindow, newToken, newTokenId, nextTokenIdWindow, newPrintf
+    for executionIndex in range(numberOfParallelExecutions):
+        
+        window, nextToken, nexttokenId, tokenIdWindow, printf = InferenceAssembly.GetNextSequenceData(newTokenList[executionIndex], newPrintfList[executionIndex], id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+        
+        if (window is None):
+            break
+        else:
+            Windows.append(window) 
+            PrintfList.append(printf)
+            inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
+            nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
+            nextTokens.append(nextToken)
+    
+    return Windows, nextTokens, PrintfList, inputTensor, nexttokenIds, window, tokenIdWindow, nextToken, nexttokenId
+
+
 
 
 def ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
@@ -93,6 +58,8 @@ def ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens,
         accumulatedPredictedTokenProbability += probabilityPredictions[executionIndex].numpy()
     return linesToWrite, numberOfIdenticals, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
 
+
+
 def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length):
 
     numberOfIdenticals = 0
@@ -110,7 +77,7 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
 
     LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
 
-    window, nextToken, tokenIdWindow, nexttokenId, PrintfList = GetFirstSequenceData(LogfileToAnalyze, id_from_token, window_size)
+    window, nextToken, tokenIdWindow, nexttokenId, PrintfList = InferenceAssembly.GetFirstSequenceData(LogfileToAnalyze, id_from_token, window_size)
 
     for line in PrintfList[0:-1]:
         LogfileAnalyzed.write(line)
@@ -142,8 +109,11 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         numberOfRemainingItemsToAssemble = numberOfParallelExecutions - numberOfAssembledItemsInThisCycle
         newTokenList, newPrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, numberOfRemainingItemsToAssemble, LogfileToAnalyze)
         
-        AssembleInferenceData = AssembleInferenceDataClass()
-        Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = AssembleInferenceData.AssembleInputs(DataTypeForTensors, numberOfRemainingItemsToAssemble, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+        assemble = InferenceAssembly.AssembleInferenceDataClass(DataTypeForTensors, numberOfRemainingItemsToAssemble, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+        
+        Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = assemble.StartAssembleInputs()
+
+        #Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = AssembleInputs(DataTypeForTensors, numberOfRemainingItemsToAssemble, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
                                                                                          
         inputTensor  = inputTensor + inputTensor2
         nexttokenIds = nexttokenIds + nexttokenIds2

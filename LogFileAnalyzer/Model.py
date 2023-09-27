@@ -47,8 +47,7 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
         for input_example_batch, target_example_batch in datasetForVerification.take(numberOfSamplesPerCycle):
             outputTensorExpanded = tf.expand_dims(target_example_batch, 0)
             inputTensorExpanded  = tf.expand_dims(input_example_batch, 0)
-           # inputTensor = tf.stack(inputTensor, axis=0)
-           # nexttokenIds = tf.stack(nexttokenIds, axis=0)
+
             batch_predictions    = model(inputTensorExpanded, return_state=False)
 
             if (stacked_Predicted_Output_tensor == None):

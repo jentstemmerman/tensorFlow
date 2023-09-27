@@ -109,11 +109,10 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         numberOfRemainingItemsToAssemble = numberOfParallelExecutions - numberOfAssembledItemsInThisCycle
         newTokenList, newPrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, numberOfRemainingItemsToAssemble, LogfileToAnalyze)
         
-        assemble = InferenceAssembly.AssembleInferenceDataClass(DataTypeForTensors, numberOfRemainingItemsToAssemble, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
-        
-        Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = assemble.StartAssembleInputs()
+        assembleThread = InferenceAssembly.AssembleInferenceDataClass(DataTypeForTensors, numberOfRemainingItemsToAssemble, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+        assembleThread.StartAssembleInputs()
+        Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = assembleThread.WaitForCompletion() 
 
-        #Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = AssembleInputs(DataTypeForTensors, numberOfRemainingItemsToAssemble, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
                                                                                          
         inputTensor  = inputTensor + inputTensor2
         nexttokenIds = nexttokenIds + nexttokenIds2

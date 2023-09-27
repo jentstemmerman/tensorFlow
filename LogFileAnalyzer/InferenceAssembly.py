@@ -77,17 +77,17 @@ class AssembleInferenceDataClass:
                 self.nextTokens.append(self.nextToken)
 
 
-        
+    def WaitForCompletion(self):
+        # Wait for the thread to finish 
+        self.generate_steps_thread.join()
+        return self.Windows, self.nextTokens, self.PrintfList, self.inputTensor, self.nexttokenIds, self.window, self.tokenIdWindow, self.nextToken, self.nexttokenId
 
     def StartAssembleInputs(self):
-        result_queue = None
 
-        generate_steps_thread = threading.Thread(target=self.AssembleInputsThread, args=())
+        self.generate_steps_thread = threading.Thread(target=self.AssembleInputsThread, args=())
 
-        # Start the thread
-        generate_steps_thread.start()
+        self.generate_steps_thread.start()
 
-        # Wait for the thread to finish 
-        generate_steps_thread.join()
+
         
-        return self.Windows, self.nextTokens, self.PrintfList, self.inputTensor, self.nexttokenIds, self.window, self.tokenIdWindow, self.nextToken, self.nexttokenId
+        

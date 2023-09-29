@@ -61,7 +61,7 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     Windows      = []
     PrintfList   = []
 
-    numberOfThreads = 20
+    numberOfThreads = 8
     maxNumberOfParallelExecutions = 500
     numberOfAnalyzedLines         = 0
 
@@ -106,16 +106,12 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
             numberOfAnalyzedLines += numberOfParallelExecutions
             for lineToWrite in linesToWrite:
                 LogfileAnalyzed.write(lineToWrite)
-
-
-
         
         inputTensor  = []
         nextTokens   = []
         nexttokenIds = []
         Windows      = []
-        PrintfList   = []    
-        numberOfAssembledItemsInThisCycle = 0
+        PrintfList   = []
 
         Endtime = time.time()
 
@@ -123,7 +119,7 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
 
         print("  annotated line " + str(numberOfAnalyzedLines) + "."
-              ". Number of lines per second: {:2.2f}.".format((numberOfParallelExecutions / (Endtime - startTime) )) + 
+              ". Number of lines per second: {:2.2f}.".format((numberOfAnalyzedLines / (Endtime - startTime) )) + 
               "  Number Of Identicals: " + str(numberOfIdenticals) + "."
               "  Average next token probability = {:2.3f}.".format(averageNextTokenProbability) + 
               "  Average predicted token probability = {:2.3f}.".format(averagePredictedTokenProbability) + 

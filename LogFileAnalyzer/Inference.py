@@ -9,6 +9,7 @@ import threading
 import queue
 import InferenceAssembly
 import RunGeneration
+import InferenceOutput
 
 def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
     
@@ -33,28 +34,6 @@ def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList,
     
     return Windows, nextTokens, PrintfList, inputTensor, nexttokenIds, window, tokenIdWindow, nextToken, nexttokenId
 
-
-def ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
-    
-    linesToWrite = []
-    numberOfIdenticals = 0
-    accumulatedNextTokenProbability = 0
-    accumulatedPredictedTokenProbability = 0
-
-    for executionIndex in range(numberOfParallelExecutions):
-        nextToken = nextTokens[executionIndex] 
-        nextPredictedToken = nextPredictedTokens[executionIndex].decode('utf-8')  
-        
-        if (nextToken == nextPredictedToken):
-            nextPredictedToken = "Identical  "
-            numberOfIdenticals += 1
-
-        nextTokenProbability = (probabilityOfNextTokens[executionIndex]).numpy()
-        lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format(nextTokenProbability) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[executionIndex].numpy()) + ". " + PrintfList[executionIndex]
-        linesToWrite.append(lineToWrite)
-        accumulatedNextTokenProbability += nextTokenProbability
-        accumulatedPredictedTokenProbability += probabilityPredictions[executionIndex].numpy()
-    return linesToWrite, numberOfIdenticals, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
 
 
 
@@ -82,6 +61,7 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     Windows      = []
     PrintfList   = []
 
+    numberOfThreads = 1
     maxNumberOfParallelExecutions = 25
     numberOfAnalyzedLines         = 0
 
@@ -94,43 +74,39 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         numberOfParallelExecutions = maxNumberOfParallelExecutions
         if (numberOfParallelExecutions == 0):
             break
+
+        assembleThreadList = []
+        for threadId in range(0,numberOfThreads):
+            assembleThread = InferenceAssembly.AssembleInferenceDataClass(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window_size)
+            assembleThreadList.append(assembleThread)
+            indexOfFirstPrediction += numberOfParallelExecutions
+            assembleThreadList[threadId].StartAssembleInputs()
         
-        assembleThread = InferenceAssembly.AssembleInferenceDataClass(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window_size)
-        indexOfFirstPrediction += numberOfParallelExecutions
-        assembleThread.StartAssembleInputs()
-
-        nextTokens, PrintfList, inputTensor, nexttokenIds = assembleThread.WaitForCompletion() 
-                                                                         
-
+        generationThreadList = []
+        PrintfList = []
+        for threadId in range(0,numberOfThreads):
+            nextTokens, printf, inputTensor, nexttokenIds = assembleThreadList[threadId].WaitForCompletion() 
+            generationThread = RunGeneration.GenerationClass(one_step_model, inputTensor, nexttokenIds, states=None)     
+            PrintfList.append(printf)
+            generationThreadList.append(generationThread)                                          
+            generationThreadList[threadId].StartGeneration()
         
-        TimeNeededForAssembly = (time.time() - startTime) 
-        print("     TimeNeededForAssembly: {:2.3f}".format(TimeNeededForAssembly) )
- 
+        outputThreadList = []
+        for threadId in range(0,numberOfThreads):
+            nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = generationThreadList[threadId].WaitForCompletion() 
+            outputThread = InferenceOutput.InferenceOutputClass(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList[threadId], probabilityOfNextTokens, probabilityPredictions)
+            outputThreadList.append(outputThread)                                          
+            outputThreadList[threadId].StartInferenceOutput()
 
-
-        startTimeGenerateSteps = time.time()
-        generationThread = RunGeneration.GenerationClass(one_step_model, inputTensor, nexttokenIds, states=None)
-        generationThread.StartGeneration()
-        nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = generationThread.WaitForCompletion() 
-
-        #nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
-        TimeNeededForGenerateSteps = (time.time() - startTimeGenerateSteps) 
-        print("     TimeNeededForGenerateSteps: {:2.3f}".format(TimeNeededForGenerateSteps) )
-
-
-        startTimeWriteAnalysis = time.time()
-        
-        linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability = ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions)
-
-        numberOfIdenticals    += numberOfIdenticalsInThisCycle
-        numberOfAnalyzedLines += numberOfParallelExecutions
-
-        for lineToWrite in linesToWrite:
-            LogfileAnalyzed.write(lineToWrite)
+        for threadId in range(0,numberOfThreads):
+            linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability = outputThreadList[threadId].WaitForCompletion()
+            numberOfIdenticals    += numberOfIdenticalsInThisCycle
+            numberOfAnalyzedLines += numberOfParallelExecutions
+            for lineToWrite in linesToWrite:
+                LogfileAnalyzed.write(lineToWrite)
 
 
 
-        print("     TimeNeededWriteAnalysis: {:2.3f}".format(time.time() - startTimeWriteAnalysis) )
         
         inputTensor  = []
         nextTokens   = []

@@ -76,56 +76,49 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
 
     LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
-
-    window, nextToken, tokenIdWindow, nexttokenId, PrintfList = InferenceAssembly.GetFirstSequenceData(LogfileToAnalyze, id_from_token, window_size)
-
-    for line in PrintfList[0:-1]:
-        LogfileAnalyzed.write(line)
+#    tokenList, PrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, window_size + 1, LogfileToAnalyze)
+ #   window, nextToken, tokenIdWindow, nexttokenId, PrintfList = InferenceAssembly.GetFirstSequenceData(tokenList, PrintfList, id_from_token, window_size)
+#    LogfileToAnalyze.seek(0)
     
-    PrintfTemp = PrintfList[-1] 
+ ##   for line in PrintfList[:-1]:
+  #      LogfileAnalyzed.write(line)
+
+
+    PrintfTemp   = []
     inputTensor  = []
     nexttokenIds = []
     nextTokens   = []
     Windows      = []
     PrintfList   = []
 
-    Windows.append(window)
-    nextTokens.append(nextToken)
-    inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
-    nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  # make it a list of tensors
-    PrintfList.append(PrintfTemp)
-    PrintfTemp = None
-    numberOfAssembledItemsInThisCycle = 1
 
-    maxNumberOfParallelExecutions     = 500
-    numberOfAnalyzedLines             = 0
 
+
+    maxNumberOfParallelExecutions = 25
+    numberOfAnalyzedLines         = 0
+
+    newTokenList, newPrintfList = TokenParser.getLinesAndTokens(TokenParser.ReForTokens, -1, LogfileToAnalyze)
+    
+    indexOfFirstPrediction = window_size + 1
+    
     while (True):
         startTime = time.time()
         numberOfParallelExecutions = maxNumberOfParallelExecutions
         if (numberOfParallelExecutions == 0):
             break
         
-        numberOfRemainingItemsToAssemble = numberOfParallelExecutions - numberOfAssembledItemsInThisCycle
-        newTokenList, newPrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, numberOfRemainingItemsToAssemble, LogfileToAnalyze)
-        
-        assembleThread = InferenceAssembly.AssembleInferenceDataClass(DataTypeForTensors, numberOfRemainingItemsToAssemble, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+        assembleThread = InferenceAssembly.AssembleInferenceDataClass(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window_size)
+        indexOfFirstPrediction += numberOfParallelExecutions
         assembleThread.StartAssembleInputs()
-        Windows2, nextTokens2, PrintfList2, inputTensor2, nexttokenIds2, window, tokenIdWindow, nextToken, nexttokenId = assembleThread.WaitForCompletion() 
 
-                                                                                         
-        inputTensor  = inputTensor + inputTensor2
-        nexttokenIds = nexttokenIds + nexttokenIds2
-        nextTokens   = nextTokens + nextTokens2
-        Windows      = Windows + Windows2
-        PrintfList   = PrintfList + PrintfList2
+        nextTokens, PrintfList, inputTensor, nexttokenIds = assembleThread.WaitForCompletion() 
+                                                                         
+
         
         TimeNeededForAssembly = (time.time() - startTime) 
         print("     TimeNeededForAssembly: {:2.3f}".format(TimeNeededForAssembly) )
  
-        if (window == None):
-            break
-        
+
 
         startTimeGenerateSteps = time.time()
         nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
@@ -142,6 +135,7 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
 
         for lineToWrite in linesToWrite:
             LogfileAnalyzed.write(lineToWrite)
+
 
 
         print("     TimeNeededWriteAnalysis: {:2.3f}".format(time.time() - startTimeWriteAnalysis) )

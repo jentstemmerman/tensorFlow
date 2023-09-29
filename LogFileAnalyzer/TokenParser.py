@@ -4,17 +4,15 @@ import sys
 
 ReForTokens = "[0-9A-F]{2}(?:\s[0-9A-F]{2}){3}"
 
-def getNextLinesAndTokens(token_pattern, numberOfTokens, reading_file): 
+def getLinesAndTokens(token_pattern, numberOfTokens, reading_file): 
     numberOfFoundTokens = 0
-    tokenList = []
+    tokenList  = []
     PrintfList = []
 
-    while (numberOfFoundTokens < numberOfTokens):
+    while ((numberOfTokens == -1) or (numberOfFoundTokens < numberOfTokens)):
         line = reading_file.readline()
 
         if (not line):
-            tokenList = None
-            PrintfList = None
             break
 
         stripped_line = re.search(token_pattern, line)

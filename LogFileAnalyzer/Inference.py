@@ -61,8 +61,8 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     Windows      = []
     PrintfList   = []
 
-    numberOfThreads = 1
-    maxNumberOfParallelExecutions = 25
+    numberOfThreads = 20
+    maxNumberOfParallelExecutions = 500
     numberOfAnalyzedLines         = 0
 
     newTokenList, newPrintfList = TokenParser.getLinesAndTokens(TokenParser.ReForTokens, -1, LogfileToAnalyze)
@@ -84,17 +84,19 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
         
         generationThreadList = []
         PrintfList = []
+        nextTokensList = []
         for threadId in range(0,numberOfThreads):
             nextTokens, printf, inputTensor, nexttokenIds = assembleThreadList[threadId].WaitForCompletion() 
             generationThread = RunGeneration.GenerationClass(one_step_model, inputTensor, nexttokenIds, states=None)     
             PrintfList.append(printf)
+            nextTokensList.append(nextTokens)
             generationThreadList.append(generationThread)                                          
             generationThreadList[threadId].StartGeneration()
         
         outputThreadList = []
         for threadId in range(0,numberOfThreads):
             nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = generationThreadList[threadId].WaitForCompletion() 
-            outputThread = InferenceOutput.InferenceOutputClass(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList[threadId], probabilityOfNextTokens, probabilityPredictions)
+            outputThread = InferenceOutput.InferenceOutputClass(numberOfParallelExecutions, nextPredictedTokens, nextTokensList[threadId], PrintfList[threadId], probabilityOfNextTokens, probabilityPredictions)
             outputThreadList.append(outputThread)                                          
             outputThreadList[threadId].StartInferenceOutput()
 

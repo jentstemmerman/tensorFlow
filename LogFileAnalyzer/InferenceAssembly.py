@@ -84,17 +84,14 @@ class AssembleInferenceDataClass:
                 self.nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=self.DataTypeForTensors))  
                 self.nextTokens.append(nextToken)
 
+    def StartAssembleInputs(self):
+        self.generate_steps_thread = threading.Thread(target=self.AssembleInputsThread, args=())
+        self.generate_steps_thread.start()
 
     def WaitForCompletion(self):
         # Wait for the thread to finish 
         self.generate_steps_thread.join()
         return self.nextTokens, self.PrintfList, self.inputTensor, self.nexttokenIds
-
-    def StartAssembleInputs(self):
-
-        self.generate_steps_thread = threading.Thread(target=self.AssembleInputsThread, args=())
-
-        self.generate_steps_thread.start()
 
 
         

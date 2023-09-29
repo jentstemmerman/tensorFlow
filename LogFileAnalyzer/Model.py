@@ -221,8 +221,6 @@ if (CreateNewOutDirectory):
 PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
 id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
 
-
-
 print("Creating datasets:")
 
 if (train_model):

@@ -8,7 +8,7 @@ from pathlib import Path
 import threading
 import queue
 import InferenceAssembly
-
+import RunGeneration
 
 def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
     
@@ -32,8 +32,6 @@ def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList,
             nextTokens.append(nextToken)
     
     return Windows, nextTokens, PrintfList, inputTensor, nexttokenIds, window, tokenIdWindow, nextToken, nexttokenId
-
-
 
 
 def ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
@@ -76,13 +74,6 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
 
     LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
-#    tokenList, PrintfList = TokenParser.getNextLinesAndTokens(TokenParser.ReForTokens, window_size + 1, LogfileToAnalyze)
- #   window, nextToken, tokenIdWindow, nexttokenId, PrintfList = InferenceAssembly.GetFirstSequenceData(tokenList, PrintfList, id_from_token, window_size)
-#    LogfileToAnalyze.seek(0)
-    
- ##   for line in PrintfList[:-1]:
-  #      LogfileAnalyzed.write(line)
-
 
     PrintfTemp   = []
     inputTensor  = []
@@ -90,9 +81,6 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     nextTokens   = []
     Windows      = []
     PrintfList   = []
-
-
-
 
     maxNumberOfParallelExecutions = 25
     numberOfAnalyzedLines         = 0
@@ -121,7 +109,11 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
 
 
         startTimeGenerateSteps = time.time()
-        nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
+        generationThread = RunGeneration.GenerationClass(one_step_model, inputTensor, nexttokenIds, states=None)
+        generationThread.StartGeneration()
+        nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = generationThread.WaitForCompletion() 
+
+        #nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
         TimeNeededForGenerateSteps = (time.time() - startTimeGenerateSteps) 
         print("     TimeNeededForGenerateSteps: {:2.3f}".format(TimeNeededForGenerateSteps) )
 

@@ -61,10 +61,11 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     Windows      = []
     PrintfList   = []
 
-    numberOfThreads = 8
+    numberOfThreads = 16
     maxNumberOfParallelExecutions = 500
     numberOfAnalyzedLines         = 0
-
+    accumulatedNextTokenProbability = 0
+    accumulatedPredictedTokenProbability = 0
     newTokenList, newPrintfList = TokenParser.getLinesAndTokens(TokenParser.ReForTokens, -1, LogfileToAnalyze)
     
     indexOfFirstPrediction = window_size + 1
@@ -101,7 +102,9 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
             outputThreadList[threadId].StartInferenceOutput()
 
         for threadId in range(0,numberOfThreads):
-            linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability = outputThreadList[threadId].WaitForCompletion()
+            linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbabilityTemp, accumulatedPredictedTokenProbabilityTemp = outputThreadList[threadId].WaitForCompletion()
+            accumulatedNextTokenProbability += accumulatedNextTokenProbabilityTemp
+            accumulatedPredictedTokenProbability += accumulatedPredictedTokenProbabilityTemp
             numberOfIdenticals    += numberOfIdenticalsInThisCycle
             numberOfAnalyzedLines += numberOfParallelExecutions
             for lineToWrite in linesToWrite:

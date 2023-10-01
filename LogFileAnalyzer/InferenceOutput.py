@@ -1,4 +1,4 @@
-import threading
+import multiprocessing
 import TokenParser
 import time
 import tensorflow as tf
@@ -48,7 +48,7 @@ class InferenceOutputClass:
 
 
     def StartInferenceOutput(self):
-        self.InferenceOutput_thread = threading.Thread(target=self.InferenceOutputThread, args=())
+        self.InferenceOutput_thread = multiprocessing.Process(target=self.InferenceOutputThread, args=())
         self.InferenceOutput_thread.start()
 
     def WaitForCompletion(self):

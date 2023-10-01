@@ -1,4 +1,4 @@
-import threading
+import multiprocessing
 import tensorflow as tf
 import numpy as np
 import ModelClass
@@ -17,7 +17,7 @@ class GenerationClass:
         self.nextPredictedTokens, self.probabilityPredictions, self.probabilityOfNextTokens = self.step_model.generate_steps(self.inputTensor, self.nexttokenIds, states=self.states)
 
     def StartGeneration(self):
-        self.generation_thread = threading.Thread(target=self.GenerationThread, args=())
+        self.generation_thread = multiprocessing.Process(target=self.GenerationThread, args=())
         self.generation_thread.start()
 
     def WaitForCompletion(self):

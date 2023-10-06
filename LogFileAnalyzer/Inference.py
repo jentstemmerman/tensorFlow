@@ -6,11 +6,14 @@ import TokenParser
 import ModelClass
 from pathlib import Path
 #import threading
+import multiprocessing
+from multiprocessing import shared_memory
 #import queue
 import InferenceAssembly
 import RunGeneration
 import InferenceOutput
-import ray
+import sys 
+import ctypes
 
 def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
     
@@ -38,15 +41,15 @@ def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList,
 
 
 
-def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length):
-    ray.init()
+def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length, id_from_tokenNumpy):
+
     numberOfIdenticals = 0
     averageNextTokenProbability = 0
     averagePredictedTokenProbability = 0
     accumulatedNextTokenProbability = 0.0
     accumulatedPredictedTokenProbability = 0.0
 
-    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
+
     window_size = seq_length
 
     
@@ -62,28 +65,49 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     Windows      = []
     PrintfList   = []
 
-    numberOfThreads = 16
-    maxNumberOfParallelExecutions = 250
+    queueTimeout = 50
+    maxNumberOfParallelExecutions = 500
     numberOfAnalyzedLines         = 0
     accumulatedNextTokenProbability = 0
     accumulatedPredictedTokenProbability = 0
-    newTokenList, newPrintfList = TokenParser.getLinesAndTokens(TokenParser.ReForTokens, -1, LogfileToAnalyze)
+
+    one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
+    # Create a shared memory manager
+    manager = multiprocessing.Manager()
     
-    indexOfFirstPrediction = window_size + 1
+    # Create a shared list
+    sharedPrintfList     = manager.list()
+    sharedTokenList      = manager.list()
+
+    TokenList, PrintfList = TokenParser.getLinesAndTokens(TokenParser.ReForTokens, -1, LogfileToAnalyze)
+
+    sharedPrintfList.extend(PrintfList)
+    sharedTokenList.extend(TokenList)
+
+        # Create shared memory object
+    shm = shared_memory.SharedMemory(create=True, size=id_from_tokenNumpy.nbytes*10)
+
+   
+    shared_id_from_token = np.ndarray(id_from_tokenNumpy.shape, dtype=id_from_tokenNumpy.dtype, buffer=shm.buf)
+    # Copy the data to shared memory
+    np.copyto(shared_id_from_token, id_from_tokenNumpy)
+
+    PrintfList = None
+    TokenList  = None
+
+    indexOfFirstPrediction     = window_size + 1
     numberOfParallelExecutions = maxNumberOfParallelExecutions
-    assembleThreadList = []
-    assemblyStartTime = 0
-    generationStartTime = 0
-    outputStartTime = 0
+    assemblyStartTime          = 0
+    generationStartTime        = 0
+    outputStartTime            = 0
 
     assemblySubmissionStartTime = time.time()
     for threadId in range(0,numberOfThreads):
-       
-        startassemblyStartTime = time.time()
-        AssembleInputsThreadResult_ref = InferenceAssembly.AssembleInferenceDataClass.StartAssembleInputs(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window_size)
-        assembleThreadList.append(AssembleInputsThreadResult_ref)
+        inputQueue  = Workers[threadId]["inputQueue"]
+        outputQueue = Workers[threadId]["outputQueue"]
+        inputQueue.put((InferenceAssembly.AssembleInferenceDataClass.AssembleInputsThread, (DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, sharedPrintfList, shared_id_from_token, window_size,)))
+          
         indexOfFirstPrediction += numberOfParallelExecutions
-        print("   startassemblyStart Time = {:2.3f}.".format(time.time() - startassemblyStartTime))
         
         if (threadId == 0):
               assemblyStartTime = time.time()
@@ -98,43 +122,47 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
             break
 
         numberOfAnalyzedLinesThisCycle = 0
-        generationThreadList = []
-        PrintfList = []
-        nextTokensList = []
+
+        printfList                  = []
+        nextTokensList              = []
+        nextPredictedTokensList     = []
+        probabilityPredictionsList  = []
+        probabilityOfNextTokensList = []
 
         for threadId in range(0,numberOfThreads):
-            nextTokens, printf, inputTensor, nexttokenIds = InferenceAssembly.AssembleInferenceDataClass.WaitForCompletion(assembleThreadList[threadId]) 
-            generationThread = RunGeneration.GenerationClass(one_step_model, inputTensor, nexttokenIds, states=None)     
-            PrintfList.append(printf)
+            inputQueue  = Workers[threadId]["inputQueue"]
+            outputQueue = Workers[threadId]["outputQueue"]
+            nextTokens, printf, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout)
+            
+            nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
+            printfList.append(printf)
             nextTokensList.append(nextTokens)
-            generationThreadList.append(generationThread)                                          
-            generationThreadList[threadId].StartGeneration()
+            nextPredictedTokensList.append(nextPredictedTokens)
+            probabilityPredictionsList.append(probabilityPredictions)
+            probabilityOfNextTokensList.append(probabilityOfNextTokens)
+
             if (threadId == 0):
                 print("   AssembleTime = {:2.3f}.".format(time.time() - assemblyStartTime))
                 generationStartTime = time.time()
         
         for threadId in range(0, numberOfThreads):
-            nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = generationThreadList[threadId].WaitForCompletion()  
+            inputQueue  = Workers[threadId]["inputQueue"]
+            
+            inputQueue.put((InferenceOutput.InferenceOutputClass.InferenceOutputThread, (numberOfParallelExecutions, nextPredictedTokens, nextTokens, sharedPrintfList, probabilityOfNextTokens, probabilityPredictions, )))
 
-        outputThreadList = []
-        for threadId in range(0, numberOfThreads):
-            nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = generationThreadList[threadId].WaitForCompletion() 
-            outputThread = InferenceOutput.InferenceOutputClass(numberOfParallelExecutions, nextPredictedTokens, nextTokensList[threadId], PrintfList[threadId], probabilityOfNextTokens, probabilityPredictions)
-            outputThreadList.append(outputThread)                                          
-            outputThreadList[threadId].StartInferenceOutput()
             if (threadId == 0):
                  print("   Generation Time = {:2.3f}.".format(time.time() - generationStartTime))
                  outputStartTime = time.time()
 
 
-        assembleThreadList = []
-
         for threadId in range(0, numberOfThreads):
-            linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbabilityTemp, accumulatedPredictedTokenProbabilityTemp = outputThreadList[threadId].WaitForCompletion()
-            assembleThread = InferenceAssembly.AssembleInferenceDataClass(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window_size)
-            assembleThreadList.append(assembleThread)
+            inputQueue  = Workers[threadId]["inputQueue"]
+            outputQueue = Workers[threadId]["outputQueue"]
 
-            assembleThreadList[threadId].StartAssembleInputs()
+            linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbabilityTemp, accumulatedPredictedTokenProbabilityTemp = outputQueue.get(timeout=queueTimeout)
+
+            inputQueue.put((InferenceAssembly.AssembleInferenceDataClass.AssembleInputsThread, (DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, sharedPrintfList, shared_id_from_token, window_size,)))
+
             accumulatedNextTokenProbability      += accumulatedNextTokenProbabilityTemp
             accumulatedPredictedTokenProbability += accumulatedPredictedTokenProbabilityTemp
             numberOfIdenticals                   += numberOfIdenticalsInThisCycle
@@ -180,7 +208,7 @@ def AddProbabilitiesPrintfFileParallel(model, DataTypeForTensors, LogfileVerific
     
     LogfileToAnalyze.close()
     LogfileAnalyzed.close()   
-    ray.shutdown()
+
 
 
 

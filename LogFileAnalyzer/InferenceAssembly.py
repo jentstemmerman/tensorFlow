@@ -5,6 +5,8 @@ import time
 import tensorflow as tf
 import numpy as np
 import ray
+import ctypes
+import os
 
 def GetNextTokenWindow(oldWindow, newToken):
     newWindow = oldWindow[1:]  
@@ -46,18 +48,26 @@ def GetNextSequenceData(newToken, newPrintf, id_from_token, prevWindow, prevInpu
 
 
 class AssembleInferenceDataClass:
-    @ray.remote(num_returns=4)
-    def AssembleInputsThread(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window_size):
+    def __init__(self):
+        self.result_queue = multiprocessing.Queue()
+    
+    def AssembleInputsThread(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, shared_id_from_token, window_size):
+        #tf.config.set_visible_devices([], 'GPU')
+        print("AssembleInputsThread")
+        AssembleInputsThreadTime = time.time()
+        id_from_token = np.ndarray(shared_id_from_token.shape, dtype=shared_id_from_token.dtype)
+        # Copy the data to shared memory
+        np.copyto(id_from_token, shared_id_from_token)
+        VocabularyTensor  = tf.convert_to_tensor(id_from_token)
+        id_from_token     = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
         inputTensor  = []
         nexttokenIds = []
         nextTokens   = []
-#        Windows      = []
         PrintfList   = []
 
-        print("AssembleInputsThread")
+        
         window, nextToken, tokenIdWindow, nexttokenId, printf = GetFirstSequenceData(indexOfFirstPrediction - (window_size+1),  newTokenList, newPrintfList, id_from_token, window_size)
         
-        #Windows.append(window) 
         PrintfList.append(printf)
         inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
         nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
@@ -75,20 +85,38 @@ class AssembleInferenceDataClass:
                 inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
                 nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
                 nextTokens.append(nextToken)
+         
 
-        return nextTokens, PrintfList, inputTensor, nexttokenIds
-    
-    def StartAssembleInputs(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window_size):
-#        AssembleInputsThreadResult_ref = AssembleInferenceDataClass.AssembleInputsThread2.remote(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window_size)
-        AssembleInputsThreadResult_ref = AssembleInferenceDataClass.AssembleInputsThread2.remote(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, window_size)
+        result = (nextTokens, PrintfList, inputTensor, nexttokenIds)
+        print("AssembleInputsThread done before queue put time {:2.3f}.".format(time.time() - AssembleInputsThreadTime))
 
-        return AssembleInputsThreadResult_ref                                                  
+        print("AssembleInputsThread done time {:2.3f}.".format(time.time() - AssembleInputsThreadTime))
+        return result
     
-    def WaitForCompletion(AssembleInputsThreadResult_ref):
+    def StartAssembleInputs(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, shared_id_from_token, window_size):
+
+        result_queue = multiprocessing.Queue()
+        
+        process = multiprocessing.Process(target=AssembleInferenceDataClass.AssembleInputsThread, args=(result_queue, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, shared_id_from_token, window_size))
+        process.start()
+ 
+        returnValue = (process, result_queue)
+        return returnValue                                                  
+    
+    def WaitForCompletion(processData):
         # Wait for the thread to finish 
-        return ray.get(AssembleInputsThreadResult_ref)
+        print("WaitForCompletion start")
+        # time.sleep(5)
+        print("WaitForCompletion start ( end sleep)")
+        process      = processData[0]
+        result_queue = processData[1]
+        result = result_queue.get()
+        print("WaitForCompletion queue done")
+        process.join()
+        print("WaitForCompletion done")
 
-    @ray.remote(num_returns=4)
+        return result[0], result[1], result[2], result[3]
+
     def AssembleInputsThread2(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, window_size):
         inputTensor  = []
         nexttokenIds = []
@@ -98,4 +126,5 @@ class AssembleInferenceDataClass:
         return nextTokens, PrintfList, inputTensor, nexttokenIds
 
         
-        
+
+

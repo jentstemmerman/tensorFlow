@@ -43,12 +43,12 @@ class InferenceOutputClass:
         self.accumulatedPredictedTokenProbability = None
         
     
-    def InferenceOutputThread(self):
-        self.linesToWrite, self.numberOfIdenticalsInThisCycle, self.accumulatedNextTokenProbability, self.accumulatedPredictedTokenProbability = ComposeLineList(self.numberOfParallelExecutions, self.nextPredictedTokens, self.nextTokens, self.PrintfList, self.probabilityOfNextTokens, self.probabilityPredictions)
+    def InferenceOutputThread(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
+        linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability = ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions)
+        return linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
 
-
-    def StartInferenceOutput(self):
-        self.InferenceOutput_thread = multiprocessing.Process(target=self.InferenceOutputThread, args=())
+    def StartInferenceOutput(self, numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
+        self.InferenceOutput_thread = multiprocessing.Process(target=self.InferenceOutputThread, args=(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions))
         self.InferenceOutput_thread.start()
 
     def WaitForCompletion(self):

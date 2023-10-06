@@ -4,10 +4,14 @@ import sys
 
 ReForTokens = "[0-9A-F]{2}(?:\s[0-9A-F]{2}){3}"
 
-def getLinesAndTokens(token_pattern, numberOfTokens, reading_file): 
+def getLinesAndTokens(token_pattern, numberOfTokens, reading_file, tokenList=None, PrintfList=None): 
     numberOfFoundTokens = 0
-    tokenList  = []
-    PrintfList = []
+    
+    if (tokenList is None):
+        tokenList  = []
+
+    if (PrintfList is None):
+        PrintfList = []
 
     while ((numberOfTokens == -1) or (numberOfFoundTokens < numberOfTokens)):
         line = reading_file.readline()

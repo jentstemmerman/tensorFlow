@@ -10,10 +10,31 @@ import os
 import re
 from pathlib import Path
 import sys
+import multiprocessing
+import worker
+
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]=""  # or even "-1"
+
+numberOfThreads = 1
+print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
+if __name__ == "__main__":
+    # Main process uses GPU
+
+
+    Workers = worker.CreateWorkers(numberOfThreads)
+
+    if (Workers == None):
+        print("Could not start workers")
+
+    with tf.device('/GPU:0'):
+        print("Main process is using GPU")
+
+
+
 
 # To only run on the cpu:
-#os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"]=""  # or even "-1"
+
 
 DataTypeForTensors = 'int64'
 
@@ -34,7 +55,6 @@ def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, V
 
 # this gives a high result
 def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
-
     numberOfSamplesPerCycle = 200
     samplesAccumulated = 0
     batch_mean_losses = [] 
@@ -68,22 +88,23 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-
-
 def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
     TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
     VocabularyNumpyList = np.loadtxt(VocabularyFile, delimiter=",", dtype=str)
+    id_from_tokenNumpy  = VocabularyNumpyList
     VocabularyTensor    = tf.convert_to_tensor(VocabularyNumpyList)
-
+    
     # encoder
     id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
     # decoder
     token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
 
-    return id_from_token, token_from_id
+    return id_from_token, token_from_id, id_from_tokenNumpy
 
-
-def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, temperature, seq_length):
+def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, temperature, seq_length, token_from_id, id_from_tokenNumpy, numberOfThreads, Workers):
+    #if __name__ == '__main__':
+    #    multiprocessing.freeze_support()
+    #    multiprocessing.set_start_method('spawn')
     verificationFileIterator = TokenParser.LogfileIterator(inputDirectory)
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
@@ -91,7 +112,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, temperature, seq_
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".txt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_token, PrintfFromToken=PrintfFromToken, temperature=temperature, seq_length=seq_length)
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_token, PrintfFromToken=PrintfFromToken, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -219,7 +240,7 @@ if (CreateNewOutDirectory):
 
 
 PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
-id_from_token, token_from_id = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
+id_from_token, token_from_id, id_from_tokenNumpy = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
 
 print("Creating datasets:")
 
@@ -405,7 +426,7 @@ else:
     losstraining = "Not Appl"
 
 if (AnalyzeFiles):
-    AnalyzePrintfFiles(model, inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"])
+    AnalyzePrintfFiles(model, inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"], token_from_id=token_from_id, id_from_tokenNumpy=id_from_tokenNumpy, numberOfThreads=numberOfThreads, Workers=Workers)
 
 end = time.time()
 

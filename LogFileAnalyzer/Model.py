@@ -12,7 +12,7 @@ import sys
 import worker
 
 
-numberOfThreads = 3
+numberOfThreads = 8
 print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 #if __name__ == "__main__":
     # Main process uses GPU

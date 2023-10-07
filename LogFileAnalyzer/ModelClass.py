@@ -134,26 +134,27 @@ class OneStep(tf.keras.Model):
   
  # @tf.function
   def generate_steps(self, inputTensor, nexttokenIds, states=None):
-    inputTensor  = tf.stack(inputTensor,  axis=0)
-    nexttokenIds = tf.stack(nexttokenIds, axis=0)
-    # Run the model.
-    predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
-    # Only use the last prediction.
-    predicted_logits = predicted_logits[:, -1, :]
-    predicted_logits = predicted_logits/self.temperature
-    # Apply the prediction mask: prevent "[UNK]" from being generated.
-    #predicted_logits = predicted_logits + self.prediction_mask
-    #predicted_id = tf.argmax(predicted_logits, axis=1)
-    # Sample the output logits to generate token IDs.
-    #predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
-    #predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
-    predicted_id = tf.argmax(predicted_logits, axis=1)
-    # Convert from token ids to characters
-    predicted_tokens = (self.Tokens_from_ids(predicted_id)).numpy()
-    softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
-    probabilityPredictedToken = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id)
-    
+    with tf.device('/GPU:0'):
+      inputTensor  = tf.stack(inputTensor,  axis=0)
+      nexttokenIds = tf.stack(nexttokenIds, axis=0)
+      # Run the model.
+      predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
+      # Only use the last prediction.
+      predicted_logits = predicted_logits[:, -1, :]
+      predicted_logits = predicted_logits/self.temperature
+      # Apply the prediction mask: prevent "[UNK]" from being generated.
+      #predicted_logits = predicted_logits + self.prediction_mask
+      #predicted_id = tf.argmax(predicted_logits, axis=1)
+      # Sample the output logits to generate token IDs.
+      #predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
+      #predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
+      predicted_id = tf.argmax(predicted_logits, axis=1)
+      # Convert from token ids to characters
+      predicted_tokens = (self.Tokens_from_ids(predicted_id)).numpy()
+      softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
+      probabilityPredictedToken = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id)
+      
 
-    probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, nexttokenIds)
-    # Return the characters and model state.
-    return predicted_tokens, probabilityPredictedToken, probabilityNextToken
+      probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, nexttokenIds)
+      # Return the characters and model state.
+      return predicted_tokens, probabilityPredictedToken, probabilityNextToken

@@ -1,7 +1,7 @@
 import multiprocessing
 import tensorflow as tf
 import numpy as np
-import ModelClass
+
 
 class GenerationClass:
     def __init__(self, step_model, inputTensor, nexttokenIds, states=None):

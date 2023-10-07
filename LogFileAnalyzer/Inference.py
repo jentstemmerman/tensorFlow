@@ -65,10 +65,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
     Windows      = []
     PrintfList   = []
 
-    queueTimeout = 50
-    maxNumberOfParallelExecutions = 10
-    numberOfAnalyzedLines         = 0
-    accumulatedNextTokenProbability = 0
+    queueTimeout                         = 50
+    maxNumberOfParallelExecutions        = 500
+    numberOfAnalyzedLines                = 0
+    accumulatedNextTokenProbability      = 0
     accumulatedPredictedTokenProbability = 0
 
     one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
@@ -148,7 +148,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
         for threadId in range(0, numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]
             
-            inputQueue.put((InferenceOutput.InferenceOutputClass.InferenceOutputThread, (numberOfParallelExecutions, nextPredictedTokens, nextTokens, printfList[threadId], probabilityOfNextTokens, probabilityPredictions, )))
+            inputQueue.put((InferenceOutput.InferenceOutputClass.InferenceOutputThread, (numberOfParallelExecutions, nextPredictedTokensList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfNextTokensList[threadId], probabilityPredictionsList[threadId], )))
 
             if (threadId == 0):
                  print("   Generation Time = {:2.3f}.".format(time.time() - generationStartTime))

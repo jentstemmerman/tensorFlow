@@ -101,19 +101,15 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
     generationStartTime        = 0
     outputStartTime            = 0
 
-    assemblySubmissionStartTime = time.time()
+
     for threadId in range(0,numberOfThreads):
         inputQueue  = Workers[threadId]["inputQueue"]
         outputQueue = Workers[threadId]["outputQueue"]
         inputQueue.put((InferenceAssembly.AssembleInferenceDataClass.AssembleInputsThread, (DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, sharedPrintfList, shared_id_from_token, window_size,)))
-          
+        if (threadId == 0):
+            assemblySubmissionStartTime = time.time()  
         indexOfFirstPrediction += numberOfParallelExecutions
         
-        if (threadId == 0):
-              assemblyStartTime = time.time()
-
-    print("   assemblySubmission Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime))
-
     while (True):
         cycleStartTime = time.time()
         numberOfParallelExecutions = maxNumberOfParallelExecutions
@@ -133,35 +129,44 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
             inputQueue  = Workers[threadId]["inputQueue"]
             outputQueue = Workers[threadId]["outputQueue"]
             nextTokens, printf, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout)
-            
+            if (threadId == 0):
+                 print("   Assembly Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime))
+                 generationStartTime = time.time()
+
             nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
+
+            if (threadId == 0):
+                print("   Generation Time = {:2.3f}.".format(time.time() - generationStartTime))
+
             printfList.append(printf)
             nextTokensList.append(nextTokens)
             nextPredictedTokensList.append(nextPredictedTokens)
             probabilityPredictionsList.append(probabilityPredictions)
             probabilityOfNextTokensList.append(probabilityOfNextTokens)
 
-            if (threadId == 0):
-                print("   AssembleTime = {:2.3f}.".format(time.time() - assemblyStartTime))
-                generationStartTime = time.time()
-        
+       
         for threadId in range(0, numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]
-            
+            if (threadId == 0):
+                outputStartTime = time.time()
             inputQueue.put((InferenceOutput.InferenceOutputClass.InferenceOutputThread, (numberOfParallelExecutions, nextPredictedTokensList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfNextTokensList[threadId], probabilityPredictionsList[threadId], )))
 
-            if (threadId == 0):
-                 print("   Generation Time = {:2.3f}.".format(time.time() - generationStartTime))
-                 outputStartTime = time.time()
 
 
+        
         for threadId in range(0, numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]
             outputQueue = Workers[threadId]["outputQueue"]
 
             linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbabilityTemp, accumulatedPredictedTokenProbabilityTemp = outputQueue.get(timeout=queueTimeout)
+            
+            if (threadId == 0):
+                 print("   Output thread Time = {:2.3f}.".format(time.time() - outputStartTime))
 
             inputQueue.put((InferenceAssembly.AssembleInferenceDataClass.AssembleInputsThread, (DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, sharedPrintfList, shared_id_from_token, window_size,)))
+            
+            if (threadId == 0):
+                assemblySubmissionStartTime = time.time()
 
             accumulatedNextTokenProbability      += accumulatedNextTokenProbabilityTemp
             accumulatedPredictedTokenProbability += accumulatedPredictedTokenProbabilityTemp
@@ -170,16 +175,14 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
             numberOfAnalyzedLinesThisCycle       += numberOfParallelExecutions
 
             indexOfFirstPrediction += numberOfParallelExecutions
-            if (threadId == 0):
-                 print("   Output Time = {:2.3f}.".format(time.time() - outputStartTime))
-                 assemblyStartTime = time.time()
 
+            fileWriteStartTime = time.time()
             for lineToWrite in linesToWrite:
                  LogfileAnalyzed.write(lineToWrite)
+            if (threadId == 0):
+                 print("   fileWrite Time = {:2.3f}.".format(time.time() - fileWriteStartTime))        
 
 
-
-        print("Generation")
         inputTensor  = []
         nextTokens   = []
         nexttokenIds = []
@@ -191,7 +194,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
         averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
         averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
 
-        print("  annotated line " + str(numberOfAnalyzedLines) + "."
+        print("  annotated lines: " + str(numberOfAnalyzedLines) + "."
               ". Number of lines per second: {:2.2f}.".format((numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) )) + 
               "  Number Of Identicals: " + str(numberOfIdenticals) + "."
               "  Average next token probability = {:2.3f}.".format(averageNextTokenProbability) + 

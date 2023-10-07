@@ -53,8 +53,7 @@ class AssembleInferenceDataClass:
     
     def AssembleInputsThread(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, shared_id_from_token, window_size):
         #tf.config.set_visible_devices([], 'GPU')
-        print("AssembleInputsThread")
-        AssembleInputsThreadTime = time.time()
+   
         id_from_token = np.ndarray(shared_id_from_token.shape, dtype=shared_id_from_token.dtype)
         # Copy the data to shared memory
         np.copyto(id_from_token, shared_id_from_token)
@@ -88,42 +87,10 @@ class AssembleInferenceDataClass:
          
 
         result = (nextTokens, PrintfList, inputTensor, nexttokenIds)
-        print("AssembleInputsThread done before queue put time {:2.3f}.".format(time.time() - AssembleInputsThreadTime))
 
-        print("AssembleInputsThread done time {:2.3f}.".format(time.time() - AssembleInputsThreadTime))
         return result
     
-    def StartAssembleInputs(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, shared_id_from_token, window_size):
-
-        result_queue = multiprocessing.Queue()
-        
-        process = multiprocessing.Process(target=AssembleInferenceDataClass.AssembleInputsThread, args=(result_queue, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, shared_id_from_token, window_size))
-        process.start()
- 
-        returnValue = (process, result_queue)
-        return returnValue                                                  
-    
-    def WaitForCompletion(processData):
-        # Wait for the thread to finish 
-        print("WaitForCompletion start")
-        # time.sleep(5)
-        print("WaitForCompletion start ( end sleep)")
-        process      = processData[0]
-        result_queue = processData[1]
-        result = result_queue.get()
-        print("WaitForCompletion queue done")
-        process.join()
-        print("WaitForCompletion done")
-
-        return result[0], result[1], result[2], result[3]
-
-    def AssembleInputsThread2(DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, window_size):
-        inputTensor  = []
-        nexttokenIds = []
-        nextTokens   = []
-        PrintfList   = []
-
-        return nextTokens, PrintfList, inputTensor, nexttokenIds
+       
 
         
 

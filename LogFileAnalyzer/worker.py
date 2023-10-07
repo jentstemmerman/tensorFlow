@@ -15,11 +15,7 @@ def Worker(cpu, inputQueue, outputQueue):
                 if (func == 'exit'):
                     continue
 
-                print("Starting worker task for cpu ", cpu)
-                
                 result = func(*args)
-
-                print("Ended worker task for cpu ", cpu)
 
                 outputQueue.put(result)
 

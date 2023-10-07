@@ -66,7 +66,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
     PrintfList   = []
 
     queueTimeout = 50
-    maxNumberOfParallelExecutions = 500
+    maxNumberOfParallelExecutions = 10
     numberOfAnalyzedLines         = 0
     accumulatedNextTokenProbability = 0
     accumulatedPredictedTokenProbability = 0
@@ -148,7 +148,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
         for threadId in range(0, numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]
             
-            inputQueue.put((InferenceOutput.InferenceOutputClass.InferenceOutputThread, (numberOfParallelExecutions, nextPredictedTokens, nextTokens, sharedPrintfList, probabilityOfNextTokens, probabilityPredictions, )))
+            inputQueue.put((InferenceOutput.InferenceOutputClass.InferenceOutputThread, (numberOfParallelExecutions, nextPredictedTokens, nextTokens, printfList[threadId], probabilityOfNextTokens, probabilityPredictions, )))
 
             if (threadId == 0):
                  print("   Generation Time = {:2.3f}.".format(time.time() - generationStartTime))

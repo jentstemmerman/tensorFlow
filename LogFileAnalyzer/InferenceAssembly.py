@@ -2,6 +2,7 @@ import multiprocessing
 import numpy as np
 import os
 import tensorflow as tf
+import time
 
 with tf.device('/CPU:0'):
     def GetNextTokenWindow(oldWindow, newToken):
@@ -46,10 +47,11 @@ with tf.device('/CPU:0'):
 
     def AssembleInputsThread(threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, shared_id_from_token, window_size):
         with tf.device('/CPU:0'):
-            id_from_token = np.ndarray(shared_id_from_token.shape, dtype=shared_id_from_token.dtype)
+
+            #id_from_token = np.ndarray(shared_id_from_token.shape, dtype=shared_id_from_token.dtype)
             # Copy the data to shared memory
-            np.copyto(id_from_token, shared_id_from_token)
-            VocabularyTensor  = tf.convert_to_tensor(id_from_token)
+            #np.copyto(id_from_token, shared_id_from_token)
+            VocabularyTensor  = tf.convert_to_tensor(shared_id_from_token)
             id_from_token     = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
             inputTensor  = []
             nexttokenIds = []
@@ -63,19 +65,41 @@ with tf.device('/CPU:0'):
             inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
             nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
             nextTokens.append(nextToken)
+            index = 0
 
+            
             for executionIndex in range(indexOfFirstPrediction, indexOfFirstPrediction + numberOfParallelExecutions):
                 
-                window, nextToken, nexttokenId, tokenIdWindow, printf = GetNextSequenceData(newTokenList[executionIndex], newPrintfList[executionIndex], id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+                if (threadId == 5) and (index == 20):
+                     AssembleInputsnextTokenBatchStartTime = time.time()
+                nextTokenBatch  = newTokenList[executionIndex]  
+                
+                if (threadId == 5) and (index == 20):
+                    print("   AssembleInputsnextTokenBatchStartTime Time = {:2.3f}.".format((time.time() - AssembleInputsnextTokenBatchStartTime) * 8 * numberOfParallelExecutions))
+                
+                if (threadId == 5) and (index == 20):
+                     AssembleInputsprintfBatchStartTime = time.time()
+
+                printfBatch     = newPrintfList[executionIndex] 
+
+                if (threadId == 5) and (index == 20):
+                    print("   AssembleInputsprintfBatchStartTime Time = {:2.3f}.".format((time.time() - AssembleInputsprintfBatchStartTime) * 8 * numberOfParallelExecutions))
+
+                window, nextToken, nexttokenId, tokenIdWindow, printf = GetNextSequenceData(nextTokenBatch, printfBatch, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+                
+
                 
                 if (window is None):
                     break
                 else:
                     PrintfList.append(printf)
-                    inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
-                    nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
+                    tokenIdWindowTensor = tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors)
+                    inputTensor.append(tokenIdWindowTensor)
+                    nexttokenIdTensor = tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors)
+                    nexttokenIds.append(nexttokenIdTensor)  
                     nextTokens.append(nextToken)
-            
+
+                index += 1
             result = (nextTokens, PrintfList, inputTensor, nexttokenIds)
 
             return result

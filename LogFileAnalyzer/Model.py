@@ -11,6 +11,8 @@ from pathlib import Path
 import sys
 import worker
 
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"]=""  # or even "-1"
 
 numberOfThreads = 8
 print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
@@ -71,7 +73,6 @@ with tf.device('/CPU:0'):
 
                 batch_mean_loss = loss(outputTensorExpanded, batch_predictions)
                 batch_mean_losses.append(batch_mean_loss)
-                #print("batch_mean_losses:        ", batch_mean_loss)
 
         mean_loss = tf.reduce_mean(batch_mean_losses)
 

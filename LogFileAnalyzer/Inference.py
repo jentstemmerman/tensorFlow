@@ -85,7 +85,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
         sharedTokenList.extend(TokenList)
 
             # Create shared memory object
-        shm = shared_memory.SharedMemory(create=True, size=id_from_tokenNumpy.nbytes*10)
+        shm = shared_memory.SharedMemory(create=True, size=id_from_tokenNumpy.nbytes)
 
     
         shared_id_from_token = np.ndarray(id_from_tokenNumpy.shape, dtype=id_from_tokenNumpy.dtype, buffer=shm.buf)

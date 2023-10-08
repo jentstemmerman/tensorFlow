@@ -46,7 +46,6 @@ with tf.device('/CPU:0'):
 
     def AssembleInputsThread(threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, shared_id_from_token, window_size):
         with tf.device('/CPU:0'):
-            print("AssembleInputsThread start threadId ", threadId)
             id_from_token = np.ndarray(shared_id_from_token.shape, dtype=shared_id_from_token.dtype)
             # Copy the data to shared memory
             np.copyto(id_from_token, shared_id_from_token)
@@ -77,7 +76,6 @@ with tf.device('/CPU:0'):
                     nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
                     nextTokens.append(nextToken)
             
-            print("AssembleInputsThread done threadId ", threadId)
             result = (nextTokens, PrintfList, inputTensor, nexttokenIds)
 
             return result

@@ -32,9 +32,7 @@ def ComposeLineList(threadId, numberOfParallelExecutions, nextPredictedTokens, n
     
 def InferenceOutputThread(threadId, numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
     with tf.device('/CPU:0'):
-        print("start InferenceOutputThread", threadId)
         linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability = ComposeLineList(threadId, numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions)
-        print("end InferenceOutputThread")
         return linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
 
 

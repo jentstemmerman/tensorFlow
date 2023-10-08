@@ -97,76 +97,72 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
 
         indexOfFirstPrediction     = window_size + 1
         numberOfParallelExecutions = maxNumberOfParallelExecutions
-        assemblyStartTime          = 0
         generationStartTime        = 0
         outputStartTime            = 0
 
+        with tf.device('/CPU:0'):
+            for threadId in range(0,numberOfThreads):
 
-        for threadId in range(0,numberOfThreads):
-            with tf.device('/CPU:0'):
                 inputQueue  = Workers[threadId]["inputQueue"]
                 outputQueue = Workers[threadId]["outputQueue"]
                 inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, sharedPrintfList, shared_id_from_token, window_size,)))
                 if (threadId == 0):
                     assemblySubmissionStartTime = time.time()  
                 indexOfFirstPrediction += numberOfParallelExecutions
-            
-        while (True):
-            cycleStartTime = time.time()
-            numberOfParallelExecutions = maxNumberOfParallelExecutions
-            
-            if (numberOfParallelExecutions == 0):
-                break
+                
+            while (True):
+                cycleStartTime = time.time()
+                numberOfParallelExecutions = maxNumberOfParallelExecutions
+                
+                if (numberOfParallelExecutions == 0):
+                    break
 
-            numberOfAnalyzedLinesThisCycle = 0
-            with tf.device('/CPU:0'):
+                numberOfAnalyzedLinesThisCycle = 0
+
                 printfList                  = []
                 nextTokensList              = []
                 nextPredictedTokensList     = []
                 probabilityPredictionsList  = []
                 probabilityOfNextTokensList = []
 
-            for threadId in range(0,numberOfThreads):
-                with tf.device('/CPU:0'):
+                
+
+                generationStartTime = time.time()
+                
+                for threadId in range(0,numberOfThreads):
+
                     inputQueue  = Workers[threadId]["inputQueue"]
                     outputQueue = Workers[threadId]["outputQueue"]
                     nextTokens, printf, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout)
-                    if (threadId == 0):
+                    
+                    if (threadId == (numberOfThreads-1)):
                         print("   Assembly Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime))
-                        generationStartTime = time.time()
-                    print("   Starting Generation ", threadId)
+
                     nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
-                    print("   Done Generation ", threadId)
-                    if (threadId == 0):
-                        print("   Generation Time = {:2.3f}.".format(time.time() - generationStartTime))
                 
                     printfList.append(printf)
                     nextTokensList.append(nextTokens)
                     nextPredictedTokensList.append(nextPredictedTokens)
                     probabilityPredictionsList.append(probabilityPredictions)
                     probabilityOfNextTokensList.append(probabilityOfNextTokens)
-                
-        
-            for threadId in range(0, numberOfThreads):
-                with tf.device('/CPU:0'):
+                    
+                print("   Generation Time = {:2.3f}.".format(time.time() - generationStartTime))
+            
+                for threadId in range(0, numberOfThreads):
                     inputQueue  = Workers[threadId]["inputQueue"]
                     if (threadId == 0):
                         outputStartTime = time.time()
-                    print("start inputqueue ", threadId)
                     inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictedTokensList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfNextTokensList[threadId], probabilityPredictionsList[threadId], )))
-#                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, )))
 
+                
+                for threadId in range(0, numberOfThreads):
 
-
-            
-            for threadId in range(0, numberOfThreads):
-                with tf.device('/CPU:0'):
                     inputQueue  = Workers[threadId]["inputQueue"]
                     outputQueue = Workers[threadId]["outputQueue"]
 
                     linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbabilityTemp, accumulatedPredictedTokenProbabilityTemp = outputQueue.get(timeout=queueTimeout)
                     
-                    if (threadId == 0):
+                    if (threadId == (numberOfThreads-1)):
                         print("   Output thread Time = {:2.3f}.".format(time.time() - outputStartTime))
 
                     inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, sharedPrintfList, shared_id_from_token, window_size,)))
@@ -189,23 +185,22 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                         print("   fileWrite Time = {:2.3f}.".format(time.time() - fileWriteStartTime))        
 
 
-            inputTensor  = []
-            nextTokens   = []
-            nexttokenIds = []
-            Windows      = []
-            PrintfList   = []
+                inputTensor  = []
+                nextTokens   = []
+                nexttokenIds = []
+                PrintfList   = []
 
-            Endtime = time.time()
+                Endtime = time.time()
 
-            averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
-            averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
+                averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
+                averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
 
-            print("  annotated lines: " + str(numberOfAnalyzedLines) + "."
-                ". Number of lines per second: {:2.2f}.".format((numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) )) + 
-                "  Number Of Identicals: " + str(numberOfIdenticals) + "."
-                "  Average next token probability = {:2.3f}.".format(averageNextTokenProbability) + 
-                "  Average predicted token probability = {:2.3f}.".format(averagePredictedTokenProbability) + 
-                "  Time: {:3.3f}\n".format(Endtime - cycleStartTime))
+                print("  annotated lines: " + str(numberOfAnalyzedLines) + "."
+                    ". Number of lines per second: {:2.2f}.".format((numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) )) + 
+                    "  Number Of Identicals: " + str(numberOfIdenticals) + "."
+                    "  Average next token probability = {:2.3f}.".format(averageNextTokenProbability) + 
+                    "  Average predicted token probability = {:2.3f}.".format(averagePredictedTokenProbability) + 
+                    "  Time: {:3.3f}\n".format(Endtime - cycleStartTime))
 
 
         averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines

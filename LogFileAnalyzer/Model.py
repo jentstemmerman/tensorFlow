@@ -14,7 +14,7 @@ import worker
 #os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
 #os.environ["CUDA_VISIBLE_DEVICES"]=""  # or even "-1"
 
-numberOfThreads = 8
+numberOfThreads = 8  # 1 for the main process
 print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 #if __name__ == "__main__":
     # Main process uses GPU

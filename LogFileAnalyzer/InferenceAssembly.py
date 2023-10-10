@@ -7,7 +7,8 @@ import time
 with tf.device('/CPU:0'):
     def GetNextTokenWindow(oldWindow, newToken):
         newWindow = oldWindow[1:]  
-        newWindow.append(newToken)
+        arnewWindowr = np.append(newWindow, newToken)
+        #newWindow.append(newToken)
         return newWindow
 
     def GetNextTokenIdWindow(oldTokenIdWindow, newTokenId):

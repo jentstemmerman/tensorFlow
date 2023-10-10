@@ -27,7 +27,7 @@ def getLinesAndTokens(token_pattern, numberOfTokens, reading_file, tokenList=Non
             tokenList.append(stripped_line_string)
             PrintfList.append(line)
                 
-    return tokenList, PrintfList
+    return tokenList, PrintfList, numberOfFoundTokens
 
 def process_files(input_file, output_file):
     if (not os.path.exists(output_file)):

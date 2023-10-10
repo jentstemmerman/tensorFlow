@@ -102,11 +102,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
         shared_id_from_token = np.ndarray(id_from_tokenNumpy.shape, dtype=id_from_tokenNumpy.dtype, buffer=shm.buf)
         # Copy the data to shared memory
         np.copyto(shared_id_from_token, id_from_tokenNumpy)
-
-
-
-
-
     
         TokenList  = None
 
@@ -150,7 +145,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                 nextPredictedTokensList     = []
                 probabilityPredictionsList  = []
                 probabilityOfNextTokensList = []
-
                                 
                 indexOfFirstPredictionTemp = indexOfFirstPrediction
 
@@ -177,8 +171,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                         outputStartTime = time.time()
                     inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictedTokensList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfNextTokensList[threadId], probabilityPredictionsList[threadId], )))
                 
-                
-                
                 nexttokenIdsList            = []
                 nextTokensList              = []
                 inputTensorList             = []
@@ -203,10 +195,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
 
                     
                     newPrint = origPrintfList[indexOfFirstPrediction - 1:indexOfFirstPrediction + numberOfParallelExecutions - 1]
-
                     printfList.append(newPrint)
-
-
 
                     accumulatedNextTokenProbability      += accumulatedNextTokenProbabilityTemp
                     accumulatedPredictedTokenProbability += accumulatedPredictedTokenProbabilityTemp
@@ -227,18 +216,19 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                 nextTokens   = []
                 nexttokenIds = []
                 
-
                 Endtime = time.time()
 
                 averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
                 averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
-
+                analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
+                remainingTimeInMinutes           = (numberOfFoundTokens/analysedLinesPerSecond) / 60
+                
                 print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfFoundTokens) +
-                    ". Nr of lines/s: {:2.2f}.".format((numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) )) + 
+                    ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
                     "  Nr Of Identicals: " + str(numberOfIdenticals) + "."
                     "  Av next token probab = {:2.3f}.".format(averageNextTokenProbability) + 
                     "  Av pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
-                    "  Time: {:3.3f}\n".format(Endtime - cycleStartTime))
+                    "  Time: {:3.3f}.".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
 
 
         averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines

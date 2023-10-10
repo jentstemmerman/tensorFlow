@@ -88,6 +88,8 @@ with tf.device('/CPU:0'):
                     nextTokens.append(nextToken)
 
                 index += 1
+            inputTensor  = tf.stack(inputTensor,  axis=0)
+            nexttokenIds = tf.stack(nexttokenIds, axis=0)
             result = (nextTokens, inputTensor, nexttokenIds)
 
             return result

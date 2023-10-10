@@ -135,8 +135,7 @@ class OneStep(tf.keras.Model):
  # @tf.function
   def generate_steps(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
-      inputTensor  = tf.stack(inputTensor,  axis=0)
-      nexttokenIds = tf.stack(nexttokenIds, axis=0)
+
       # Run the model.
       predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
       # Only use the last prediction.

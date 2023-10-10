@@ -189,9 +189,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                     nexttokenIdsList.append(nexttokenIds)
                     nextTokensList.append(nextTokens)
                     inputTensorList.append(inputTensor)
-
+                    
                 print("   assembly Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime - generationTime))
-                
                 printfList   = []
                 for threadId in range(0, numberOfThreads):
 
@@ -234,11 +233,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                 averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
                 averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
 
-                print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) +
-                    ". Number of lines per second: {:2.2f}.".format((numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) )) + 
-                    "  Number Of Identicals: " + str(numberOfIdenticals) + "."
-                    "  Average next token probability = {:2.3f}.".format(averageNextTokenProbability) + 
-                    "  Average predicted token probability = {:2.3f}.".format(averagePredictedTokenProbability) + 
+                print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfFoundTokens) +
+                    ". Nr of lines/s: {:2.2f}.".format((numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) )) + 
+                    "  Nr Of Identicals: " + str(numberOfIdenticals) + "."
+                    "  Av next token probab = {:2.3f}.".format(averageNextTokenProbability) + 
+                    "  Av pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
                     "  Time: {:3.3f}\n".format(Endtime - cycleStartTime))
 
 

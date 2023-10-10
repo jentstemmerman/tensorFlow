@@ -11,8 +11,8 @@ from pathlib import Path
 import sys
 import worker
 
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]=""  # or even "-1"
+#os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+#os.environ["CUDA_VISIBLE_DEVICES"]=""  # or even "-1"
 
 numberOfThreads = 8
 print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)

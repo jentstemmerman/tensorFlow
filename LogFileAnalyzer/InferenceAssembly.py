@@ -16,7 +16,7 @@ with tf.device('/CPU:0'):
         nextTokenIdWindow[-1] = newTokenId
         return nextTokenIdWindow
 
-    def GetFirstSequenceData(startIndex, tokenList, PrintfList, id_from_token, window_size):
+    def GetFirstSequenceData(startIndex, tokenList, id_from_token, window_size):
 
         if (tokenList is not None):
             tokenWindow       = tokenList[startIndex:startIndex + window_size]
@@ -26,27 +26,26 @@ with tf.device('/CPU:0'):
             nextTokenIdWindow = id_from_token(tokenWindow)
             outputTokenId     = id_from_token(outputToken)
 
-            Printf            = PrintfList[startIndex + window_size]
         else:
             tokenWindow = None 
             outputToken = None 
             nextTokenIdWindow = None  
             outputTokenId = None 
-            PrintfList = None 
 
-        return tokenWindow, outputToken, nextTokenIdWindow, outputTokenId, Printf
 
-    def GetNextSequenceData(newToken, newPrintf, id_from_token, prevWindow, prevInputTokens, prevOutputToken, prevOutputTokenId):
+        return tokenWindow, outputToken, nextTokenIdWindow, outputTokenId
+
+    def GetNextSequenceData(newToken, id_from_token, prevWindow, prevInputTokens, prevOutputToken, prevOutputTokenId):
         
         newWindow           = GetNextTokenWindow(prevWindow, prevOutputToken)
         newTokenId          = id_from_token(newToken)
         nextTokenIdWindow   = GetNextTokenIdWindow(prevInputTokens, prevOutputTokenId)
 
-        return newWindow, newToken, newTokenId, nextTokenIdWindow, newPrintf
+        return newWindow, newToken, newTokenId, nextTokenIdWindow
 
 
 
-    def AssembleInputsThread(threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, newPrintfList, shared_id_from_token, window_size):
+    def AssembleInputsThread(threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, shared_id_from_token, window_size):
         with tf.device('/CPU:0'):
 
             #id_from_token = np.ndarray(shared_id_from_token.shape, dtype=shared_id_from_token.dtype)
@@ -57,12 +56,9 @@ with tf.device('/CPU:0'):
             inputTensor  = []
             nexttokenIds = []
             nextTokens   = []
-            PrintfList   = []
-
             
-            window, nextToken, tokenIdWindow, nexttokenId, printf = GetFirstSequenceData(indexOfFirstPrediction - (window_size+1),  newTokenList, newPrintfList, id_from_token, window_size)
+            window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(indexOfFirstPrediction - (window_size+1),  newTokenList, id_from_token, window_size)
             
-            PrintfList.append(printf)
             inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
             nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
             nextTokens.append(nextToken)
@@ -78,22 +74,13 @@ with tf.device('/CPU:0'):
                 if (threadId == 5) and (index == 20):
                     print("   AssembleInputsnextTokenBatchStartTime Time = {:2.3f}.".format((time.time() - AssembleInputsnextTokenBatchStartTime) * 8 * numberOfParallelExecutions))
                 
-                if (threadId == 5) and (index == 20):
-                     AssembleInputsprintfBatchStartTime = time.time()
 
-                printfBatch     = newPrintfList[executionIndex] 
-
-                if (threadId == 5) and (index == 20):
-                    print("   AssembleInputsprintfBatchStartTime Time = {:2.3f}.".format((time.time() - AssembleInputsprintfBatchStartTime) * 8 * numberOfParallelExecutions))
-
-                window, nextToken, nexttokenId, tokenIdWindow, printf = GetNextSequenceData(nextTokenBatch, printfBatch, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+                window, nextToken, nexttokenId, tokenIdWindow = GetNextSequenceData(nextTokenBatch, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
                 
-
                 
                 if (window is None):
                     break
                 else:
-                    PrintfList.append(printf)
                     tokenIdWindowTensor = tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors)
                     inputTensor.append(tokenIdWindowTensor)
                     nexttokenIdTensor = tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors)
@@ -101,7 +88,7 @@ with tf.device('/CPU:0'):
                     nextTokens.append(nextToken)
 
                 index += 1
-            result = (nextTokens, PrintfList, inputTensor, nexttokenIds)
+            result = (nextTokens, inputTensor, nexttokenIds)
 
             return result
         

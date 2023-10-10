@@ -84,16 +84,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
             manager = multiprocessing.Manager()
             
             # Create a shared list
-            sharedPrintfList     = manager.list()
             sharedTokenList      = manager.list()
-
-            sharedPrintfList.extend(origPrintfList)
             sharedTokenList.extend(TokenList)
         else:
             # this is slower :-(
             manager = multiprocessing.Manager()
-            sharedPrintfList     = manager.list()
-            sharedPrintfList.extend(origPrintfList)
 
             TokenListbufferSize = len(TokenList) * len(TokenList[1])*4  ## 
             shmForTokens      = shared_memory.SharedMemory(create=True, size=TokenListbufferSize)
@@ -128,7 +123,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
 
                 inputQueue  = Workers[threadId]["inputQueue"]
                 outputQueue = Workers[threadId]["outputQueue"]
-                inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, sharedPrintfList, shared_id_from_token, window_size,)))
+                inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, shared_id_from_token, window_size,)))
                 newPrint = origPrintfList[indexOfFirstPrediction - 1:indexOfFirstPrediction + numberOfParallelExecutions - 1]
                 printfList.append(newPrint)
                 if (threadId == 0):
@@ -154,14 +149,14 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
 
                     inputQueue  = Workers[threadId]["inputQueue"]
                     outputQueue = Workers[threadId]["outputQueue"]
-                    nextTokens, printf, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout)
+                    nextTokens, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout)
                     
                     if (threadId == (numberOfThreads-1)):
                         print("   Assembly Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime))
 
                     nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
                     
-                    #printfList.append(printf)
+
                     nextTokensList.append(nextTokens)
                     nextPredictedTokensList.append(nextPredictedTokens)
                     probabilityPredictionsList.append(probabilityPredictions)
@@ -186,7 +181,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                     if (threadId == (numberOfThreads-1)):
                         print("   Output thread Time = {:2.3f}.".format(time.time() - outputStartTime))
 
-                    inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, sharedPrintfList, shared_id_from_token, window_size,)))
+                    inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, shared_id_from_token, window_size,)))
                     
                     newPrint = origPrintfList[indexOfFirstPrediction - 1:indexOfFirstPrediction + numberOfParallelExecutions - 1]
 

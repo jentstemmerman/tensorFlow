@@ -138,8 +138,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                     break
 
                 numberOfAnalyzedLinesThisCycle = 0
-
+                nexttokenIdsList            = []
                 nextTokensList              = []
+                inputTensorList             = []
                 nextPredictedTokensList     = []
                 probabilityPredictionsList  = []
                 probabilityOfNextTokensList = []
@@ -150,14 +151,16 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                     inputQueue  = Workers[threadId]["inputQueue"]
                     outputQueue = Workers[threadId]["outputQueue"]
                     nextTokens, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout)
-                    
+                    nexttokenIdsList.append(nexttokenIds)
+                    nextTokensList.append(nextTokens)
+                    inputTensorList.append(inputTensor)
                     if (threadId == (numberOfThreads-1)):
                         print("   Assembly Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime))
 
-                    nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensor, nexttokenIds, states=None)
+                for threadId in range(0,numberOfThreads):
+                    nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
                     
 
-                    nextTokensList.append(nextTokens)
                     nextPredictedTokensList.append(nextPredictedTokens)
                     probabilityPredictionsList.append(probabilityPredictions)
                     probabilityOfNextTokensList.append(probabilityOfNextTokens)

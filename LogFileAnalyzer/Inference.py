@@ -58,12 +58,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
 
         LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
 
-        PrintfTemp   = []
         inputTensor  = []
         nexttokenIds = []
         nextTokens   = []
-        Windows      = []
-        PrintfList   = []
 
         queueTimeout                         = 50
         maxNumberOfParallelExecutions        = 500
@@ -73,18 +70,18 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
 
         one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
         use_manager = False
-        sharedPrintfList = []
         sharedTokenList  = []
         manager          = None
         TokenList, origPrintfList, numberOfFoundTokens = TokenParser.getLinesAndTokens(TokenParser.ReForTokens, -1, LogfileToAnalyze)
         
         use_manager = True
+        
         if (use_manager):
             # Create a shared memory manager
             manager = multiprocessing.Manager()
             
             # Create a shared list
-            sharedTokenList      = manager.list()
+            sharedTokenList = manager.list()
             sharedTokenList.extend(TokenList)
         else:
             # this is slower :-(
@@ -221,7 +218,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                 averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
                 averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
                 analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
-                remainingTimeInMinutes           = (numberOfFoundTokens/analysedLinesPerSecond) / 60
+                remainingTimeInMinutes           = ((numberOfFoundTokens - numberOfAnalyzedLines)/analysedLinesPerSecond) / 60
                 
                 print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfFoundTokens) +
                     ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 

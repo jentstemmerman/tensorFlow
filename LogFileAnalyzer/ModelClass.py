@@ -131,9 +131,13 @@ class OneStep(tf.keras.Model):
     # Return the characters and model state.
     return predicted_token, probabilityPredictedToken, probabilityNextToken
   
-  
- # @tf.function
   def generate_steps(self, inputTensor, nexttokenIds, states=None):
+      predicted_tokens, probabilityPredictedToken, probabilityNextToken = self.generate_steps2(inputTensor, nexttokenIds, states=None)
+      
+      return predicted_tokens.numpy(), probabilityPredictedToken, probabilityNextToken
+  
+  @tf.function
+  def generate_steps2(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
 
       # Run the model.
@@ -149,7 +153,7 @@ class OneStep(tf.keras.Model):
       #predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
       predicted_id = tf.argmax(predicted_logits, axis=1)
       # Convert from token ids to characters
-      predicted_tokens = (self.Tokens_from_ids(predicted_id)).numpy()
+      predicted_tokens = (self.Tokens_from_ids(predicted_id))
       softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
       probabilityPredictedToken = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id)
       
@@ -157,3 +161,4 @@ class OneStep(tf.keras.Model):
       probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, nexttokenIds)
       # Return the characters and model state.
       return predicted_tokens, probabilityPredictedToken, probabilityNextToken
+      

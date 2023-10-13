@@ -166,7 +166,7 @@ with tf.device('/CPU:0'):
                         "SampleDataSet":False,   # does not really work, using stride is better
                         }
 
-    ValidationsParameter = {"temperature": 1.5 }
+    ValidationsParameter = {"temperature": 1 }
 
 
     trainingSet = 4

@@ -106,38 +106,13 @@ class OneStep(tf.keras.Model):
 
     return probabilities
   
-  @tf.function #  JENTS: this is a decorator. tf.function gets generate_one_step as an argument ( including parameters ) and does optimisation 
-  def generate_one_step(self, inputTensor, nextToken, states=None):
-
-    # Run the model.
-    predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
-    # Only use the last prediction.
-    predicted_logits = predicted_logits[:, -1, :]
-    predicted_logits = predicted_logits/self.temperature
-    # Apply the prediction mask: prevent "[UNK]" from being generated.
-    #predicted_logits = predicted_logits + self.prediction_mask
-    #predicted_id = tf.argmax(predicted_logits, axis=1)
-    # Sample the output logits to generate token IDs.
-    #predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
-    #predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
-    predicted_id = tf.argmax(predicted_logits, axis=1).numpy()[0]
-    # Convert from token ids to characters
-    predicted_token = (self.Tokens_from_ids(predicted_id)).numpy()
-    softmaxLogits = tf.nn.softmax(predicted_logits[0,:])
-    probabilityPredictedToken = self.GetProbabilityFromLogits(softmaxLogits, predicted_id)
-    
-    nexttokenId = self.ids_from_tokens(nextToken).numpy()
-    probabilityNextToken = self.GetProbabilityFromLogits(softmaxLogits, nexttokenId)
-    # Return the characters and model state.
-    return predicted_token, probabilityPredictedToken, probabilityNextToken
-  
   def generate_steps(self, inputTensor, nexttokenIds, states=None):
-      predicted_tokens, probabilityPredictedToken, probabilityNextToken = self.generate_steps2(inputTensor, nexttokenIds, states=None)
+      predicted_tokens, probabilityPredictedToken, probabilityNextToken = self.generate_steps_optimized(inputTensor, nexttokenIds, states=None)
       
       return predicted_tokens.numpy(), probabilityPredictedToken, probabilityNextToken
   
-  @tf.function
-  def generate_steps2(self, inputTensor, nexttokenIds, states=None):
+  #@tf.function
+  def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
 
       # Run the model.

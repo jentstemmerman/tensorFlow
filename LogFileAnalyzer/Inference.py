@@ -106,7 +106,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
         numberOfParallelExecutions = maxNumberOfParallelExecutions
         generationStartTime        = 0
         outputStartTime            = 0
-
+        analyzeStartTime           = time.time()
+    
         with tf.device('/CPU:0'):
             printfList       = []
             nexttokenIdsList = []
@@ -218,14 +219,14 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                 averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
                 averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
                 analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
-                remainingTimeInMinutes           = ((numberOfFoundTokens - numberOfAnalyzedLines)/analysedLinesPerSecond) / 60
+                remainingTimeInMinutes           = (numberOfFoundTokens - numberOfAnalyzedLines)/(numberOfAnalyzedLines/(time.time() - analyzeStartTime)) / 60
                 
                 print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfFoundTokens) +
                     ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
                     "  Nr Of Identicals: " + str(numberOfIdenticals) + "."
                     "  Av next token probab = {:2.3f}.".format(averageNextTokenProbability) + 
                     "  Av pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
-                    "  Time: {:3.3f}.".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
+                    "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
 
 
         averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines

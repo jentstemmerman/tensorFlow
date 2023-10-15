@@ -53,6 +53,9 @@ def process_files(input_file, output_file):
         reading_file.close()
         LogfileOnlyTokens.close()
 
+def FindDataInLine(line, regularExtressionList):
+    i
+
 def CrossReferenceTokens(directory, TokenFile):
     for root, dirs, files in os.walk(directory):
         for filename in files:

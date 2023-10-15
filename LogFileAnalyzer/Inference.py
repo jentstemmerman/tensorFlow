@@ -247,7 +247,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
         averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
         averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
         IdenticalsToNumberOfLinesRatio   = numberOfIdenticals / numberOfAnalyzedLines
-        
+
         if(reducedParameters):
             print("\n\nEnded inference almost at end of file")
 
@@ -258,6 +258,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
         LogfileToAnalyze.close()
         LogfileAnalyzed.close()   
 
+        shm.close()
+        shm.unlink()
 
 
 

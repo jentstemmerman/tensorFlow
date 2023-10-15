@@ -393,8 +393,6 @@ if (AnalyzeFiles):
     
     numberOfThreads = 8  # 1 for the main process
     print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
-    #if __name__ == "__main__":
-        # Main process uses GPU
 
     with tf.device('/CPU:0'):
         Workers = worker.CreateWorkers(numberOfThreads)

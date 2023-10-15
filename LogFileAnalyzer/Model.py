@@ -79,9 +79,7 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
     return id_from_token, token_from_id, id_from_tokenNumpy
 
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, temperature, seq_length, token_from_id, id_from_tokenNumpy, numberOfThreads, Workers):
-    #if __name__ == '__main__':
-    #    multiprocessing.freeze_support()
-    #    multiprocessing.set_start_method('spawn')
+
     verificationFileIterator = TokenParser.LogfileIterator(inputDirectory)
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
@@ -93,11 +91,9 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, temperature, seq_
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
-
 def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
     calculateAverage = 0
-
 
     if (calculateAverage):
         verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
@@ -106,10 +102,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
         if (tokenLogfileToProcess == None):
             exit()
     
-
         TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
-
-        idsTestFile = id_from_token(TestFileNumpyList)  # dit vertaalt heel de array naar Id's - dit returned een array van Id's
 
         one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
         window_size = 8
@@ -155,9 +148,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
 
 ValidationsParameter = {"temperature": 1 }
 
-
 trainingSet = 3
-
 
 if ( TrainingsParameter["SampleDataSet"]):
     # dit werkt niet goed. 
@@ -170,9 +161,12 @@ start = time.time()
 
 Directory = "TrainingSet" + str(trainingSet)
 
-OriginalTokenFileName       = Directory + os.path.sep + "Tokens.dat"
+TrainingDirectory           = Directory       + os.path.sep + "Training"
+VerificationDirectory       = Directory       + os.path.sep + "Verification"
+OriginalTokenFileName       = Directory       + os.path.sep + "Tokens.dat"
 
-OutputDirectory             = Directory + os.path.sep + "out"
+OutputDirectory             = Directory       + os.path.sep + "out"
+
 ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
 TrainingLogFile             = OutputDirectory + os.path.sep + "TrainingLog.txt"
 SummaryFile                 = OutputDirectory + os.path.sep + "Summary.txt"
@@ -180,6 +174,9 @@ VocabularyFile              = OutputDirectory + os.path.sep + "TokenfileOnlyToke
 TrainingDataSetFile         = OutputDirectory + os.path.sep + "TrainingDataSetFile.dataset"
 VerificationDataSetFile     = OutputDirectory + os.path.sep + "VerificationDataSetFile.dataset"
 ModelDirectory              = OutputDirectory + os.path.sep + "SavedModel"
+TrainingCheckpointDir       = OutputDirectory + os.path.sep + "TrainingCheckPoints"
+OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
+OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
 if (force_train_model):
     model = None
@@ -191,10 +188,6 @@ else:
 
 train_model = (model == None)
 
-TrainingDirectory           = Directory + os.path.sep + "Training"
-VerificationDirectory       = Directory + os.path.sep + "Verification"
-OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
-OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
 if (CreateNewOutDirectory):
 
@@ -213,7 +206,6 @@ if (CreateNewOutDirectory):
             print(f"Directory '{old_directory_name}' renamed to '{new_directory_name}' successfully.")
         except OSError as e:
             print(f"Error: {e}")
-
 
 
 PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
@@ -287,24 +279,19 @@ if (train_model):
             rnn_units=TrainingsParameter["Model"]["rnn_units"])
         
     ############################################################################################# Train the model
-
-
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+    
     model.compile(optimizer='adam', loss=loss)
 
-    # Directory where the checkpoints will be saved
-    checkpoint_dir = Directory + '/out/training_checkpoints'
-
     # Name of the checkpoint files
-    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_{epoch}")
+    checkpoint_prefix = os.path.join(TrainingCheckpointDir, "ckpt_{epoch}")
 
     checkpoint_callback    = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
 
-    latest = tf.train.latest_checkpoint(checkpoint_dir)
+    latest = tf.train.latest_checkpoint(TrainingCheckpointDir)
     
     if (latest is not None):
         model.load_weights(latest)
-
 
     sys.stdout = TokenParser.Logger(TrainingLogFile)
     print("\nSettings used: ")
@@ -416,6 +403,7 @@ if (AnalyzeFiles):
             print("Could not start workers")
         else:
             AnalyzePrintfFiles(model, inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"], token_from_id=token_from_id, id_from_tokenNumpy=id_from_tokenNumpy, numberOfThreads=numberOfThreads, Workers=Workers)
+            worker.KillWorkers(Workers)
 
 end = time.time()
 

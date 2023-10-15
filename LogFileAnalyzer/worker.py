@@ -14,7 +14,8 @@ def Worker(cpu, inputQueue, outputQueue):
                 func, args = inputQueue.get(timeout=1000)  
 
                 if (func == 'exit'):
-                    continue
+                    print("End worker ", cpu, "")
+                    break
 
                 result = func(*args)
 
@@ -23,6 +24,13 @@ def Worker(cpu, inputQueue, outputQueue):
             except queue.Empty:
                 time.sleep(1)
                 continue
+
+def KillWorkers(Workers):
+    for threadId in range(len(Workers)):
+        inputQueue  = Workers[threadId]["inputQueue"]
+        inputQueue.put(("exit", ()))
+        #inputQueue.put("exit", ())
+
 
 def CreateWorkers(numberOfWorkers):
 
@@ -42,7 +50,7 @@ def CreateWorkers(numberOfWorkers):
             workers.append(worker_dict)
 
         return workers
-
+    
 
 
 

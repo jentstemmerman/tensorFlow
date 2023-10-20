@@ -196,7 +196,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                         inputTensorList.append(inputTensor)
                     
                 print("   assembly Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime - generationTime))
-                printfList   = []
+                printfList = []
+
                 for threadId in range(0, numberOfThreads):
 
                     outputQueue = Workers[threadId]["outputQueue"]

@@ -115,7 +115,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
         TokenList  = None
 
         indexOfFirstPrediction  = window_size + 1
-        remainingNumberOfLines  = numberOfFoundTokens - numberOfAnalyzedLines - indexOfFirstPrediction
+        remainingNumberOfLines  = (numberOfFoundTokens - numberOfAnalyzedLines) - (window_size + 1)
         reducedParameters, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads)
         
         generationStartTime        = 0
@@ -226,7 +226,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                 nexttokenIds = []
                 
                 Endtime = time.time()
-                remainingNumberOfLines           = numberOfFoundTokens - numberOfAnalyzedLines - indexOfFirstPrediction
+                remainingNumberOfLines           = (numberOfFoundTokens - numberOfAnalyzedLines) - (window_size + 1)
                 averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
                 averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
                 analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
@@ -240,13 +240,15 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                     "  Av next token probab = {:2.3f}.".format(averageNextTokenProbability) + 
                     "  Av pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
                     "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
-                
+                if (analysedLinesPerSecond < 2000):
+                    print("Too long")        
+                    
                 if(reducedParameters):
                     break
 
-        averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
+        averageNextTokenProbability      = accumulatedNextTokenProbability      / numberOfAnalyzedLines
         averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
-        IdenticalsToNumberOfLinesRatio   = numberOfIdenticals / numberOfAnalyzedLines
+        IdenticalsToNumberOfLinesRatio   = numberOfIdenticals                   / numberOfAnalyzedLines
 
         if(reducedParameters):
             print("\n\nEnded inference almost at end of file")

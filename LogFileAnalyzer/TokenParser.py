@@ -4,6 +4,7 @@ import sys
 
 ReForTokens = "[0-9A-F]{2}(?:\s[0-9A-F]{2}){3}"
 
+
 def getLinesAndTokens(token_pattern, numberOfTokens, reading_file, tokenList=None, PrintfList=None): 
     numberOfFoundTokens = 0
     

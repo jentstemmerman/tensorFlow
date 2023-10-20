@@ -65,8 +65,9 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
-    TokenParser.process_files(OriginalTokenFileName, VocabularyFile)
+def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile, itemList):
+    itemList = TokenParser.GetItemListToSearchFor(itemFile)
+    TokenParser.process_files(OriginalTokenFileName, VocabularyFile, itemList)
     VocabularyNumpyList = np.loadtxt(VocabularyFile, delimiter=",", dtype=str)
     id_from_tokenNumpy  = VocabularyNumpyList
     VocabularyTensor    = tf.convert_to_tensor(VocabularyNumpyList)
@@ -78,8 +79,9 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile):
 
     return id_from_token, token_from_id, id_from_tokenNumpy
 
-def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, temperature, seq_length, token_from_id, id_from_tokenNumpy, numberOfThreads, Workers):
+def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, token_from_id, id_from_tokenNumpy, numberOfThreads, Workers):
 
+    itemList = TokenParser.GetItemListToSearchFor(itemFile)
     verificationFileIterator = TokenParser.LogfileIterator(inputDirectory)
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
@@ -87,7 +89,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, temperature, seq_
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".txt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_token, PrintfFromToken=PrintfFromToken, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_token, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -126,8 +128,8 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model     = False
-CreateNewOutDirectory = False
+force_train_model     = True
+CreateNewOutDirectory = True
 AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",
@@ -148,7 +150,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
 
 ValidationsParameter = {"temperature": 1 }
 
-trainingSet = 4
+trainingSet = 3
 
 if ( TrainingsParameter["SampleDataSet"]):
     # dit werkt niet goed. 
@@ -159,6 +161,8 @@ if ( TrainingsParameter["SampleDataSet"]):
 
 start = time.time()
 
+itemFile                    = "Itemfile.txt"  # file containing the regexes that we train on
+
 Directory = "TrainingSet" + str(trainingSet)
 
 TrainingDirectory           = Directory       + os.path.sep + "Training"
@@ -166,7 +170,6 @@ VerificationDirectory       = Directory       + os.path.sep + "Verification"
 OriginalTokenFileName       = Directory       + os.path.sep + "Tokens.dat"
 
 OutputDirectory             = Directory       + os.path.sep + "out"
-
 ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
 TrainingLogFile             = OutputDirectory + os.path.sep + "TrainingLog.txt"
 SummaryFile                 = OutputDirectory + os.path.sep + "Summary.txt"
@@ -208,8 +211,7 @@ if (CreateNewOutDirectory):
             print(f"Error: {e}")
 
 
-PrintfFromToken = TokenParser.GetTokenTranslation(OriginalTokenFileName)
-id_from_token, token_from_id, id_from_tokenNumpy = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile)
+id_from_token, token_from_id, id_from_tokenNumpy = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile, itemFile)
 
 print("Creating datasets:")
 
@@ -222,6 +224,7 @@ if (train_model):
     else:
         datasetForTraining, trainingFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=TrainingDirectory, 
                                                                                     OutputDirectory=OutputDirectoryTraining, 
+                                                                                    itemFile=itemFile,
                                                                                     id_from_token=id_from_token,
                                                                                     batch_size=TrainingsParameter["BatchSize"], 
                                                                                     stride=TrainingsParameter["stride_dataset"], 
@@ -241,6 +244,7 @@ if os.path.exists(VerificationDataSetFile.strip()):
 else:
     datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=VerificationDirectory, 
                                                                                         OutputDirectory=OutputDirectoryVerification, 
+                                                                                        itemFile=itemFile,
                                                                                         id_from_token=id_from_token,
                                                                                         batch_size=TrainingsParameter["BatchSize"], 
                                                                                         stride=TrainingsParameter["stride_dataset"], 
@@ -400,7 +404,7 @@ if (AnalyzeFiles):
         if (Workers == None):
             print("Could not start workers")
         else:
-            AnalyzePrintfFiles(model, inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"], token_from_id=token_from_id, id_from_tokenNumpy=id_from_tokenNumpy, numberOfThreads=numberOfThreads, Workers=Workers)
+            AnalyzePrintfFiles(model, inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, itemFile=itemFile, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"], token_from_id=token_from_id, id_from_tokenNumpy=id_from_tokenNumpy, numberOfThreads=numberOfThreads, Workers=Workers)
             worker.KillWorkers(Workers)
 
 end = time.time()

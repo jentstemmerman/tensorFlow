@@ -1,11 +1,39 @@
 import re
 from pathlib import Path
 import sys
+import os
 
-ReForTokens = "[0-9A-F]{2}(?:\s[0-9A-F]{2}){3}"
+def GetItemListToSearchFor(RegexFile):
+    RegexFile  = open(RegexFile, "r")
+    line       = RegexFile.readline()
+    lineNumber = 0
+    itemList   = []
+
+    while((line is not None) and ( line != '')):
+        try:
+            #line = line.group()
+            compiledRegex = re.compile(line)
+            itemList.append(compiledRegex)
+        except:
+            print("Error in RegexFile ", RegexFile, "at line ", lineNumber)
+            break
+        line        = RegexFile.readline()
+        lineNumber += 1
+    RegexFile.close()
+
+    return itemList
+
+def GetNextItemInLine(line, regularExpressionList):
+    stripped_line_string = None
+    for regularExpression in regularExpressionList:
+        stripped_line = re.search(regularExpression, line)
+        if  (stripped_line):
+            stripped_line_string = stripped_line.group()
+    
+    return stripped_line_string
 
 
-def getLinesAndTokens(token_pattern, numberOfTokens, reading_file, tokenList=None, PrintfList=None): 
+def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, PrintfList=None): 
     numberOfFoundTokens = 0
     
     if (tokenList is None):
@@ -20,7 +48,7 @@ def getLinesAndTokens(token_pattern, numberOfTokens, reading_file, tokenList=Non
         if (not line):
             break
 
-        stripped_line = re.search(token_pattern, line)
+        stripped_line = re.search(itemList[0], line)
 
         if  (stripped_line):
             numberOfFoundTokens += 1
@@ -30,7 +58,7 @@ def getLinesAndTokens(token_pattern, numberOfTokens, reading_file, tokenList=Non
                 
     return tokenList, PrintfList, numberOfFoundTokens
 
-def process_files(input_file, output_file):
+def process_files(input_file, output_file, itemList):
     if (not os.path.exists(output_file)):
         reading_file = open(input_file,  "r", errors='ignore')
         
@@ -38,24 +66,15 @@ def process_files(input_file, output_file):
         file.parent.mkdir(parents=True, exist_ok=True)
         LogfileOnlyTokens = open(output_file, "w")
                                             
-        token_pattern = re.compile(ReForTokens)
+        tokenList, PrintfList, numberOfFoundTokens = getLinesAndTokens(itemList, -1, reading_file, tokenList=None, PrintfList=None)
 
-        for line in reading_file:
-            line = line.strip()
-            line = line[0:20]
-            
-            stripped_line = re.search(token_pattern, line)
-
-            if  (stripped_line):
-                stripped_line_string = stripped_line.group()
-                stripped_line_string = stripped_line_string + '\n'
-                LogfileOnlyTokens.write(stripped_line_string)
+        for line in tokenList:
+                line = line + '\n'
+                LogfileOnlyTokens.write(line)
             
         reading_file.close()
         LogfileOnlyTokens.close()
 
-def FindDataInLine(line, regularExtressionList):
-    i
 
 def CrossReferenceTokens(directory, TokenFile):
     for root, dirs, files in os.walk(directory):
@@ -88,24 +107,9 @@ def returnValue(sequence):
 
 
 
-def GetTokenTranslation(TokenFile):
-    # Tensorflow -> input_text: Tensorflo, target_text = ensorfloW
-    Token_File = open(TokenFile, "r")
-    TokenFileLines = Token_File.readlines()
-    token_pattern = re.compile(ReForTokens)
-    dictionary = {}
 
-    for line in TokenFileLines:
-        tokenString = re.search(token_pattern, line) 
-        lineStripped = re.sub(token_pattern, "", line, count=1)
-        dictionary[tokenString.group()] = lineStripped[1:].strip()
-          
-        
-    return dictionary
-
-import os
-
-def process_log_files_to_tokens_recursive(directory, outputDirectory):
+def process_log_files_to_tokens_recursive(directory, outputDirectory, itemFile):
+    itemList = GetItemListToSearchFor(itemFile)
     for root, dirs, files in os.walk(directory):
         for filename in files:
             if not root.endswith(os.path.sep + "out") and filename.endswith(".log"):
@@ -113,7 +117,7 @@ def process_log_files_to_tokens_recursive(directory, outputDirectory):
                 # Do something with the content of the log file
                 outputFile = outputDirectory + "/" + filename.replace(".log", "") + "_onlyTokens.log" 
                 if (not os.path.exists(outputFile)):
-                    process_files(full_path, outputFile)
+                    process_files(full_path, outputFile, itemList)
 
 
 class LogfileIterator():

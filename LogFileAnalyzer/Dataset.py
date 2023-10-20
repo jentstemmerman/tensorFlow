@@ -10,16 +10,15 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, id_from_token, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, verbose=False):
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_token, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, verbose=False):
     
-    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory)
+    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemFile)
     
     ################# Create a dataset for training and throw all files that are in the training output dir in it
     TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)
     tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
     dataset = None
     filesUsed = []
-    datasetList = []
 
     TrainingLogTensor = None
 

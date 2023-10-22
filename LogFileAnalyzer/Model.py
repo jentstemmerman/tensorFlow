@@ -126,8 +126,8 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model     = False
-CreateNewOutDirectory = False
+force_train_model     = True
+CreateNewOutDirectory = True
 AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",
@@ -148,7 +148,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
 
 ValidationsParameter = {"temperature": 1 }
 
-trainingSet = 4
+trainingSet = 3
 
 if ( TrainingsParameter["SampleDataSet"]):
     # dit werkt niet goed. 

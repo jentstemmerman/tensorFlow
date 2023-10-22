@@ -19,22 +19,27 @@ def GetItemListToSearchFor(RegexFile):
             break
         line        = RegexFile.readline()
         lineNumber += 1
+
     RegexFile.close()
 
     return itemList
 
-def GetNextItemInLine(line, regularExpressionList):
-    stripped_line_string = None
+def GetItemsInLine(line, regularExpressionList):
+    modified_line = line  # Create a copy of the original line
+    items = []
+
     for regularExpression in regularExpressionList:
-        stripped_line = re.search(regularExpression, line)
-        if  (stripped_line):
-            stripped_line_string = stripped_line.group()
-    
-    return stripped_line_string
+        stripped_line = re.search(regularExpression, modified_line)
+        if stripped_line:
+            stripped_string = stripped_line.group()
+            modified_line = re.sub(regularExpression, '', modified_line)  # Remove the found regex
+            items.append(stripped_string)
+
+    return items
 
 
 def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, PrintfList=None): 
-    numberOfFoundTokens = 0
+    numberOfFoundItems = 0
     
     if (tokenList is None):
         tokenList  = []
@@ -42,21 +47,21 @@ def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, Pr
     if (PrintfList is None):
         PrintfList = []
 
-    while ((numberOfTokens == -1) or (numberOfFoundTokens < numberOfTokens)):
+    while ((numberOfTokens == -1) or (numberOfFoundItems < numberOfTokens)):
         line = reading_file.readline()
+        lineBackup = line
 
         if (not line):
             break
 
-        stripped_line = re.search(itemList[0], line)
+        items = GetItemsInLine(line, itemList)
 
-        if  (stripped_line):
-            numberOfFoundTokens += 1
-            stripped_line_string = stripped_line.group()
-            tokenList.append(stripped_line_string)
-            PrintfList.append(line)
-                
-    return tokenList, PrintfList, numberOfFoundTokens
+        if (len(items) > 0):
+            numberOfFoundItems += len(items)
+            tokenList.append(items)
+            PrintfList.append(lineBackup)
+
+    return tokenList, PrintfList, numberOfFoundItems
 
 def process_files(input_file, output_file, itemList):
     if (not os.path.exists(output_file)):
@@ -66,12 +71,15 @@ def process_files(input_file, output_file, itemList):
         file.parent.mkdir(parents=True, exist_ok=True)
         LogfileOnlyTokens = open(output_file, "w")
                                             
-        tokenList, PrintfList, numberOfFoundTokens = getLinesAndTokens(itemList, -1, reading_file, tokenList=None, PrintfList=None)
+        tokenListList, PrintfList, numberOfFoundTokens = getLinesAndTokens(itemList, -1, reading_file, tokenList=None, PrintfList=None)
 
-        for line in tokenList:
-                line = line + '\n'
-                LogfileOnlyTokens.write(line)
-            
+        for tokenList in tokenListList:
+            line = ""
+            for token in tokenList:
+                line = line + token
+            line = line + '\n'
+            LogfileOnlyTokens.write(line)
+
         reading_file.close()
         LogfileOnlyTokens.close()
 

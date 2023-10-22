@@ -65,11 +65,10 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile, itemList):
+def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile, itemList, itemIndex):
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
-    TokenParser.process_files(OriginalTokenFileName, VocabularyFile, itemList)
+    TokenParser.process_files(OriginalTokenFileName, VocabularyFile, [itemList[itemIndex]])
     VocabularyNumpyList = np.loadtxt(VocabularyFile, delimiter=",", dtype=str)
-    id_from_tokenNumpy  = VocabularyNumpyList
     VocabularyTensor    = tf.convert_to_tensor(VocabularyNumpyList)
     
     # encoder
@@ -77,7 +76,7 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile, itemLi
     # decoder
     token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
 
-    return id_from_token, token_from_id, id_from_tokenNumpy
+    return id_from_token, token_from_id, VocabularyNumpyList
 
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, token_from_id, id_from_tokenNumpy, numberOfThreads, Workers):
 
@@ -86,7 +85,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
     while (printfFileToProcess is not None):
-        outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".txt")
+        outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".mdtxt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
         Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_token, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
@@ -211,7 +210,7 @@ if (CreateNewOutDirectory):
             print(f"Error: {e}")
 
 
-id_from_token, token_from_id, id_from_tokenNumpy = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile, itemFile)
+id_from_token, token_from_id, id_from_tokenNumpy = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile, itemFile, itemIndex=0)
 
 print("Creating datasets:")
 

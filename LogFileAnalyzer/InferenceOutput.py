@@ -5,7 +5,9 @@ import tensorflow as tf
 import numpy as np
 
 
-def ComposeLineList(threadId, numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
+
+
+def ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
     with tf.device('/CPU:0'):
         linesToWrite = []
         numberOfIdenticals = 0
@@ -17,22 +19,22 @@ def ComposeLineList(threadId, numberOfParallelExecutions, nextPredictedTokens, n
             nextPredictedToken = nextPredictedTokens[executionIndex].decode('utf-8')  
             
             if (nextToken == nextPredictedToken):
-                nextPredictedToken = "Identical  "
+                nextPredictedToken = '<span style="color:green;">Identical  </span>   '
                 numberOfIdenticals += 1
+            else:
+                nextPredictedToken = '<span style="color:red;">' +  nextPredictedToken + '</span>'
 
             nextTokenProbability = (probabilityOfNextTokens[executionIndex]).numpy()
-            lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format(nextTokenProbability) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[executionIndex].numpy()) + ". " + PrintfList[executionIndex]
+            lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format(nextTokenProbability) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[executionIndex].numpy()) + ". " + PrintfList[executionIndex] + "<br>" 
             linesToWrite.append(lineToWrite)
             accumulatedNextTokenProbability += nextTokenProbability
             accumulatedPredictedTokenProbability += probabilityPredictions[executionIndex].numpy()
         return linesToWrite, numberOfIdenticals, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
-
-
-      
+     
     
 def InferenceOutputThread(threadId, numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
     with tf.device('/CPU:0'):
-        linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability = ComposeLineList(threadId, numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions)
+        linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability = ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions)
         return linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
 
 

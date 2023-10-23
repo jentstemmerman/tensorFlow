@@ -34,6 +34,22 @@ def SimpleMultiInputLSTM():
 
     # run inference
     output = model.predict(input_data)
+    print(model.weights[0].dtype)
+
+def SimpleMultiInputLSTMWithEmbedding():
+    # create a sample input
+    input_data = np.random.randint(1000, size=(1, 16))
+
+    # load the model
+    model = tf.keras.Sequential()
+    model.add(tf.keras.layers.Embedding(input_dim=1000, output_dim=64, input_length=16))
+    model.add(tf.keras.layers.LSTM(50, activation='relu', input_shape=(16, 3)))
+    model.add(tf.keras.layers.Dense(1))
+    model.compile(optimizer='adam', loss='mse')
+
+    # run inference
+    output = model.predict(input_data)
 
 
-SimpleMultiInputLSTM()
+
+SimpleMultiInputLSTMWithEmbedding()

@@ -6,8 +6,8 @@ class GruPrintfLogModel(tf.keras.Model):
   def __init__(self, vocab_size, embedding_dim, rnn_units, return_state):
     super().__init__(self)
     self.return_state = return_state
-    self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    self.gru1      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=return_state, dropout=0.2)
+   # self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+    self.gru1      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=return_state, dropout=0.2, input_shape=(16, vocab_size))
     #self.gru2      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=False, dropout=0.2)
     self.dense     = tf.keras.layers.Dense(vocab_size)
 
@@ -59,16 +59,17 @@ class LSTMPrintfLogModel(tf.keras.Model):
 
     def __init__(self, vocab_size, embedding_dim, rnn_units):
         super().__init__(self)
-        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-        self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True)
+        #self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+        
+        self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True, input_shape=(None, vocab_size))
         self.dense = tf.keras.layers.Dense(vocab_size)
 
     def call(self, inputs, states=None, return_state=False, training=False):
         # Embedding layer
-        embedded = self.embedding(inputs, training=training)
-
+        #inputs = self.embedding(inputs, training=training)
+        inputs = tf.expand_dims(inputs, axis=2)
         # LSTM layer
-        lstm_output = self.lstm(embedded, training=training)
+        lstm_output = self.lstm(inputs, training=training)
 
         # Fully connected layer to produce logits
         logits = self.dense(lstm_output, training=training)

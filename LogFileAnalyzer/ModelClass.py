@@ -59,15 +59,20 @@ class LSTMPrintfLogModel(tf.keras.Model):
 
     def __init__(self, vocab_size, embedding_dim, rnn_units):
         super().__init__(self)
-        #self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+        if (embedding_dim != -1):
+          self.use_embedding_layer = True
+          self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
         
-        self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True, input_shape=(None, vocab_size))
+        self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True) #, input_shape=(None, vocab_size))
         self.dense = tf.keras.layers.Dense(vocab_size)
 
     def call(self, inputs, states=None, return_state=False, training=False):
         # Embedding layer
-        #inputs = self.embedding(inputs, training=training)
-        inputs = tf.expand_dims(inputs, axis=2)
+
+        if (self.use_embedding_layer):
+          inputs = self.embedding(inputs, training=training)
+
+        #inputs = tf.expand_dims(inputs, axis=2)
         # LSTM layer
         lstm_output = self.lstm(inputs, training=training)
 

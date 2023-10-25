@@ -16,7 +16,7 @@ with tf.device('/CPU:0'):
         nextTokenIdWindow[-1] = newTokenId
         return nextTokenIdWindow
 
-    def GetFirstSequenceData(startIndex, tokenList, id_from_token, window_size):
+    def GetFirstSequenceData(startIndex, tokenList, id_from_token, window_size, DataTypeForTensors):
 
         if (tokenList is not None):
             tokenWindow       = tokenList[startIndex:startIndex + window_size]
@@ -26,8 +26,8 @@ with tf.device('/CPU:0'):
             nextTokenIdWindow = id_from_token(tokenWindow)
             outputTokenId     = id_from_token(outputToken)
 
-            nextTokenIdWindow = tf.cast(nextTokenIdWindow, dtype=tf.float32)
-            outputTokenId     = tf.cast(outputTokenId,     dtype=tf.float32)
+            nextTokenIdWindow = tf.cast(nextTokenIdWindow, dtype=DataTypeForTensors)
+            outputTokenId     = tf.cast(outputTokenId,     dtype=DataTypeForTensors)
         else:
             tokenWindow = None 
             outputToken = None 
@@ -37,11 +37,11 @@ with tf.device('/CPU:0'):
 
         return tokenWindow, outputToken, nextTokenIdWindow, outputTokenId
 
-    def GetNextSequenceData(newToken, id_from_token, prevWindow, prevInputTokens, prevOutputToken, prevOutputTokenId):
+    def GetNextSequenceData(newToken, id_from_token, prevWindow, prevInputTokens, prevOutputToken, prevOutputTokenId, DataTypeForTensors):
         
         newWindow           = GetNextTokenWindow(prevWindow, prevOutputToken)
         newTokenId          = id_from_token(newToken)
-        newTokenId          = tf.cast(newTokenId, dtype=tf.float32)
+        newTokenId          = tf.cast(newTokenId, dtype=DataTypeForTensors)
         nextTokenIdWindow   = GetNextTokenIdWindow(prevInputTokens, prevOutputTokenId)
 
         return newWindow, newToken, newTokenId, nextTokenIdWindow
@@ -60,7 +60,7 @@ with tf.device('/CPU:0'):
             nexttokenIds = []
             nextTokens   = []
             
-            window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(indexOfFirstPrediction - (window_size+1),  newTokenList, id_from_token, window_size)
+            window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(indexOfFirstPrediction - (window_size+1),  newTokenList, id_from_token, window_size, DataTypeForTensors)
             #ids_from_logfile = tf.cast(ids_from_logfile, dtype=tf.float32)
             inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
             nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
@@ -78,7 +78,7 @@ with tf.device('/CPU:0'):
                     print("   AssembleInputsnextTokenBatchStartTime Time = {:2.3f}.".format((time.time() - AssembleInputsnextTokenBatchStartTime) * 8 * numberOfParallelExecutions))
                 
 
-                window, nextToken, nexttokenId, tokenIdWindow = GetNextSequenceData(nextTokenBatch, id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+                window, nextToken, nexttokenId, tokenIdWindow = GetNextSequenceData(nextTokenBatch, id_from_token, window, tokenIdWindow, nextToken, nexttokenId, DataTypeForTensors)
                 
                 
                 if (window is None):

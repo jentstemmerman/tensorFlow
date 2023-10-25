@@ -59,10 +59,13 @@ class LSTMPrintfLogModel(tf.keras.Model):
 
     def __init__(self, vocab_size, embedding_dim, rnn_units):
         super().__init__(self)
+
         if (embedding_dim != -1):
           self.use_embedding_layer = True
           self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-        
+        else:
+          self.use_embedding_layer = False
+
         self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True) #, input_shape=(None, vocab_size))
         self.dense = tf.keras.layers.Dense(vocab_size)
 
@@ -71,8 +74,9 @@ class LSTMPrintfLogModel(tf.keras.Model):
 
         if (self.use_embedding_layer):
           inputs = self.embedding(inputs, training=training)
-
-        #inputs = tf.expand_dims(inputs, axis=2)
+        else:
+          inputs = tf.expand_dims(inputs, axis=2)
+          
         # LSTM layer
         lstm_output = self.lstm(inputs, training=training)
 
@@ -108,8 +112,12 @@ class OneStep(tf.keras.Model):
     return probability
 
   def GetProbabilitiesFromLogits(self, logits, id):
-    probabilities = tf.gather(logits, id, axis=1, batch_dims=1)
 
+    probabilities = tf.gather(logits, id, axis=1, batch_dims=1)
+    #indices = tf.argmax(logits, axis=1)
+
+    # Gather values from params using indices
+    #probabilities = tf.gather(params, indices)
     return probabilities
   
   def generate_steps(self, inputTensor, nexttokenIds, states=None):
@@ -132,13 +140,14 @@ class OneStep(tf.keras.Model):
       # Sample the output logits to generate token IDs.
       #predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
       #predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
+      softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
       predicted_id = tf.argmax(predicted_logits, axis=1)
       # Convert from token ids to characters
       predicted_tokens = (self.Tokens_from_ids(predicted_id))
-      softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
+
       probabilityPredictedToken = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id)
       
-
+      nexttokenIds = tf.cast(nexttokenIds, dtype=tf.int32)
       probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, nexttokenIds)
       # Return the characters and model state.
       return predicted_tokens, probabilityPredictedToken, probabilityNextToken

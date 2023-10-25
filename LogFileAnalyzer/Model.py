@@ -13,7 +13,7 @@ import worker
 
 from tensorflow.python.client import device_lib
 
-DataTypeForTensors = 'int64'
+DataTypeForTensors = 'float'
 
 
 def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile):
@@ -132,14 +132,14 @@ AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "returnState":True,
-                                "embedding_dim":128,
+                                "embedding_dim":-1,
                                 "rnn_units":1024,
                                 "seq_length":16 ,
                                 },
                     "EPOCHS":2,
                     "Use_Validation":False,
                     "BatchSize":32 ,
-                    "removeDuplicates":True,
+                    "removeDuplicates":False,
                     "stride_dataset": 1,
                     "shuffleTraining":True,
                     "BUFFER_SIZE":65536,
@@ -252,8 +252,6 @@ else:
     Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
 
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
-
-
 
 CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile)
 

@@ -26,6 +26,8 @@ with tf.device('/CPU:0'):
             nextTokenIdWindow = id_from_token(tokenWindow)
             outputTokenId     = id_from_token(outputToken)
 
+            nextTokenIdWindow = tf.cast(nextTokenIdWindow, dtype=tf.float32)
+            outputTokenId     = tf.cast(outputTokenId,     dtype=tf.float32)
         else:
             tokenWindow = None 
             outputToken = None 
@@ -39,6 +41,7 @@ with tf.device('/CPU:0'):
         
         newWindow           = GetNextTokenWindow(prevWindow, prevOutputToken)
         newTokenId          = id_from_token(newToken)
+        newTokenId          = tf.cast(newTokenId, dtype=tf.float32)
         nextTokenIdWindow   = GetNextTokenIdWindow(prevInputTokens, prevOutputTokenId)
 
         return newWindow, newToken, newTokenId, nextTokenIdWindow
@@ -58,7 +61,7 @@ with tf.device('/CPU:0'):
             nextTokens   = []
             
             window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(indexOfFirstPrediction - (window_size+1),  newTokenList, id_from_token, window_size)
-            
+            #ids_from_logfile = tf.cast(ids_from_logfile, dtype=tf.float32)
             inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
             nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
             nextTokens.append(nextToken)

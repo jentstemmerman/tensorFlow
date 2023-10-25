@@ -132,14 +132,14 @@ AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "returnState":True,
-                                "embedding_dim":-1,
+                                "embedding_dim":-1,   # set to -1 for no embedding layer
                                 "rnn_units":1024,
                                 "seq_length":16 ,
                                 },
                     "EPOCHS":2,
                     "Use_Validation":False,
                     "BatchSize":32 ,
-                    "removeDuplicates":False,
+                    "removeDuplicates":True,
                     "stride_dataset": 1,
                     "shuffleTraining":True,
                     "BUFFER_SIZE":65536,

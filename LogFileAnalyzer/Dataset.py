@@ -39,7 +39,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, id_from_token, b
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
 
     ids_from_logfile = id_from_token(TrainingLogTensor)
-    ids_from_logfile = tf.cast(ids_from_logfile, dtype=tf.float32)
+    #ids_from_logfile = tf.cast(ids_from_logfile, dtype=tf.float32)
     
     #keras.backend.print_tensor(ids_from_logfile)
     #sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
@@ -51,13 +51,12 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, id_from_token, b
     datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = 10)
     
     if (removeDuplicates):
-        datasetfast = datasetfast
         datasetfast = datasetfast.unique()
 
     if (verbose):
         PrintDataset(datasetfast, 10)
 
-    
+    datasetfast = datasetfast.map(lambda x: tf.cast(x, tf.float32))
     datasetfast = datasetfast.map(TokenParser.split_input_target) 
     
     if (shuffle):

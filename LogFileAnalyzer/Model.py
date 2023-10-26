@@ -126,7 +126,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
 # https://www.tensorflow.org/text/tutorials/text_generation
-DataTypeForTensors    = 'int64'
+DataTypeForTensors    = 'float32'
 
 force_train_model     = True
 CreateNewOutDirectory = True
@@ -134,7 +134,7 @@ AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "returnState":True,
-                                "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
+                                "embedding_dim":-1,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
                                 "seq_length":16 ,
                                 },

@@ -6,8 +6,8 @@ class GruPrintfLogModel(tf.keras.Model):
   def __init__(self, vocab_size, embedding_dim, rnn_units, return_state):
     super().__init__(self)
     self.return_state = return_state
-    self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-    self.gru1      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=return_state, dropout=0.2)
+   # self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+    self.gru1      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=return_state, dropout=0.2, input_shape=(16, vocab_size))
     #self.gru2      = tf.keras.layers.GRU(rnn_units, return_sequences=True, return_state=False, dropout=0.2)
     self.dense     = tf.keras.layers.Dense(vocab_size)
 
@@ -59,16 +59,26 @@ class LSTMPrintfLogModel(tf.keras.Model):
 
     def __init__(self, vocab_size, embedding_dim, rnn_units):
         super().__init__(self)
-        self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
-        self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True)
+
+        if (embedding_dim != -1):
+          self.use_embedding_layer = True
+          self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
+        else:
+          self.use_embedding_layer = False
+
+        self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True) #, input_shape=(None, vocab_size))
         self.dense = tf.keras.layers.Dense(vocab_size)
 
     def call(self, inputs, states=None, return_state=False, training=False):
         # Embedding layer
-        embedded = self.embedding(inputs, training=training)
 
+        if (self.use_embedding_layer):
+          inputs = self.embedding(inputs, training=training)
+        else:
+          inputs = tf.expand_dims(inputs, axis=2)
+          
         # LSTM layer
-        lstm_output = self.lstm(embedded, training=training)
+        lstm_output = self.lstm(inputs, training=training)
 
         # Fully connected layer to produce logits
         logits = self.dense(lstm_output, training=training)
@@ -102,8 +112,12 @@ class OneStep(tf.keras.Model):
     return probability
 
   def GetProbabilitiesFromLogits(self, logits, id):
-    probabilities = tf.gather(logits, id, axis=1, batch_dims=1)
 
+    probabilities = tf.gather(logits, id, axis=1, batch_dims=1)
+    #indices = tf.argmax(logits, axis=1)
+
+    # Gather values from params using indices
+    #probabilities = tf.gather(params, indices)
     return probabilities
   
   def generate_steps(self, inputTensor, nexttokenIds, states=None):
@@ -126,13 +140,14 @@ class OneStep(tf.keras.Model):
       # Sample the output logits to generate token IDs.
       #predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
       #predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
+      softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
       predicted_id = tf.argmax(predicted_logits, axis=1)
       # Convert from token ids to characters
       predicted_tokens = (self.Tokens_from_ids(predicted_id))
-      softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
+
       probabilityPredictedToken = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id)
       
-
+      nexttokenIds = tf.cast(nexttokenIds, dtype=tf.int32)
       probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, nexttokenIds)
       # Return the characters and model state.
       return predicted_tokens, probabilityPredictedToken, probabilityNextToken

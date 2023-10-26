@@ -39,29 +39,11 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
 
     ids_from_logfile = id_from_token(TrainingLogTensor)
-
+    #ids_from_logfile = tf.cast(ids_from_logfile, dtype=tf.float32)
+    
     #keras.backend.print_tensor(ids_from_logfile)
     #sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
     # Slide the window over the tensor
-    EXECUTE_SLOW_PATH = False
-    SLOW_PATH = False
-
-    datasetSlow = None
-    datasetfast = None
-
-    if (EXECUTE_SLOW_PATH):
-        windows = []
-        windowsAcc = []
-        print(ids_from_logfile.shape[0])
-        for i in range(ids_from_logfile.shape[0] - (seq_length + 1) + 1):
-            window = ids_from_logfile[i:i+seq_length+1]
-            windowsAcc.append(window)
-
-        # Stack the windows into a new tensor
-        sequences = tf.stack(windowsAcc, axis=0)
-        datasetSlow = tf.data.Dataset.from_tensor_slices(sequences)
-        datasetSlow = datasetSlow.batch(batch_size, drop_remainder=True)
-        datasetfast = datasetfast.prefetch(tf.data.experimental.AUTOTUNE)
 
     datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
@@ -69,17 +51,12 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
     datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = 10)
     
     if (removeDuplicates):
-        datasetfast = datasetfast
         datasetfast = datasetfast.unique()
 
     if (verbose):
-        PrintDataset(datasetSlow, 10)
         PrintDataset(datasetfast, 10)
 
-    
-    if (EXECUTE_SLOW_PATH):
-        datasetSlow = datasetfast.map(TokenParser.split_input_target) 
-
+    datasetfast = datasetfast.map(lambda x: tf.cast(x, tf.float32))
     datasetfast = datasetfast.map(TokenParser.split_input_target) 
     
     if (shuffle):
@@ -89,23 +66,14 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
     datasetfast = datasetfast.prefetch(tf.data.experimental.AUTOTUNE)
 
     if (verbose):
-        PrintDatasetTuple(datasetSlow)
         PrintDatasetTuple(datasetfast)
     else:
-        PrintDatasetTuple(datasetSlow, 2)
         PrintDatasetTuple(datasetfast, 2)
 
-    if (SLOW_PATH) and (EXECUTE_SLOW_PATH):
-        dataset = datasetSlow
-    else:
-        dataset = datasetfast
-
-    if (verbose) and (SLOW_PATH) and (EXECUTE_SLOW_PATH):
-        CompareDatasets(datasetSlow, datasetSlow)
-
-        print("Adding " + InputDirectory + " to the dataset has finished \n")
+    dataset = datasetfast
 
     return dataset, filesUsed
+
 
 def PrintDataset(dataSet, count = 0):
     if (dataSet is not None):

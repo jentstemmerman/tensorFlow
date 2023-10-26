@@ -21,7 +21,7 @@ def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList,
 
     for executionIndex in range(numberOfParallelExecutions):
         
-        window, nextToken, nexttokenId, tokenIdWindow, printf = InferenceAssembly.GetNextSequenceData(newTokenList[executionIndex], newPrintfList[executionIndex], id_from_token, window, tokenIdWindow, nextToken, nexttokenId)
+        window, nextToken, nexttokenId, tokenIdWindow, printf = InferenceAssembly.GetNextSequenceData(newTokenList[executionIndex], newPrintfList[executionIndex], id_from_token, window, tokenIdWindow, nextToken, nexttokenId, DataTypeForTensors)
         
         if (window is None):
             break

@@ -65,18 +65,42 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-def GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile, itemList, itemIndex):
-    itemList = TokenParser.GetItemListToSearchFor(itemFile)
-    TokenParser.process_files(OriginalTokenFileName, VocabularyFile, [itemList[itemIndex]])
-    VocabularyNumpyList = np.loadtxt(VocabularyFile, delimiter=",", dtype=str)
-    VocabularyTensor    = tf.convert_to_tensor(VocabularyNumpyList)
-    
-    # encoder
-    id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
-    # decoder
-    token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
+def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyFile, itemList, itemIndex):
+    itemListFromFile    = TokenParser.GetItemListToSearchFor(itemFile)
+    id_from_tokenList   = []
+    token_from_idList   = []
+    VocabularyNumpyList = []
 
-    return id_from_token, token_from_id, VocabularyNumpyList
+    for itemsInLine in itemListFromFile:
+        if (itemsInLine["Categorical"] == "True"):
+
+            OriginalTokenFile = itemsInLine["VocabularyFile"]
+
+            if (type(OriginalTokenFile) == str):
+
+                OriginalTokenFileName = OriginalTokenFileDirectory + os.path.sep + OriginalTokenFile
+                #itemToProcess         = itemsInLine["Regex"] 
+                
+                # only do one item process at a time
+                TokenParser.process_files(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
+                
+                VocabularyNumpyList   = np.loadtxt(OutputVocabularyFile, delimiter=",", dtype=str)
+                VocabularyTensor      = tf.convert_to_tensor(VocabularyNumpyList)
+                
+                # encoder
+                id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
+                id_from_tokenList.append(id_from_token)
+                # decoder
+                token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
+                token_from_idList.append(token_from_id)
+            else:
+                raise ValueError("VocabularyFile " + OutputVocabularyFile + " not found")
+        else:
+            id_from_tokenList.append(None)
+            token_from_idList.append(None)
+            VocabularyNumpyList.append(None)
+            
+    return id_from_tokenList, token_from_idList, VocabularyNumpyList
 
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, token_from_id, id_from_tokenNumpy, numberOfThreads, Workers):
 
@@ -88,7 +112,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".mdtxt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_token, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_tokenList, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -105,14 +129,14 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
     
         TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
 
-        one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
+        one_step_model = ModelClass.OneStep(model, token_from_idList, id_from_tokenList, temperature=temperature)
         window_size = 8
         Accumulator = 0
         AccumulatorCount = 0
         for i in range(TestFileNumpyList.shape[0] - (window_size + 1)):
             window    = TestFileNumpyList[i:i + window_size - 1]
             nextToken = TestFileNumpyList[i + window_size]
-            idsLogFile = id_from_token(window) 
+            idsLogFile = id_from_tokenList(window) 
             inputTensor = tf.convert_to_tensor(idsLogFile, dtype=DataTypeForTensors)
             probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
             AccumulatorCount = AccumulatorCount + 1
@@ -167,7 +191,7 @@ Directory = "TrainingSet" + str(trainingSet)
 
 TrainingDirectory           = Directory       + os.path.sep + "Training"
 VerificationDirectory       = Directory       + os.path.sep + "Verification"
-OriginalTokenFileName       = Directory       + os.path.sep + "Tokens.dat"
+OriginalTokenFileDirectory  = Directory 
 
 OutputDirectory             = Directory       + os.path.sep + "out"
 ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
@@ -211,9 +235,9 @@ if (CreateNewOutDirectory):
             print(f"Error: {e}")
 
 
-id_from_token, token_from_id, id_from_tokenNumpy = GetEncoderDecoderFromTokenFile(OriginalTokenFileName, VocabularyFile, itemFile, itemIndex=0)
+id_from_tokenList, token_from_idList, id_from_tokenNumpyList = GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, VocabularyFile, itemFile, itemIndex=0)  
 
-print("Creating datasets:")
+print("Creating datasets...")
 
 if (train_model):
 
@@ -225,7 +249,7 @@ if (train_model):
         datasetForTraining, trainingFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=TrainingDirectory, 
                                                                                     OutputDirectory=OutputDirectoryTraining, 
                                                                                     itemFile=itemFile,
-                                                                                    id_from_token=id_from_token,
+                                                                                    id_from_tokenList=id_from_tokenList,
                                                                                     batch_size=TrainingsParameter["BatchSize"], 
                                                                                     stride=TrainingsParameter["stride_dataset"], 
                                                                                     shuffle=TrainingsParameter["shuffleTraining"], 
@@ -245,7 +269,7 @@ else:
     datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=VerificationDirectory, 
                                                                                         OutputDirectory=OutputDirectoryVerification, 
                                                                                         itemFile=itemFile,
-                                                                                        id_from_token=id_from_token,
+                                                                                        id_from_tokenList=id_from_tokenList,
                                                                                         batch_size=TrainingsParameter["BatchSize"], 
                                                                                         stride=TrainingsParameter["stride_dataset"], 
                                                                                         shuffle=TrainingsParameter["shuffleTraining"], 
@@ -264,19 +288,19 @@ if (train_model):
 
     if (TrainingsParameter["Model"]["Network"] == "LSTM"):  # does not work yet
         model = ModelClass.LSTMPrintfLogModel(
-            vocab_size=len(id_from_token.get_vocabulary()),
+            vocab_size=len(id_from_tokenList.get_vocabulary()),
             embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
             rnn_units=TrainingsParameter["Model"]["rnn_units"])
     if (TrainingsParameter["Model"]["Network"] == "GRU"):
         model = ModelClass.GruPrintfLogModel(
-            vocab_size=len(id_from_token.get_vocabulary()),
+            vocab_size=len(id_from_tokenList.get_vocabulary()),
             embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
             rnn_units=TrainingsParameter["Model"]["rnn_units"],
             return_state=TrainingsParameter["Model"]["returnState"])
     
     if (TrainingsParameter["Model"]["Network"] == "SimpleRnn"):    # supposed to be faster. I don't see it.
         model = ModelClass.SimpleRnnPrintfLogModel(
-            vocab_size=len(id_from_token.get_vocabulary()),
+            vocab_size=len(id_from_tokenList.get_vocabulary()),
             embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
             rnn_units=TrainingsParameter["Model"]["rnn_units"])
         
@@ -402,7 +426,7 @@ if (AnalyzeFiles):
         if (Workers == None):
             print("Could not start workers")
         else:
-            AnalyzePrintfFiles(model, inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, itemFile=itemFile, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"], token_from_id=token_from_id, id_from_tokenNumpy=id_from_tokenNumpy, numberOfThreads=numberOfThreads, Workers=Workers)
+            AnalyzePrintfFiles(model, inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, itemFile=itemFile, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"], token_from_id=token_from_idList, id_from_tokenNumpy=id_from_tokenNumpyList, numberOfThreads=numberOfThreads, Workers=Workers)
             worker.KillWorkers(Workers)
 
 end = time.time()

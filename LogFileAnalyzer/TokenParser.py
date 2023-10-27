@@ -4,32 +4,28 @@ import sys
 import os
 
 def GetItemListToSearchFor(RegexFile):
-    RegexFile  = open(RegexFile, "r")
-    line       = RegexFile.readline()
-    lineNumber = 0
-    itemList   = []
+    import json
+    itemList = None
 
-    while((line is not None) and ( line != '')):
-        try:
-            #line = line.group()
-            compiledRegex = re.compile(line)
-            itemList.append(compiledRegex)
-        except:
-            print("Error in RegexFile ", RegexFile, "at line ", lineNumber)
-            break
-        line        = RegexFile.readline()
-        lineNumber += 1
-
-    RegexFile.close()
-
+    try:
+        file = open(RegexFile, 'r')
+        itemList = json.load(file)
+        print(itemList)
+    except Exception as e:
+        print("Error in RegexFile :", e)
+        exit()
+          
     return itemList
 
-def GetItemsInLine(line, regularExpressionList):
+
+def GetItemsInLine(line, itemList):
     modified_line = line  # Create a copy of the original line
     items = []
 
-    for regularExpression in regularExpressionList:
+    for item in itemList:
+        regularExpression = item["Regex"]
         stripped_line = re.search(regularExpression, modified_line)
+        
         if stripped_line:
             stripped_string = stripped_line.group()
             modified_line = re.sub(regularExpression, '', modified_line)  # Remove the found regex
@@ -113,11 +109,9 @@ def split_input_target(sequence):
 def returnValue(sequence):
     return sequence
 
-
-
-
 def process_log_files_to_tokens_recursive(directory, outputDirectory, itemFile):
     itemList = GetItemListToSearchFor(itemFile)
+    
     for root, dirs, files in os.walk(directory):
         for filename in files:
             if not root.endswith(os.path.sep + "out") and filename.endswith(".log"):

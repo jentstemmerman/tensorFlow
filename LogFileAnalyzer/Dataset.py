@@ -5,25 +5,25 @@ import TokenParser
 
 def GetDataSetInformation(dataSet):
     # Count the number of elements in the dataset
-    dataSetTemp = dataSet
-    num_batches_dataset     = dataSetTemp.reduce(0, lambda x, _: x + 1).numpy()
+    dataSetTemp         = dataSet
+    num_batches_dataset = dataSetTemp.reduce(0, lambda x, _: x + 1).numpy()
 
     return num_batches_dataset
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_token, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, verbose=False):
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, verbose=False):
     
-    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemFile)
+    itemList = TokenParser.GetItemListToSearchFor(itemFile)
+    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
     
     ################# Create a dataset for training and throw all files that are in the training output dir in it
     TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)
-    tokenLogfileToProcess = TraininglogFileIterator.get_first_tokenlogfile()
-    dataset = None
-    filesUsed = []
-
-    TrainingLogTensor = None
+    dataset                 = None
+    filesUsed               = []
+    TrainingLogTensor       = None
+    tokenLogfileToProcess   = TraininglogFileIterator.get_first_tokenlogfile()
 
     while (tokenLogfileToProcess is not None):
-        logTokenNumpyList = []
+
         print("Adding " + tokenLogfileToProcess + " to the dataset")
         filesUsed.append(tokenLogfileToProcess)
 
@@ -38,12 +38,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
 
-    ids_from_logfile = id_from_token(TrainingLogTensor)
-    #ids_from_logfile = tf.cast(ids_from_logfile, dtype=tf.float32)
-    
-    #keras.backend.print_tensor(ids_from_logfile)
-    #sliced_ids_from_logfile = tf.data.Dataset.from_tensor_slices(ids_from_logfile)  # sliced_ids_from_logfile kan ik niet tonen in de debugger
-    # Slide the window over the tensor
+    ids_from_logfile = id_from_tokenList(TrainingLogTensor)
 
     datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)

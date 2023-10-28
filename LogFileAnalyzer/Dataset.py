@@ -10,7 +10,7 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=num_parallel_calls,verbose=False):
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
     
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
@@ -37,8 +37,19 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
             TrainingLogTensor = np.concatenate((TrainingLogTensor, TensorOfThisFile), axis=0)
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
+    
+    ids_from_logfile = []
 
-    ids_from_logfile = id_from_tokenList(TrainingLogTensor)  # next todo
+    for index, id_from_token in enumerate(id_from_tokenList):
+        if (id_from_token is not None):
+            TransformedItemTensor = id_from_token(TrainingLogTensor[:,index])  # next todo
+        else:
+            TransformedItemTensor = tf.convert_to_tensor(TrainingLogTensor[:,index])
+        ids_from_logfile.append(TransformedItemTensor)
+
+    ids_from_logfile = np.stack(ids_from_logfile, axis=-1)
+
+    #if (ids_from_logfile is None):
 
     datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)

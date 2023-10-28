@@ -73,11 +73,14 @@ def process_files(input_file, output_file, itemList):
         LogfileOnlyTokens = open(output_file, "w")
                                             
         tokenListList, PrintfList, numberOfFoundTokens = getLinesAndTokens(itemList, -1, reading_file, tokenList=None, PrintfList=None)
-
+        
         for tokenList in tokenListList:
             line = ""
-            for token in tokenList:
-                line = line + token + ","
+            for index, token in enumerate(tokenList):
+                if index < len(tokenList) - 1:
+                    line = line + token + ","
+                else:
+                    line = line + tokenList[index]
             line = line + '\n'
             LogfileOnlyTokens.write(line)
 

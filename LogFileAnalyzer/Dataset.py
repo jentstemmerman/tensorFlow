@@ -10,7 +10,7 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, verbose=False):
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=num_parallel_calls,verbose=False):
     
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
@@ -38,12 +38,12 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
 
-    ids_from_logfile = id_from_tokenList(TrainingLogTensor)
+    ids_from_logfile = id_from_tokenList(TrainingLogTensor)  # next todo
 
     datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
     datasetfast = datasetfast.flat_map(lambda window2: window2)
-    datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = 10)
+    datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
     
     if (removeDuplicates):
         datasetfast = datasetfast.unique()

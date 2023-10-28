@@ -167,6 +167,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
                     "Use_Validation":False,
                     "BatchSize":32 ,
                     "removeDuplicates":True,
+                    "num_parallel_calls":10,
                     "stride_dataset": 1,
                     "shuffleTraining":True,
                     "BUFFER_SIZE":65536,
@@ -257,7 +258,9 @@ if (train_model):
                                                                                     BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
                                                                                     seq_length=TrainingsParameter["Model"]["seq_length"], 
                                                                                     removeDuplicates=TrainingsParameter["removeDuplicates"], 
-                                                                                    verbose = False) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+                                                                                    num_parallel_calls = TrainingsParameter["num_parallel_calls"],
+                                                                                    verbose = False, 
+                                                                                    ) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
         Dataset.SaveDataset(datasetForTraining, TrainingDataSetFile.strip())
 
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
@@ -277,6 +280,7 @@ else:
                                                                                         BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
                                                                                         seq_length=TrainingsParameter["Model"]["seq_length"],
                                                                                         removeDuplicates=TrainingsParameter["removeDuplicates"], 
+                                                                                        num_parallel_calls = TrainingsParameter["num_parallel_calls"],
                                                                                         verbose = False)    
     Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
 

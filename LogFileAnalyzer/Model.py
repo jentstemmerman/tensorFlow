@@ -82,11 +82,11 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
                 OriginalTokenFileName = OriginalTokenFileDirectory + os.path.sep + OriginalTokenFile
                 
                 # only do one item process at a time
-                TokenParser.process_files(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
-                
-                VocabularyNumpy   = np.loadtxt(OutputVocabularyFile, delimiter=",", dtype=str)
+                tokenListList = TokenParser.process_files(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
+                VocabularyNumpy = [inner_list[0] for inner_list in tokenListList]
+
                 VocabularyTensor  = tf.convert_to_tensor(VocabularyNumpy)
-                
+
                 VocabularyNumpyList.append(VocabularyNumpy)
                 # encoder
                 id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)

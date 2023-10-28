@@ -26,10 +26,12 @@ def GetItemsInLine(line, itemList):
         regularExpression = item["Regex"]
         stripped_line = re.search(regularExpression, modified_line)
         
-        if stripped_line:
+        if (stripped_line is not None):
             stripped_string = stripped_line.group()
             modified_line = re.sub(regularExpression, '', modified_line)  # Remove the found regex
             items.append(stripped_string)
+        else:
+            items.append("")
 
     return items
 
@@ -60,6 +62,9 @@ def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, Pr
     return tokenList, PrintfList, numberOfFoundItems
 
 def process_files(input_file, output_file, itemList):
+    
+    tokenListList = None
+
     if (not os.path.exists(output_file)):
         reading_file = open(input_file,  "r", errors='ignore')
         
@@ -72,12 +77,13 @@ def process_files(input_file, output_file, itemList):
         for tokenList in tokenListList:
             line = ""
             for token in tokenList:
-                line = line + token
+                line = line + token + ","
             line = line + '\n'
             LogfileOnlyTokens.write(line)
 
         reading_file.close()
         LogfileOnlyTokens.close()
+        return tokenListList
 
 
 def CrossReferenceTokens(directory, TokenFile):

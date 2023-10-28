@@ -109,8 +109,7 @@ def split_input_target(sequence):
 def returnValue(sequence):
     return sequence
 
-def process_log_files_to_tokens_recursive(directory, outputDirectory, itemFile):
-    itemList = GetItemListToSearchFor(itemFile)
+def process_log_files_to_tokens_recursive(directory, outputDirectory, itemList):
     
     for root, dirs, files in os.walk(directory):
         for filename in files:

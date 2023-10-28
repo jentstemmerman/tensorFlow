@@ -72,6 +72,7 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
     VocabularyNumpyList = []
 
     for itemsInLine in itemListFromFile:
+        # only create encoder-decoder for items that are cathegorical.
         if (itemsInLine["Categorical"] == "True"):
 
             OriginalTokenFile = itemsInLine["VocabularyFile"]
@@ -79,14 +80,14 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
             if (type(OriginalTokenFile) == str):
 
                 OriginalTokenFileName = OriginalTokenFileDirectory + os.path.sep + OriginalTokenFile
-                #itemToProcess         = itemsInLine["Regex"] 
                 
                 # only do one item process at a time
                 TokenParser.process_files(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
                 
-                VocabularyNumpyList   = np.loadtxt(OutputVocabularyFile, delimiter=",", dtype=str)
-                VocabularyTensor      = tf.convert_to_tensor(VocabularyNumpyList)
+                VocabularyNumpy   = np.loadtxt(OutputVocabularyFile, delimiter=",", dtype=str)
+                VocabularyTensor  = tf.convert_to_tensor(VocabularyNumpy)
                 
+                VocabularyNumpyList.append(VocabularyNumpy)
                 # encoder
                 id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
                 id_from_tokenList.append(id_from_token)

@@ -24,7 +24,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
 
     while (tokenLogfileToProcess is not None):
 
-        print("Adding " + tokenLogfileToProcess + " to the dataset")
+        print("Adding " + tokenLogfileToProcess + " to the dataset...")
         filesUsed.append(tokenLogfileToProcess)
 
         logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)

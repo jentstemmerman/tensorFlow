@@ -47,9 +47,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
             TransformedItemTensor = tf.convert_to_tensor(TrainingLogTensor[:,index])
         ids_from_logfile.append(TransformedItemTensor)
 
-    ids_from_logfile = np.stack(ids_from_logfile, axis=-1)
-
-    #if (ids_from_logfile is None):
+    ids_from_logfile = tf.stack(ids_from_logfile, axis=-1)
 
     datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)

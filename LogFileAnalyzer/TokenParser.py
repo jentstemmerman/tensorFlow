@@ -27,9 +27,12 @@ def GetItemsInLine(line, itemList):
         stripped_line = re.search(regularExpression, modified_line)
         
         if (stripped_line is not None):
-            stripped_string = stripped_line.group()
+            result = stripped_line.group(1)
             modified_line = re.sub(regularExpression, '', modified_line)  # Remove the found regex
-            items.append(stripped_string)
+            if "Hex2Dec" in item:
+                if (item["Hex2Dec"] == "True"):
+                    result = int(result, 16)
+            items.append(result)
         else:
             items.append("")
 
@@ -78,9 +81,9 @@ def process_files(input_file, output_file, itemList):
             line = ""
             for index, token in enumerate(tokenList):
                 if index < len(tokenList) - 1:
-                    line = line + token + ","
+                    line = line + str(token) + ","
                 else:
-                    line = line + tokenList[index]
+                    line = line + str(token) 
             line = line + '\n'
             LogfileOnlyTokens.write(line)
 

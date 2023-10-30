@@ -2,6 +2,8 @@ import re
 from pathlib import Path
 import sys
 import os
+import DataTreatment
+
 
 def GetItemListToSearchFor(RegexFile):
     import json
@@ -18,25 +20,27 @@ def GetItemListToSearchFor(RegexFile):
     return itemList
 
 
-def GetItemsInLine(line, itemList):
+def GetItemsInLine(line, itemList, dataTreatment):
     modified_line = line  # Create a copy of the original line
     items = []
 
-    for item in itemList:
+    for index, item in enumerate(itemList):
         regularExpression = item["Regex"]
         stripped_line = re.search(regularExpression, modified_line)
         
         if (stripped_line is not None):
             result = stripped_line.group(1)
             modified_line = re.sub(regularExpression, '', modified_line)  # Remove the found regex
-            if "Hex2Dec" in item:
-                if (item["Hex2Dec"] == "True"):
-                    result = int(result, 16)
+            result = dataTreatment.TreatValue(index, item, result, stripped_line)
+
             items.append(result)
         else:
-            items.append("")
+            result = dataTreatment.TreatValue(index, item, "", stripped_line)
+            items.append(result)
 
     return items
+
+
 
 
 def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, PrintfList=None): 
@@ -48,6 +52,9 @@ def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, Pr
     if (PrintfList is None):
         PrintfList = []
 
+
+    dataTreatment = DataTreatment.DataTreatment(len(itemList))
+
     while ((numberOfTokens == -1) or (numberOfFoundItems < numberOfTokens)):
         line = reading_file.readline()
         lineBackup = line
@@ -55,7 +62,7 @@ def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, Pr
         if (not line):
             break
 
-        items = GetItemsInLine(line, itemList)
+        items = GetItemsInLine(line, itemList, dataTreatment)
 
         if (len(items) > 0):
             numberOfFoundItems += len(items)
@@ -122,7 +129,7 @@ def returnValue(sequence):
     return sequence
 
 def process_log_files_to_tokens_recursive(directory, outputDirectory, itemList):
-    
+    tokenListListList = []
     for root, dirs, files in os.walk(directory):
         for filename in files:
             if not root.endswith(os.path.sep + "out") and filename.endswith(".log"):
@@ -130,7 +137,9 @@ def process_log_files_to_tokens_recursive(directory, outputDirectory, itemList):
                 # Do something with the content of the log file
                 outputFile = outputDirectory + "/" + filename.replace(".log", "") + "_onlyTokens.log" 
                 if (not os.path.exists(outputFile)):
-                    process_files(full_path, outputFile, itemList)
+                    tokenListList = process_files(full_path, outputFile, itemList)
+                    tokenListListList.append(tokenListList)
+    return tokenListListList
 
 
 class LogfileIterator():

@@ -13,7 +13,7 @@ def GetDataSetInformation(dataSet):
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
     
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
-    TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
+    tokenListListList = TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
     
     ################# Create a dataset for training and throw all files that are in the training output dir in it
     TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)

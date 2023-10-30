@@ -22,13 +22,25 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
     TrainingLogTensor       = None
     tokenLogfileToProcess   = TraininglogFileIterator.get_first_tokenlogfile()
 
-    while (tokenLogfileToProcess is not None):
+    for tokenListList in tokenListListList:
 
         print("Adding " + tokenLogfileToProcess + " to the dataset...")
         filesUsed.append(tokenLogfileToProcess)
+        
+        TensorOfThisFile = []
+        
+        for index, id_from_token in enumerate(id_from_tokenList):
+            column = [inner_list[index] for inner_list in tokenListList]
+            column = np.array(column)
+            if (id_from_token is not None):
+                TransformedItemTensor = id_from_token(column)  # next todo
+            else:
+                TransformedItemTensor = tf.convert_to_tensor(column)
 
-        logTokenNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
+            TensorOfThisFile.append(TransformedItemTensor)
+        TensorOfThisFile = tf.stack(TensorOfThisFile, axis=-1)
 
+        logTokenNumpyList = np.array(tokenListList)
         TensorOfThisFile = tf.convert_to_tensor(logTokenNumpyList)
 
         if (TrainingLogTensor is None):

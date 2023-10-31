@@ -257,6 +257,7 @@ if (train_model):
                                                                                     shuffle=TrainingsParameter["shuffleTraining"], 
                                                                                     BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
                                                                                     seq_length=TrainingsParameter["Model"]["seq_length"], 
+                                                                                    DataTypeForTensors = DataTypeForTensors,
                                                                                     removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                                                                     num_parallel_calls = TrainingsParameter["num_parallel_calls"],
                                                                                     verbose = False, 
@@ -279,6 +280,7 @@ else:
                                                                                         shuffle=TrainingsParameter["shuffleTraining"], 
                                                                                         BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
                                                                                         seq_length=TrainingsParameter["Model"]["seq_length"],
+                                                                                        DataTypeForTensors = DataTypeForTensors,
                                                                                         removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                                                                         num_parallel_calls = TrainingsParameter["num_parallel_calls"],
                                                                                         verbose = False)    
@@ -293,7 +295,7 @@ if (train_model):
 
     if (TrainingsParameter["Model"]["Network"] == "LSTM"):  # does not work yet
         model = ModelClass.LSTMPrintfLogModel(
-            vocab_size=len(id_from_tokenList.get_vocabulary()),
+            vocab_size=len(id_from_tokenList[0].get_vocabulary()),
             embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
             rnn_units=TrainingsParameter["Model"]["rnn_units"])
     if (TrainingsParameter["Model"]["Network"] == "GRU"):

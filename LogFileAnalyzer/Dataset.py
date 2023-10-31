@@ -10,7 +10,7 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
     
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     tokenListListList = TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
@@ -40,9 +40,6 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
             TensorOfThisFile.append(TransformedItemTensor)
         TensorOfThisFile = tf.stack(TensorOfThisFile, axis=-1)
 
-        logTokenNumpyList = np.array(tokenListList)
-        TensorOfThisFile = tf.convert_to_tensor(logTokenNumpyList)
-
         if (TrainingLogTensor is None):
             TrainingLogTensor = TensorOfThisFile
         else:
@@ -50,18 +47,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
     
-    ids_from_logfile = []
-
-    for index, id_from_token in enumerate(id_from_tokenList):
-        if (id_from_token is not None):
-            TransformedItemTensor = id_from_token(TrainingLogTensor[:,index])  # next todo
-        else:
-            TransformedItemTensor = tf.convert_to_tensor(TrainingLogTensor[:,index])
-        ids_from_logfile.append(TransformedItemTensor)
-
-    ids_from_logfile = tf.stack(ids_from_logfile, axis=-1)
-
-    datasetfast = tf.data.Dataset.from_tensor_slices(ids_from_logfile)
+    datasetfast = tf.data.Dataset.from_tensor_slices(TrainingLogTensor)
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
     datasetfast = datasetfast.flat_map(lambda window2: window2)
     datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
@@ -72,7 +58,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
     if (verbose):
         PrintDataset(datasetfast, 10)
 
-    datasetfast = datasetfast.map(lambda x: tf.cast(x, tf.float32))
+    datasetfast = datasetfast.map(lambda x: tf.cast(x, DataTypeForTensors))
     datasetfast = datasetfast.map(TokenParser.split_input_target) 
     
     if (shuffle):

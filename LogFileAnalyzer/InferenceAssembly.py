@@ -61,7 +61,6 @@ with tf.device('/CPU:0'):
             nextTokens   = []
             
             window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(indexOfFirstPrediction - (window_size+1),  newTokenList, id_from_token, window_size, DataTypeForTensors)
-            #ids_from_logfile = tf.cast(ids_from_logfile, dtype=tf.float32)
             inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
             nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
             nextTokens.append(nextToken)

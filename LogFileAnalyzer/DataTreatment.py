@@ -3,13 +3,16 @@
 class DataTreatment:
     cModelMask = 64000
     def __init__(self, numberOfItems):
+
         self.state = []
         self.numberOfItems = numberOfItems
-        for itemIdex in range(self.numberOfItems):
+
+        for _ in range(self.numberOfItems):
             self.state.append({})        
 
 
     def TreatValue(self, index, item, value, stripped_line):
+        
         result = value
 
         if ("Numerical" in item):

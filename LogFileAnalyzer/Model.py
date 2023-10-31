@@ -10,10 +10,8 @@ import os
 from pathlib import Path
 import sys
 import worker
-
+import Logger
 from tensorflow.python.client import device_lib
-
-
 
 
 def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile):
@@ -326,7 +324,7 @@ if (train_model):
     if (latest is not None):
         model.load_weights(latest)
 
-    sys.stdout = TokenParser.Logger(TrainingLogFile)
+    sys.stdout = Logger.Logger(TrainingLogFile)
     print("\nSettings used: ")
 
     ModelSummary = "EPOCHS: " + str(TrainingsParameter["EPOCHS"]) + "\n"

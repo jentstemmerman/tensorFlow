@@ -2,6 +2,8 @@ import tensorflow as tf
 from tensorflow import keras
 import numpy as np
 import TokenParser
+import LogFileIterator
+
 
 def GetDataSetInformation(dataSet):
     # Count the number of elements in the dataset
@@ -16,7 +18,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
     tokenListListList = TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
     
     ################# Create a dataset for training and throw all files that are in the training output dir in it
-    TraininglogFileIterator = TokenParser.LogfileIterator(OutputDirectory)
+    TraininglogFileIterator = LogFileIterator.LogfileIterator(OutputDirectory)
     dataset                 = None
     filesUsed               = []
     TrainingLogTensor       = None

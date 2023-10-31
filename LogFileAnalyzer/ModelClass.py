@@ -1,9 +1,9 @@
 import tensorflow as tf
-
+import numpy as np
 from tensorflow import keras
 
 class GruPrintfLogModel(tf.keras.Model):
-  def __init__(self, vocab_size, embedding_dim, rnn_units, return_state):
+  def __init__(self, vocab_size, embedding_dim, rnn_units, return_state, numberOfInputs):
     super().__init__(self)
     self.return_state = return_state
    # self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
@@ -31,7 +31,7 @@ class GruPrintfLogModel(tf.keras.Model):
       return x
     
 class SimpleRnnPrintfLogModel(tf.keras.Model):
-  def __init__(self, vocab_size, embedding_dim, rnn_units):
+  def __init__(self, vocab_size, embedding_dim, rnn_units, numberOfInputs):
     super().__init__(self)
     self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     self.simple_rnn1 = tf.keras.layers.SimpleRNN(rnn_units, return_sequences=True, return_state=True)
@@ -57,7 +57,7 @@ class SimpleRnnPrintfLogModel(tf.keras.Model):
 
 class LSTMPrintfLogModel(tf.keras.Model):
 
-    def __init__(self, vocab_size, embedding_dim, rnn_units):
+    def __init__(self, vocab_size, embedding_dim, rnn_units, numberOfInputs):
         super().__init__(self)
 
         if (embedding_dim != -1):
@@ -66,7 +66,7 @@ class LSTMPrintfLogModel(tf.keras.Model):
         else:
           self.use_embedding_layer = False
 
-        self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True) #, input_shape=(None, vocab_size))
+        self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True, input_shape=(None, numberOfInputs))
         self.dense = tf.keras.layers.Dense(vocab_size)
 
     def call(self, inputs, states=None, return_state=False, training=False):
@@ -74,8 +74,8 @@ class LSTMPrintfLogModel(tf.keras.Model):
 
         if (self.use_embedding_layer):
           inputs = self.embedding(inputs, training=training)
-        else:
-          inputs = tf.expand_dims(inputs, axis=2)
+      #  else:
+      #    inputs = tf.expand_dims(inputs, axis=2)
           
         # LSTM layer
         lstm_output = self.lstm(inputs, training=training)
@@ -90,15 +90,15 @@ class LSTMPrintfLogModel(tf.keras.Model):
     
 class OneStep(tf.keras.Model):
  
-  def __init__(self, model, Tokens_from_ids, ids_from_tokens, temperature=1.0):
+  def __init__(self, model, Tokens_from_idList, ids_from_tokensList, temperature=1.0):
     super().__init__()
     self.temperature = temperature
     self.model = model
-    self.Tokens_from_ids = Tokens_from_ids
-    self.ids_from_tokens = ids_from_tokens
+    self.Tokens_from_idList = Tokens_from_idList
+    ids_from_tokens = ids_from_tokensList[0]
 
     # Create a mask to prevent "[UNK]" from being generated.
-    skip_ids = self.ids_from_tokens(['[UNK]'])[:, None]
+    skip_ids = ids_from_tokens(['[UNK]'])[:, None]
     sparse_mask = tf.SparseTensor(
         # Put a -inf at each bad index.
         values=[-float('inf')]*len(skip_ids),
@@ -143,8 +143,22 @@ class OneStep(tf.keras.Model):
       softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
       predicted_id = tf.argmax(predicted_logits, axis=1)
       # Convert from token ids to characters
-      predicted_tokens = (self.Tokens_from_ids(predicted_id))
 
+ #     predicted_tokensColumn = np.array()
+      predicted_tokens = None
+
+      for index, Tokens_from_ids in enumerate(self.Tokens_from_idList):
+          
+          if (Tokens_from_ids is not None):
+              predicted_tokensColumn = (self.Tokens_from_idList[index])(predicted_id)
+          else:
+              predicted_tokensColumn = predicted_id[index]
+          
+          if (predicted_tokens is None):
+              predicted_tokens = predicted_tokensColumn
+          else:
+              predicted_tokens  = np.stack(predicted_tokens, predicted_tokensColumn)
+   
       probabilityPredictedToken = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id)
       
       nexttokenIds = tf.cast(nexttokenIds, dtype=tf.int32)

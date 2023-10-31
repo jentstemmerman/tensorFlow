@@ -11,6 +11,7 @@ from pathlib import Path
 import sys
 import worker
 import Logger
+import LogFileIterator
 from tensorflow.python.client import device_lib
 
 
@@ -32,7 +33,6 @@ def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, V
 # this gives a high result
 def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
     numberOfSamplesPerCycle = 200
-    samplesAccumulated = 0
     batch_mean_losses = [] 
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
     
@@ -63,11 +63,11 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyFile, itemList, itemIndex):
+def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyFile, itemFile):
     itemListFromFile    = TokenParser.GetItemListToSearchFor(itemFile)
     id_from_tokenList   = []
     token_from_idList   = []
-    VocabularyNumpyList = []
+    VocabularyNumpyList = None
 
     for itemsInLine in itemListFromFile:
         # only create encoder-decoder for items that are cathegorical.
@@ -82,10 +82,15 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
                 # only do one item process at a time
                 tokenListList = TokenParser.process_files(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
                 VocabularyNumpy = [inner_list[0] for inner_list in tokenListList]
+                VocabularyNumpy = np.array(VocabularyNumpy)
+
+                if (VocabularyNumpyList is None):
+                    VocabularyNumpyList = VocabularyNumpy
+                else:
+                    VocabularyNumpyList = np.concatenate((VocabularyNumpyList, VocabularyNumpy), axis=0)
 
                 VocabularyTensor  = tf.convert_to_tensor(VocabularyNumpy)
 
-                VocabularyNumpyList.append(VocabularyNumpy)
                 # encoder
                 id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
                 id_from_tokenList.append(id_from_token)
@@ -104,7 +109,7 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, token_from_id, id_from_tokenNumpy, numberOfThreads, Workers):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
-    verificationFileIterator = TokenParser.LogfileIterator(inputDirectory)
+    verificationFileIterator = LogFileIterator.LogfileIterator(inputDirectory)
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
     while (printfFileToProcess is not None):
@@ -235,7 +240,7 @@ if (CreateNewOutDirectory):
             print(f"Error: {e}")
 
 
-id_from_tokenList, token_from_idList, id_from_tokenNumpyList = GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, VocabularyFile, itemFile, itemIndex=0)  
+id_from_tokenList, token_from_idList, id_from_tokenNumpyList = GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, VocabularyFile, itemFile )  
 
 print("Creating datasets...")
 
@@ -290,24 +295,28 @@ CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, Vocab
 
 if (train_model):
     model
+    numberOfInputs = len(TokenParser.GetItemListToSearchFor(itemFile))
 
     if (TrainingsParameter["Model"]["Network"] == "LSTM"):  # does not work yet
         model = ModelClass.LSTMPrintfLogModel(
             vocab_size=len(id_from_tokenList[0].get_vocabulary()),
             embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
-            rnn_units=TrainingsParameter["Model"]["rnn_units"])
+            rnn_units=TrainingsParameter["Model"]["rnn_units"],
+            numberOfInputs=numberOfInputs)
     if (TrainingsParameter["Model"]["Network"] == "GRU"):
         model = ModelClass.GruPrintfLogModel(
             vocab_size=len(id_from_tokenList.get_vocabulary()),
             embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
             rnn_units=TrainingsParameter["Model"]["rnn_units"],
-            return_state=TrainingsParameter["Model"]["returnState"])
+            return_state=TrainingsParameter["Model"]["returnState"],
+            numberOfInputs = numberOfInputs)
     
     if (TrainingsParameter["Model"]["Network"] == "SimpleRnn"):    # supposed to be faster. I don't see it.
         model = ModelClass.SimpleRnnPrintfLogModel(
             vocab_size=len(id_from_tokenList.get_vocabulary()),
             embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
-            rnn_units=TrainingsParameter["Model"]["rnn_units"])
+            rnn_units=TrainingsParameter["Model"]["rnn_units"],
+            numberOfInputs=numberOfInputs)
         
     ############################################################################################# Train the model
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
@@ -422,7 +431,7 @@ else:
 
 if (AnalyzeFiles):
     
-    numberOfThreads = 8  # 1 for the main process
+    numberOfThreads = 1  # 1 for the main process
     print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
     with tf.device('/CPU:0'):

@@ -47,13 +47,9 @@ with tf.device('/CPU:0'):
         return newWindow, newToken, newTokenId, nextTokenIdWindow
 
 
-
     def AssembleInputsThread(threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, shared_id_from_token, window_size):
         with tf.device('/CPU:0'):
 
-            #id_from_token = np.ndarray(shared_id_from_token.shape, dtype=shared_id_from_token.dtype)
-            # Copy the data to shared memory
-            #np.copyto(id_from_token, shared_id_from_token)
             VocabularyTensor  = tf.convert_to_tensor(shared_id_from_token)
             id_from_token     = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
             inputTensor  = []

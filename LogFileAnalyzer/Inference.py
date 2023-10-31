@@ -9,7 +9,7 @@ import multiprocessing
 from multiprocessing import shared_memory
 import InferenceAssembly
 import InferenceOutput
-
+import sys
 
 def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
     
@@ -85,29 +85,16 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         sharedTokenList  = []
         manager          = None
         TokenList, origPrintfList, numberOfFoundTokens = TokenParser.getLinesAndTokens(itemList, -1, LogfileToAnalyze)
+    
+        # Create a shared memory manager
+        manager = multiprocessing.Manager()
         
-        use_manager = True
-        
-        if (use_manager):
-            # Create a shared memory manager
-            manager = multiprocessing.Manager()
-            
-            # Create a shared list
-            sharedTokenList = manager.list()
-            sharedTokenList.extend(TokenList)
-        else:
-            # this is slower :-(
-            manager = multiprocessing.Manager()
-
-            TokenListbufferSize = len(TokenList) * len(TokenList[1])*8  ## 
-            shmForTokens      = shared_memory.SharedMemory(create=True, size=TokenListbufferSize)
-            sharedTokenList   = np.ndarray(len(TokenList), dtype='U{}'.format(len(TokenList[1])), buffer=shmForTokens.buf)
-
-            for i in range(len(TokenList)):
-                sharedTokenList[i] = TokenList[i]
+        # Create a shared token list
+        sharedTokenList = manager.list()
+        sharedTokenList.extend(TokenList)
 
         # Create shared memory object for id_from_token
-        shm = shared_memory.SharedMemory(create=True, size=id_from_tokenNumpy.nbytes)
+        shm = shared_memory.SharedMemory(create=True, size=sys.getsizeof(id_from_tokenNumpy))
         shared_id_from_token = np.ndarray(id_from_tokenNumpy.shape, dtype=id_from_tokenNumpy.dtype, buffer=shm.buf)
         # Copy the data to shared memory
         np.copyto(shared_id_from_token, id_from_tokenNumpy)
@@ -167,7 +154,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                         indexOfFirstPredictionTemp  += numberOfParallelExecutions
                 
                 generationStartTime = time.time()
-                for threadId in range(0,numberOfThreads):
+                for threadId in range(0, numberOfThreads):
                     nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
                     
                     nextPredictedTokensList.append(nextPredictedTokens)

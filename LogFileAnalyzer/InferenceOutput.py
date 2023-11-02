@@ -25,7 +25,7 @@ def ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens,
                 nextPredictedToken = '<span style="color:red;">' +  nextPredictedToken + '</span>'
 
             nextTokenProbability = (probabilityOfNextTokens[executionIndex]).numpy()
-            lineToWrite = "Actual: " + nextToken  + "  {:2.3f}".format(nextTokenProbability) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[executionIndex].numpy()) + ". " + PrintfList[executionIndex] + "<br>" 
+            lineToWrite = "Actual: " + nextToken[0]  + "  {:2.3f}".format(nextTokenProbability[0]) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[executionIndex].numpy()) + ". " + PrintfList[executionIndex] + "<br>" 
             linesToWrite.append(lineToWrite)
             accumulatedNextTokenProbability += nextTokenProbability
             accumulatedPredictedTokenProbability += probabilityPredictions[executionIndex].numpy()

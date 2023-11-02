@@ -43,9 +43,11 @@ def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions
         while(remainingNumberOfLines < numberOfLinesPerCycle):
             if (numberOfParallelExecutions > 1):
                 numberOfParallelExecutions -= 1
+                print("reduced Parameters numberOfParallelExecutions = ", numberOfParallelExecutions)
                 reducedParameters = True
             elif (numberOfThreads > 1):
                 numberOfThreads -= 1
+                print("reduced Parameters = ", numberOfThreads)
                 reducedParameters = True
             else:
                 break
@@ -91,7 +93,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         # Create a shared token list
         sharedTokenList = manager.list()
-        sharedTokenList.extend(TokenList)
+        sharedTokenList.extend(TokenList) # bug
 
         # Create shared memory object for id_from_token
         shm = shared_memory.SharedMemory(create=True, size=sys.getsizeof(id_from_tokenNumpy))
@@ -126,7 +128,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
 
             for threadId in range(0,numberOfThreads):
                 outputQueue = Workers[threadId]["outputQueue"]
-                nextTokens, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout)
+                nextTokens, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                 nexttokenIdsList.append(nexttokenIds)
                 nextTokensList.append(nextTokens)
                 inputTensorList.append(inputTensor)
@@ -215,7 +217,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 
                 Endtime = time.time()
                 remainingNumberOfLines           = (numberOfFoundTokens - numberOfAnalyzedLines) - (window_size + 1)
-                averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
+                averageNextTokenProbabilities    = accumulatedNextTokenProbability / numberOfAnalyzedLines
                 averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
                 analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
                 remainingTimeInMinutes           = remainingNumberOfLines/(numberOfAnalyzedLines/(time.time() - analyzeStartTime)) / 60
@@ -224,12 +226,12 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 
                 print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfFoundTokens) +
                     ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
-                    "  Nr Of Identicals: " + str(numberOfIdenticals) + "."
-                    "  Av next token probab = {:2.3f}.".format(averageNextTokenProbability) + 
-                    "  Av pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
+                    "  Nr Of Identicals: " + str(numberOfIdenticals) + 
+                    ".".join("  Av next token probab = {:2.3f}.".format(prob) for prob in averageNextTokenProbabilities) +
+                     "  Av pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
                     "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
-                if (analysedLinesPerSecond < 2000):
-                    print("Too long")        
+                #if (analysedLinesPerSecond < 2000):
+                #    print("Too long")        
                     
                 if(reducedParameters):
                     break

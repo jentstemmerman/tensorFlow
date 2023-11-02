@@ -1,6 +1,5 @@
 import time
 import tensorflow as tf
-from tensorflow import keras
 import numpy as np
 import TokenParser
 import Inference
@@ -12,8 +11,6 @@ import sys
 import worker
 import Logger
 import LogFileIterator
-from tensorflow.python.client import device_lib
-
 
 def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile):
     CrossReferenceTokens = False
@@ -102,7 +99,8 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
         else:
             id_from_tokenList.append(None)
             token_from_idList.append(None)
-            VocabularyNumpyList.append(None)
+            none_type_array = np.array([])  
+            VocabularyNumpyList = np.concatenate((VocabularyNumpyList, none_type_array), axis=0)
             
     return id_from_tokenList, token_from_idList, VocabularyNumpyList
 

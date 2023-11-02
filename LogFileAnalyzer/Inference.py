@@ -216,7 +216,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 nexttokenIds = []
                 
                 Endtime = time.time()
-                remainingNumberOfLines           = (numberOfFoundTokens - numberOfAnalyzedLines) - (window_size + 1)
+                remainingNumberOfLines           = (numberOfFoundTokens - indexOfFirstPrediction) - (window_size + 1)
                 averageNextTokenProbabilities    = accumulatedNextTokenProbability / numberOfAnalyzedLines
                 averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
                 analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
@@ -227,7 +227,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfFoundTokens) +
                     ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
                     "  Nr Of Identicals: " + str(numberOfIdenticals) + 
-                    ".".join("  Av next token probab = {:2.3f}.".format(prob) for prob in averageNextTokenProbabilities) +
+                    ".".join("  Av next token probab = {:2.3f}.".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +
                      "  Av pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
                     "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
                 #if (analysedLinesPerSecond < 2000):
@@ -236,14 +236,19 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 if(reducedParameters):
                     break
 
-        averageNextTokenProbability      = accumulatedNextTokenProbability      / numberOfAnalyzedLines
+        averageNextTokenProbabilities    = accumulatedNextTokenProbability      / numberOfAnalyzedLines
         averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
         IdenticalsToNumberOfLinesRatio   = numberOfIdenticals                   / numberOfAnalyzedLines
 
         if(reducedParameters):
             print("\n\nEnded inference almost at end of file")
 
-        Result =  "Total number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfFoundTokens) + ".\n Number Of Identicals: " + str(numberOfIdenticals) + ", ({:2.3f})".format(IdenticalsToNumberOfLinesRatio) + ".\n Average next token probability = {:2.3f}".format(averageNextTokenProbability) + ".\n Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n"
+        Result = "Total number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) +                \
+                    " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfFoundTokens) + ".\n Number Of Identicals: " +      \
+                    str(numberOfIdenticals) + ", ({:2.3f})".format(IdenticalsToNumberOfLinesRatio) +                                \
+                    ".\n".join("Average next token probability = {:2.3f}".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +                            \
+                    ".\n Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n"
+        
         print(Result)
         LogfileAnalyzed.write(Result)
         

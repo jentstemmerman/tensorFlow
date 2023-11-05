@@ -152,7 +152,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
 # https://www.tensorflow.org/text/tutorials/text_generation
-DataTypeForTensors    = 'float32'
+DataTypeForTensors    = 'int64'
 
 force_train_model     = True
 CreateNewOutDirectory = True
@@ -160,7 +160,7 @@ AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "returnState":True,
-                                "embedding_dim":-1,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
+                                "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
                                 "seq_length":16 ,
                                 },
@@ -169,7 +169,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
                     "BatchSize":32 ,
                     "removeDuplicates":True,
                     "num_parallel_calls":10,
-                    "stride_dataset": 1,
+                    "stride_dataset": 16,
                     "shuffleTraining":True,
                     "BUFFER_SIZE":65536,
                     "SampleDataSet":False,   # does not really work, using stride is better
@@ -190,7 +190,7 @@ start = time.time()
 
 itemFile                    = "Itemfile.txt"  # file containing the regexes that we train on
 
-Directory = "TrainingSet" + str(trainingSet)
+Directory = "../TrainingSet" + str(trainingSet)
 
 TrainingDirectory           = Directory       + os.path.sep + "Training"
 VerificationDirectory       = Directory       + os.path.sep + "Verification"
@@ -429,7 +429,7 @@ else:
 
 if (AnalyzeFiles):
     
-    numberOfThreads = 1  # 1 for the main process
+    numberOfThreads = 8  # 1 for the main process
     print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
     with tf.device('/CPU:0'):

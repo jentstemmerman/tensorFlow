@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 import os
 import DataTreatment
-
+import numpy as np
 
 def GetItemListToSearchFor(RegexFile):
     import json
@@ -74,28 +74,28 @@ def process_files(input_file, output_file, itemList):
     
     tokenListList = None
 
-    if (not os.path.exists(output_file)):
-        reading_file = open(input_file,  "r", errors='ignore')
-        
-        file = Path(output_file)
-        file.parent.mkdir(parents=True, exist_ok=True)
-        LogfileOnlyTokens = open(output_file, "w")
-                                            
-        tokenListList, PrintfList, numberOfFoundTokens = getLinesAndTokens(itemList, -1, reading_file, tokenList=None, PrintfList=None)
-        
-        for tokenList in tokenListList:
-            line = ""
-            for index, token in enumerate(tokenList):
-                if index < len(tokenList) - 1:
-                    line = line + str(token) + ","
-                else:
-                    line = line + str(token) 
-            line = line + '\n'
-            LogfileOnlyTokens.write(line)
+    #if (not os.path.exists(output_file)):
+    reading_file = open(input_file,  "r", errors='ignore')
+    
+    file = Path(output_file)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    LogfileOnlyTokens = open(output_file, "w")
+                                        
+    tokenListList, PrintfList, numberOfFoundTokens = getLinesAndTokens(itemList, -1, reading_file, tokenList=None, PrintfList=None)
+    
+    for tokenList in tokenListList:
+        line = ""
+        for index, token in enumerate(tokenList):
+            if index < len(tokenList) - 1:
+                line = line + str(token) + ","
+            else:
+                line = line + str(token) 
+        line = line + '\n'
+        LogfileOnlyTokens.write(line)
 
-        reading_file.close()
-        LogfileOnlyTokens.close()
-        return tokenListList
+    reading_file.close()
+    LogfileOnlyTokens.close()
+    return tokenListList
 
 
 def CrossReferenceTokens(directory, TokenFile):
@@ -140,7 +140,12 @@ def process_log_files_to_tokens_recursive(directory, outputDirectory, itemList):
                     tokenListListList.append(tokenListList)
     return tokenListListList
 
+def TransformToListIfSingularType(value):
+    isList = type(value) is list  
+    isnumpyArray = type(value) is np.ndarray       
+    if (not isList) and (not isnumpyArray):
+        newList = []
+        newList.append(value)
+        value = newList
 
-
-
-
+    return value

@@ -104,7 +104,7 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
             
     return id_from_tokenList, token_from_idList, VocabularyNumpyList
 
-def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, token_from_id, id_from_tokenNumpy, numberOfThreads, Workers):
+def AnalyzePrintfFiles(model, embedding_layer_used, inputDirectory, outputDirectory, itemFile, temperature, seq_length, token_from_id, id_from_tokenNumpy, numberOfThreads, Workers):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     verificationFileIterator = LogFileIterator.LogfileIterator(inputDirectory)
@@ -114,7 +114,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".mdtxt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_tokenList, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, embedding_layer_used=embedding_layer_used, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_tokenList, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -175,9 +175,10 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
                     "SampleDataSet":False,   # does not really work, using stride is better
                     }
 
+embedding_layer_used = (TrainingsParameter["Model"]["embedding_dim"] != -1)
 ValidationsParameter = {"temperature": 1 }
 
-trainingSet = 3
+trainingSet = 3                
 
 if ( TrainingsParameter["SampleDataSet"]):
     # dit werkt niet goed. 
@@ -243,7 +244,7 @@ id_from_tokenList, token_from_idList, id_from_tokenNumpyList = GetEncoderDecoder
 print("Creating datasets...")
 
 if (train_model):
-
+    
     ################# Create a dataset for training and throw all files that are in the training output dir in it
     if os.path.exists(TrainingDataSetFile.strip()):
         datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())
@@ -252,6 +253,7 @@ if (train_model):
         datasetForTraining, trainingFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=TrainingDirectory, 
                                                                                     OutputDirectory=OutputDirectoryTraining, 
                                                                                     itemFile=itemFile,
+                                                                                    embedding_layer_used=embedding_layer_used,
                                                                                     id_from_tokenList=id_from_tokenList,
                                                                                     batch_size=TrainingsParameter["BatchSize"], 
                                                                                     stride=TrainingsParameter["stride_dataset"], 
@@ -275,6 +277,7 @@ else:
     datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=VerificationDirectory, 
                                                                                         OutputDirectory=OutputDirectoryVerification, 
                                                                                         itemFile=itemFile,
+                                                                                        embedding_layer_used=embedding_layer_used,
                                                                                         id_from_tokenList=id_from_tokenList,
                                                                                         batch_size=TrainingsParameter["BatchSize"], 
                                                                                         stride=TrainingsParameter["stride_dataset"], 
@@ -438,7 +441,18 @@ if (AnalyzeFiles):
         if (Workers == None):
             print("Could not start workers")
         else:
-            AnalyzePrintfFiles(model, inputDirectory=VerificationDirectory, outputDirectory=OutputDirectoryVerification, itemFile=itemFile, temperature=ValidationsParameter["temperature"], seq_length=TrainingsParameter["Model"]["seq_length"], token_from_id=token_from_idList, id_from_tokenNumpy=id_from_tokenNumpyList, numberOfThreads=numberOfThreads, Workers=Workers)
+            AnalyzePrintfFiles(model, 
+                               embedding_layer_used,
+                               inputDirectory=VerificationDirectory, 
+                               outputDirectory=OutputDirectoryVerification, 
+                               itemFile=itemFile, 
+                               temperature=ValidationsParameter["temperature"], 
+                               seq_length=TrainingsParameter["Model"]["seq_length"], 
+                               token_from_id=token_from_idList, 
+                               id_from_tokenNumpy=id_from_tokenNumpyList, 
+                               numberOfThreads=numberOfThreads, 
+                               Workers=Workers)
+            
             worker.KillWorkers(Workers)
 
 end = time.time()

@@ -24,10 +24,16 @@ def ComposeLineList(numberOfParallelExecutions, nextPredictedTokens, nextTokens,
             else:
                 nextPredictedToken = '<span style="color:red;">' +  nextPredictedToken + '</span>'
 
-            nextTokenProbability = (probabilityOfNextTokens[executionIndex]).numpy()
-            lineToWrite = "Actual: " + nextToken[0]  + "  {:2.3f}".format(nextTokenProbability[0]) + ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[executionIndex].numpy()) + ". " + PrintfList[executionIndex] + "<br>" 
+            nextTokenProbabilities = (probabilityOfNextTokens[executionIndex]).numpy()
+            nextTokenProbabilities = TokenParser.TransformToListIfSingularType(nextTokenProbabilities)
+
+            lineToWrite = "Actual: " + nextToken[0]  + "".join("  {:2.3f}".format(nextTokenProbability) for nextTokenProbability in nextTokenProbabilities) + \
+                ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[executionIndex].numpy()) + ". " + PrintfList[executionIndex] + "<br>" 
             linesToWrite.append(lineToWrite)
-            accumulatedNextTokenProbability += nextTokenProbability
+
+            for nextTokenProbability in nextTokenProbabilities:
+                accumulatedNextTokenProbability += nextTokenProbability
+
             accumulatedPredictedTokenProbability += probabilityPredictions[executionIndex].numpy()
         return linesToWrite, numberOfIdenticals, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
      

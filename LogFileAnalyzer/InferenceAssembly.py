@@ -47,7 +47,7 @@ with tf.device('/CPU:0'):
         return newWindow, newToken, newTokenId, nextTokenIdWindow
 
 
-    def AssembleInputsThread(threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, shared_id_from_token, window_size):
+    def AssembleInputsThread(threadId, embedding_layer_used, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, shared_id_from_token, window_size):
         with tf.device('/CPU:0'):
 
             VocabularyTensor  = tf.convert_to_tensor(shared_id_from_token)
@@ -88,6 +88,11 @@ with tf.device('/CPU:0'):
                 index += 1
             inputTensor  = tf.stack(inputTensor,  axis=0)
             nexttokenIds = tf.stack(nexttokenIds, axis=0)
+
+            if (embedding_layer_used):
+                inputTensor = tf.squeeze(inputTensor)
+                nexttokenIds = tf.squeeze(nexttokenIds)
+
             result = (nextTokens, inputTensor, nexttokenIds)
 
             return result

@@ -12,7 +12,7 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedding_layer_used, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
     
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     tokenListListList = TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
@@ -49,6 +49,9 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
     
+    if (embedding_layer_used):
+        TrainingLogTensor = tf.squeeze(TrainingLogTensor)
+
     datasetfast = tf.data.Dataset.from_tensor_slices(TrainingLogTensor)
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
     datasetfast = datasetfast.flat_map(lambda window2: window2)

@@ -65,7 +65,7 @@ class LSTMPrintfLogModel(tf.keras.Model):
           self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
         else:
           self.use_embedding_layer = False
-        self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True) #, input_shape=(None, vocab_size))
+        self.lstmLayer = tf.keras.layers.LSTM(rnn_units, return_sequences=True, input_shape=(None, numberOfInputs,1))
         #self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True, input_shape=(None, numberOfInputs))
         self.dense = tf.keras.layers.Dense(vocab_size)
 
@@ -78,7 +78,7 @@ class LSTMPrintfLogModel(tf.keras.Model):
       #    inputs = tf.expand_dims(inputs, axis=2)
           
         # LSTM layer
-        lstm_output = self.lstm(inputs, training=training)
+        lstm_output = self.lstmLayer(inputs, training=training)
 
         # Fully connected layer to produce logits
         logits = self.dense(lstm_output, training=training)

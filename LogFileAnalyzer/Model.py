@@ -141,7 +141,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
                     "Use_Validation":False,
                     "BatchSize":32 ,
                     "removeDuplicates":True,
-                    "stride_dataset": 1,
+                    "stride_dataset": 16,
                     "shuffleTraining":True,
                     "BUFFER_SIZE":65536,
                     "SampleDataSet":False,   # does not really work, using stride is better
@@ -149,7 +149,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
 
 ValidationsParameter = {"temperature": 1 }
 
-trainingSet = 3
+trainingSet = 4
 
 if ( TrainingsParameter["SampleDataSet"]):
     # dit werkt niet goed. 
@@ -160,7 +160,7 @@ if ( TrainingsParameter["SampleDataSet"]):
 
 start = time.time()
 
-Directory = "TrainingSet" + str(trainingSet)
+Directory = "../TrainingSet" + str(trainingSet)
 
 TrainingDirectory           = Directory       + os.path.sep + "Training"
 VerificationDirectory       = Directory       + os.path.sep + "Verification"

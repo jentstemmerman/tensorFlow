@@ -149,7 +149,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
 
 ValidationsParameter = {"temperature": 1 }
 
-trainingSet = 4
+trainingSet = 3
 
 if ( TrainingsParameter["SampleDataSet"]):
     # dit werkt niet goed. 

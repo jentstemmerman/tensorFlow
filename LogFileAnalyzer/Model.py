@@ -154,8 +154,8 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 # https://www.tensorflow.org/text/tutorials/text_generation
 DataTypeForTensors    = 'float64'
 
-force_train_model     = True
-CreateNewOutDirectory = True
+force_train_model     = False
+CreateNewOutDirectory = False
 AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",

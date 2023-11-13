@@ -118,7 +118,7 @@ def AnalyzePrintfFiles(model, embedding_layer_used, inputDirectory, outputDirect
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
-def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
+def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperature):
 
     calculateAverage = 0
 

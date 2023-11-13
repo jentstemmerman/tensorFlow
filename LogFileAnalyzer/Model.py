@@ -154,25 +154,25 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification):
 # https://www.tensorflow.org/text/tutorials/text_generation
 DataTypeForTensors    = 'float64'
 
-force_train_model     = False
-CreateNewOutDirectory = False
+force_train_model     = True
+CreateNewOutDirectory = True
 AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "returnState":True,
-                                "embedding_dim":-1,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
+                                "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
                                 "seq_length":16 ,
                                 },
-                    "EPOCHS":2,
-                    "Use_Validation":False,
-                    "BatchSize":32 ,
-                    "removeDuplicates":True,
-                    "num_parallel_calls":10,
-                    "stride_dataset": 16,
-                    "shuffleTraining":True,
-                    "BUFFER_SIZE":65536,
-                    "SampleDataSet":False,   # does not really work, using stride is better
+                      "EPOCHS":8,
+                      "Use_Validation":False,
+                      "BatchSize":32 ,
+                      "removeDuplicates":True,
+                      "num_parallel_calls":10,
+                      "stride_dataset": 8,
+                      "shuffleTraining":True,
+                      "BUFFER_SIZE":65536,
+                      "SampleDataSet":False,   # does not really work, using stride is better
                     }
 
 embedding_layer_used = (TrainingsParameter["Model"]["embedding_dim"] != -1)

@@ -160,7 +160,7 @@ AnalyzeFiles          = True
 
 TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "returnState":True,
-                                "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
+                                "embedding_dim":-1,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
                                 "seq_length":16 ,
                                 },
@@ -169,7 +169,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
                       "BatchSize":32 ,
                       "removeDuplicates":True,
                       "num_parallel_calls":10,
-                      "stride_dataset": 8,
+                      "stride_dataset": 32,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -379,7 +379,6 @@ if (train_model):
         Epoch_End_callback = EpochEndCallback(numberOfBatchesToTrainPerEpoch, numberOfBatchesToValidatePerEpoch)
         history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
     else:
-        #history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], steps_per_epoch=num_batches_datasetForTraining, callbacks=[checkpoint_callback, EarlyStopping_callback])
         history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
     sys.stdout = sys.__stdout__
 

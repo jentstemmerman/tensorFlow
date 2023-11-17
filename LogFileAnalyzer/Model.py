@@ -164,18 +164,22 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "rnn_units":1024,
                                 "seq_length":16 ,
                                 },
-                      "EPOCHS":8,
+                      "EPOCHS":2,
                       "Use_Validation":False,
                       "BatchSize":32 ,
                       "removeDuplicates":True,
                       "num_parallel_calls":10,
-                      "stride_dataset": 32,
+                      "stride_dataset": 16,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
                     }
 
 embedding_layer_used = (TrainingsParameter["Model"]["embedding_dim"] != -1)
+if (TrainingsParameter["Model"]["embedding_dim"] == -1):
+    DataTypeForTensors    = 'float64'
+else:
+    DataTypeForTensors    = 'int64'
 ValidationsParameter = {"temperature": 1 }
 
 trainingSet = 3                

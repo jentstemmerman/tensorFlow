@@ -1,5 +1,4 @@
 
 [
 	{"Regex": "([0-9A-F]{2}(?:\\s[0-9A-F]{2}){3})", "Categorical": "True",  "VocabularyFile": "Tokens.dat"                                                   }
- 
 ]

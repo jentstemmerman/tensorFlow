@@ -72,9 +72,46 @@ class LSTMPrintfLogModel(tf.keras.Model):
 
         self.dense = tf.keras.layers.Dense(vocab_size)
 
-    def call(self, inputs, states=None, return_state=False, training=False):
-        # Embedding layer
 
+    def splitInputs(self, inputs):
+        numberOfSplits = inputs.shape[inputs.ndim-1]
+
+        if (numberOfSplits > 1):
+          split_tensors = tf.split(inputs, num_or_size_splits=numberOfSplits, axis=-1)
+          split_tensors = tf.squeeze(split_tensors)
+        else:
+          split_tensors = inputs
+        return split_tensors
+    
+    def call(self, inputs, states=None, return_state=False, training=False):
+        if (inputs is not None):
+          
+          numberOfSplits = inputs.shape[inputs.ndim-1]
+          
+          if (numberOfSplits > 2):
+          
+              if (numberOfSplits > 1):
+                split_tensors = tf.split(inputs, num_or_size_splits=numberOfSplits, axis=-1)
+                splitted_inputs = split_tensors[0]  # remove this for multi input
+
+              else:
+                splitted_inputs = inputs
+              
+              splitted_inputs = tf.squeeze(splitted_inputs)
+          else:
+              splitted_inputs = tf.squeeze(inputs)
+
+
+          inputs = splitted_inputs
+          
+        if (inputs is None):
+          print("inputs is none")
+          exit()
+
+        if (inputs.shape != [32,16]):
+          print("inputs wrong shape ", type(inputs) , "   ", inputs.shape, "   ", numberOfSplits)
+          exit()
+     
         if (self.use_embedding_layer):
           inputs = self.embedding(inputs, training=training)
         #else:

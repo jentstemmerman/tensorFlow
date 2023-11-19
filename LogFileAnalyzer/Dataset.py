@@ -49,13 +49,14 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedd
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
     
-    if (embedding_layer_used):
-        TrainingLogTensor = tf.squeeze(TrainingLogTensor)
+    #if (embedding_layer_used):
+    #    TrainingLogTensor = tf.squeeze(TrainingLogTensor)
 
+    
     datasetfast = tf.data.Dataset.from_tensor_slices(TrainingLogTensor)
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
     datasetfast = datasetfast.flat_map(lambda window2: window2)
-    datasetfast = datasetfast.batch(seq_length+1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
+    datasetfast = datasetfast.batch(seq_length + 1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
     
     if (removeDuplicates):
         datasetfast = datasetfast.unique()
@@ -76,6 +77,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedd
         PrintDatasetTuple(datasetfast)
     else:
         PrintDatasetTuple(datasetfast, 2)
+        
 
     dataset = datasetfast
 

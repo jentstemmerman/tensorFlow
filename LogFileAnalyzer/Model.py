@@ -152,7 +152,6 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
 # https://www.tensorflow.org/text/tutorials/text_generation
-DataTypeForTensors    = 'float64'
 
 force_train_model     = True
 CreateNewOutDirectory = True
@@ -170,7 +169,7 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
                       "BatchSize":32 ,
                       "removeDuplicates":True,
                       "num_parallel_calls":10,
-                      "stride_dataset": 32,
+                      "stride_dataset": 128,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -389,7 +388,7 @@ if (train_model):
 
     sys.stdout = sys.__stdout__
 
-    #model.save(ModelDirectory)
+    model.save(ModelDirectory)
 
 ############################################################################################# Use the model
 

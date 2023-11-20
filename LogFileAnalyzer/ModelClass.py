@@ -54,11 +54,35 @@ class SimpleRnnPrintfLogModel(tf.keras.Model):
     else:
       return x
 
+class CustomSplitLayer(tf.keras.layers.Layer):
+    def __init__(self):
+        super(CustomSplitLayer, self).__init__()
+
+    def call(self, inputs, training=False):
+        if ((inputs is not None) and (training)):
+            number_of_splits = inputs.shape[inputs.ndim - 1]
+            
+            if number_of_splits > 2:
+                if number_of_splits > 1:
+                    split_tensors = tf.split(inputs, num_or_size_splits=number_of_splits, axis=-1)
+                    splitted_inputs = split_tensors[0]  # Remove this for multiple inputs
+                else:
+                    splitted_inputs = inputs
+
+                splitted_inputs = tf.squeeze(splitted_inputs)
+            else:
+                splitted_inputs = tf.squeeze(inputs)
+
+            return splitted_inputs
+        else:
+            return inputs
 
 class LSTMPrintfLogModel(tf.keras.Model):
 
     def __init__(self, vocab_size, embedding_dim, rnn_units, numberOfInputs):
         super().__init__(self)
+
+        self.customSplitLayer = CustomSplitLayer()
 
         if (embedding_dim != -1):
           self.use_embedding_layer = True
@@ -72,44 +96,17 @@ class LSTMPrintfLogModel(tf.keras.Model):
 
         self.dense = tf.keras.layers.Dense(vocab_size)
 
-
-    def splitInputs(self, inputs):
-        numberOfSplits = inputs.shape[inputs.ndim-1]
-
-        if (numberOfSplits > 1):
-          split_tensors = tf.split(inputs, num_or_size_splits=numberOfSplits, axis=-1)
-          split_tensors = tf.squeeze(split_tensors)
-        else:
-          split_tensors = inputs
-        return split_tensors
     
     def call(self, inputs, states=None, return_state=False, training=False):
-        if (inputs is not None):
-          
-          numberOfSplits = inputs.shape[inputs.ndim-1]
-          
-          if (numberOfSplits > 2):
-          
-              if (numberOfSplits > 1):
-                split_tensors = tf.split(inputs, num_or_size_splits=numberOfSplits, axis=-1)
-                splitted_inputs = split_tensors[0]  # remove this for multi input
+        #if (training):
+        inputs = self.customSplitLayer(inputs, training=training)
 
-              else:
-                splitted_inputs = inputs
-              
-              splitted_inputs = tf.squeeze(splitted_inputs)
-          else:
-              splitted_inputs = tf.squeeze(inputs)
-
-
-          inputs = splitted_inputs
-          
         if (inputs is None):
           print("inputs is none")
           exit()
 
-        if (inputs.shape != [32,16]):
-          print("inputs wrong shape ", type(inputs) , "   ", inputs.shape, "   ", numberOfSplits)
+        if(inputs.shape != [32,16]):
+          print("inputs wrong shape ", type(inputs) , "   ", inputs.shape, " training:", training)
           exit()
      
         if (self.use_embedding_layer):

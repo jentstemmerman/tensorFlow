@@ -56,20 +56,14 @@ class SimpleRnnPrintfLogModel(tf.keras.Model):
 
 class CustomSplitLayer(tf.keras.layers.Layer):
     def __init__(self):
-        super(CustomSplitLayer, self).__init__()
+        super().__init__()
+
+    def call(self, x):
+        return x * self.factor
 
     def get_config(self):
-        base_config = super().get_config()
-        config = {
-            "sublayer": keras.saving.serialize_keras_object(self.sublayer),
-        }
-        return {**base_config, **config}
-    
-    @classmethod
-    def from_config(cls, config):
-        sublayer_config = config.pop("sublayer")
-        sublayer = keras.saving.deserialize_keras_object(sublayer_config)
-        return cls(sublayer, **config)
+        return {"factor": self.factor}
+     
     
     def call(self, inputs, training=False):
         if ((inputs is not None) and (training)):
@@ -120,7 +114,7 @@ class LSTMPrintfLogModel(tf.keras.Model):
           exit()
         indexable_input_shape = tf.get_static_value(input_shape)
         if (indexable_input_shape is None ) :
-          print("indexable_input_shape is None. input_shape:", input_shape, "  input:  ", input)
+          print("indexable_input_shape is None. input_shape:", input_shape, "  inputs:  ", inputs)
           exit()
         inputs = self.customSplitLayer(inputs, training=training)
 
@@ -130,6 +124,7 @@ class LSTMPrintfLogModel(tf.keras.Model):
 
         input_shape2 = tf.shape(inputs)
         indexable_input_shape2 = tf.get_static_value(input_shape2)
+
         if (indexable_input_shape2 is None ) :
           print("indexable_input_shape2 is None ")
           exit()

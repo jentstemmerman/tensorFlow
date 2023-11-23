@@ -164,12 +164,12 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "rnn_units":1024,
                                 "seq_length":16 ,
                                 },
-                      "EPOCHS":1,
+                      "EPOCHS":3,
                       "Use_Validation":False,
                       "BatchSize":32 ,
                       "removeDuplicates":True,
                       "num_parallel_calls":10,
-                      "stride_dataset": 128,
+                      "stride_dataset": 16,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -385,7 +385,11 @@ if (train_model):
     else:
        # history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
         history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[EarlyStopping_callback])
-
+    
+    sample_element = next(iter(datasetForTraining))[0]
+    temp_predicted_logits = model(inputs=sample_element, states=None, return_state=False)
+    model.compute_output_shape(sample_element.shape)
+    
     sys.stdout = sys.__stdout__
 
     model.save(ModelDirectory)

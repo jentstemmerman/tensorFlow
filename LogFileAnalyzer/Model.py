@@ -387,6 +387,8 @@ if (train_model):
         history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[EarlyStopping_callback])
     
     sample_element = next(iter(datasetForTraining))[0]
+
+
     temp_predicted_logits = model(inputs=sample_element, states=None, return_state=False)
     model.compute_output_shape(sample_element.shape)
     

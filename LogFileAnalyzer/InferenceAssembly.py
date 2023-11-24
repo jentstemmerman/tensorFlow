@@ -89,9 +89,9 @@ with tf.device('/CPU:0'):
             inputTensor  = tf.stack(inputTensor,  axis=0)
             nexttokenIds = tf.stack(nexttokenIds, axis=0)
 
-            if (embedding_layer_used):
-                inputTensor = tf.squeeze(inputTensor)
-                nexttokenIds = tf.squeeze(nexttokenIds)
+            #if (embedding_layer_used):
+            #    inputTensor = tf.squeeze(inputTensor)
+            #    nexttokenIds = tf.squeeze(nexttokenIds)
 
             result = (nextTokens, inputTensor, nexttokenIds)
 

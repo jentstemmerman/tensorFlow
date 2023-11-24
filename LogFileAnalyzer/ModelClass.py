@@ -57,9 +57,9 @@ class SimpleRnnPrintfLogModel(tf.keras.Model):
 class CustomSplitLayer(tf.keras.layers.Layer):
     def __init__(self):
         super().__init__()
+        self.factor = 0
 
-    def call(self, x):
-        return x * self.factor
+
 
     def get_config(self):
         return {"factor": self.factor}
@@ -78,12 +78,12 @@ class CustomSplitLayer(tf.keras.layers.Layer):
 
                 splitted_inputs = tf.squeeze(splitted_inputs)
             else:
-                splitted_inputs = tf.squeeze(inputs)
+                splitted_inputs = tf.squeeze(inputs, axis=-1)
 
             return splitted_inputs
         else:
-            inputs = tf.squeeze(inputs)
-            return inputs
+            output = tf.squeeze(inputs, axis=-1)
+            return output
 
 class LSTMPrintfLogModel(tf.keras.Model):
 
@@ -112,10 +112,13 @@ class LSTMPrintfLogModel(tf.keras.Model):
         if (input_shape is None ) :
           print("input_shape is None ")
           exit()
+        
         indexable_input_shape = tf.get_static_value(input_shape)
+        
         if (indexable_input_shape is None ) :
-          print("indexable_input_shape is None. input_shape:", input_shape, "  inputs:  ", inputs)
-          exit()
+          print("indexable_input_shape is None. input_shape: ", input_shape, ".  inputs:  ", inputs)
+          print("training: ", training)
+          
         inputs = self.customSplitLayer(inputs, training=training)
 
         if (inputs is None):
@@ -126,11 +129,11 @@ class LSTMPrintfLogModel(tf.keras.Model):
         indexable_input_shape2 = tf.get_static_value(input_shape2)
 
         if (indexable_input_shape2 is None ) :
-          print("indexable_input_shape2 is None ")
-          exit()
-        if (indexable_input_shape2[1] != 16) or (inputs.ndim != 2):
-          print("inputs wrong shape ", type(inputs) , "   ", inputs.shape, " training:", training, " inputs.ndim = ", inputs.ndim, " input_shape[1] = ", input_shape[1])
-          exit()
+          print("indexable_input_shape2 is None. inputs: ", inputs, " input_shape2: ", input_shape2)
+          
+        #if (indexable_input_shape2[1] != 16) or (inputs.ndim != 2):
+        #  print("inputs wrong shape ", type(inputs) , "   ", inputs.shape, " training:", training, " inputs.ndim = ", inputs.ndim)
+          
      
         if (self.use_embedding_layer):
           inputs = self.embedding(inputs, training=training)

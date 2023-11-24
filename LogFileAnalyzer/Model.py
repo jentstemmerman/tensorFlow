@@ -384,7 +384,7 @@ if (train_model):
         history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
     else:
        # history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
-        history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[EarlyStopping_callback])
+        history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
     
     sample_element = next(iter(datasetForTraining))[0]
 

@@ -66,24 +66,20 @@ class CustomSplitLayer(tf.keras.layers.Layer):
      
     
     def call(self, inputs, training=False):
-        if ((inputs is not None) and (training)):
-            number_of_splits = inputs.shape[inputs.ndim - 1]
-            
-            if number_of_splits > 2:
-                if number_of_splits > 1:
-                    split_tensors = tf.split(inputs, num_or_size_splits=number_of_splits, axis=-1)
-                    splitted_inputs = split_tensors[0]  # Remove this for multiple inputs
-                else:
-                    splitted_inputs = inputs
-
-                splitted_inputs = tf.squeeze(splitted_inputs)
+        number_of_splits = inputs.shape[inputs.ndim - 1]
+        
+        if number_of_splits > 2:
+            if number_of_splits > 1:
+                split_tensors = tf.split(inputs, num_or_size_splits=number_of_splits, axis=-1)
+                splitted_inputs = split_tensors[0]  # Remove this for multiple inputs
             else:
-                splitted_inputs = tf.squeeze(inputs, axis=-1)
+                splitted_inputs = inputs
 
-            return splitted_inputs
+            splitted_inputs = tf.squeeze(splitted_inputs, axis=-1)
         else:
-            output = tf.squeeze(inputs, axis=-1)
-            return output
+            splitted_inputs = tf.squeeze(inputs, axis=-1)
+
+        return splitted_inputs
 
 class LSTMPrintfLogModel(tf.keras.Model):
 

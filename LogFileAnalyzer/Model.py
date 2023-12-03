@@ -162,14 +162,14 @@ TrainingsParameter = {"Model": {"Network":"LSTM",
                                 "returnState":True,
                                 "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
-                                "seq_length":16 ,
+                                "seq_length":10 ,
                                 },
                       "EPOCHS":1,
                       "Use_Validation":False,
                       "BatchSize":32 ,
                       "removeDuplicates":True,
                       "num_parallel_calls":10,
-                      "stride_dataset": 128,
+                      "stride_dataset": 1,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -384,9 +384,13 @@ if (train_model):
         history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
     else:
        # history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
+        sample_element = next(iter(datasetForTraining))
+        temp_predicted_logits = model(inputs=sample_element[0], states=None, return_state=False)
+        model.compute_output_shape(sample_element.shape)
+        
         history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
     
-    sample_element = next(iter(datasetForTraining))[0]
+
 
 
     temp_predicted_logits = model(inputs=sample_element, states=None, return_state=False)

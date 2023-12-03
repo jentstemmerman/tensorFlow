@@ -13,7 +13,7 @@ def GetDataSetInformation(dataSet):
     return num_batches_dataset
 
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedding_layer_used, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
-    
+    tf.config.run_functions_eagerly(True)  
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     tokenListListList = TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
     

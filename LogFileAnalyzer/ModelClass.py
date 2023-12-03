@@ -63,23 +63,18 @@ class CustomSplitLayer(tf.keras.layers.Layer):
 
     def get_config(self):
         return {"factor": self.factor}
-     
-    
+         
     def call(self, inputs, training=False):
         number_of_splits = inputs.shape[inputs.ndim - 1]
         
-        if number_of_splits > 2:
-            if number_of_splits > 1:
-                split_tensors = tf.split(inputs, num_or_size_splits=number_of_splits, axis=-1)
-                splitted_inputs = split_tensors[0]  # Remove this for multiple inputs
-            else:
-                splitted_inputs = inputs
-
-            splitted_inputs = tf.squeeze(splitted_inputs, axis=-1)
+        if (number_of_splits > 1):
+            split_tensors = tf.split(inputs, num_or_size_splits=number_of_splits, axis=-1)
         else:
-            splitted_inputs = tf.squeeze(inputs, axis=-1)
+            split_tensors = [inputs]
 
-        return splitted_inputs
+        split_tensors = tf.squeeze(split_tensors, axis=-1) # dit squeezes alle tensors in the list
+
+        return split_tensors
 
 class LSTMPrintfLogModel(tf.keras.Model):
 
@@ -102,39 +97,11 @@ class LSTMPrintfLogModel(tf.keras.Model):
 
     
     def call(self, inputs, states=None, return_state=False, training=False):
-        #if (training):
-        input_shape = tf.shape(inputs)
-        
-        if (input_shape is None ) :
-          print("input_shape is None ")
-          exit()
-        
-        indexable_input_shape = tf.get_static_value(input_shape)
-        
-        if (indexable_input_shape is None ) :
-          print("indexable_input_shape is None. input_shape: ", input_shape, ".  inputs:  ", inputs)
-          print("training: ", training)
           
         inputs = self.customSplitLayer(inputs, training=training)
-
-        if (inputs is None):
-          print("inputs is none")
-          exit()
-
-        input_shape2 = tf.shape(inputs)
-        indexable_input_shape2 = tf.get_static_value(input_shape2)
-
-        if (indexable_input_shape2 is None ) :
-          print("indexable_input_shape2 is None. inputs: ", inputs, " input_shape2: ", input_shape2)
-          
-        #if (indexable_input_shape2[1] != 16) or (inputs.ndim != 2):
-        #  print("inputs wrong shape ", type(inputs) , "   ", inputs.shape, " training:", training, " inputs.ndim = ", inputs.ndim)
-          
-     
+              
         if (self.use_embedding_layer):
-          inputs = self.embedding(inputs, training=training)
-        #else:
-        # inputs = tf.expand_dims(inputs, axis=2)
+          inputs = self.embedding(inputs[0], training=training)
           
         # LSTM layer
         lstm_output = self.lstmLayer(inputs, training=training)

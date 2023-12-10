@@ -46,9 +46,9 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
         for i, input_layer in enumerate(self.input_layerList):
             output = input_layer(inputs[:, :, i], training=training)
             input_outputs.append(output)
-        print(inputs)
+        #print(inputs)
         concatenated_inputs = tf.keras.layers.concatenate(input_outputs, axis=-1)
-        print(concatenated_inputs.shape)
+        #print(concatenated_inputs.shape)
         lstm_output = self.lstm_layer(concatenated_inputs, training=training)
         
         return lstm_output
@@ -72,30 +72,10 @@ direct_lstm_input = tf.ones((32, sequence_length, 1))
 inputList = [embedded_input, direct_lstm_input]
 
 
-num_samples = 2
+num_samples = 20
 vocab_size_1 = featureList[0]["vocab_size"]
 vocab_size_2 = 1  # For non-embedded feature
 
-embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples, sequence_length))
-direct_lstm_input_data = np.random.randint(100, 101, size=(num_samples, sequence_length))
-regression_labels      = np.random.randint(0, 3, size=(num_samples,1))
-
-
-inputList = (embedded_input_data, direct_lstm_input_data, regression_labels)
-
-dataset = None
-
-for item in inputList:
-    datasetTemp = tf.data.Dataset.from_tensor_slices(item)
-    datasetIterator = iter(datasetTemp)
-    sample = next(datasetIterator)
-    print(sample)
-    if (dataset is None):
-        dataset = datasetTemp 
-    else:
-        dataset = dataset.concatenate(datasetTemp)
-
-dataset = dataset.batch(2, drop_remainder = True)
 
 embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples, sequence_length))
 direct_lstm_input_data = np.random.randint(100, 105, size=(num_samples, sequence_length))

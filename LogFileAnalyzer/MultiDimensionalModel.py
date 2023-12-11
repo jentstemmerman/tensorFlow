@@ -44,11 +44,12 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
     def call(self, inputs, training=False):
         input_outputs = []
         for i, input_layer in enumerate(self.input_layerList):
-            output = input_layer(inputs[:, :, i], training=training)
+            input_to_layer = inputs[:, i, :]
+            output = input_layer(input_to_layer, training=training)
             input_outputs.append(output)
-        #print(inputs)
+
         concatenated_inputs = tf.keras.layers.concatenate(input_outputs, axis=-1)
-        #print(concatenated_inputs.shape)
+
         lstm_output = self.lstm_layer(concatenated_inputs, training=training)
         
         return lstm_output
@@ -67,9 +68,7 @@ featureList.append({"embedded": False})
 model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, datatype = datatype)
 model.compile(optimizer='adam', loss='mse')  # You might want to change the loss function based on your task
 
-embedded_input = tf.ones((32, sequence_length))
-direct_lstm_input = tf.ones((32, sequence_length, 1))
-inputList = [embedded_input, direct_lstm_input]
+
 
 
 num_samples = 10
@@ -90,10 +89,19 @@ dataset_tensor = tf.data.Dataset.from_tensor_slices((datasetInputData_tensor, re
 iterator = iter(dataset_tensor)
 print(next(iterator))
 print(next(iterator))
-dataset = dataset_tensor.batch(1, drop_remainder = True)
+dataset = dataset_tensor.batch(3, drop_remainder = True)
 
 model.fit(dataset, epochs=10)
 
+
+
+
+embedded_input = tf.ones((32, sequence_length))
+direct_lstm_input = tf.ones((32, sequence_length, 1))
+
+inputList = [embedded_input, direct_lstm_input]
+
+model(inputList)
 
 
 

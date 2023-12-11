@@ -72,7 +72,7 @@ direct_lstm_input = tf.ones((32, sequence_length, 1))
 inputList = [embedded_input, direct_lstm_input]
 
 
-num_samples = 20
+num_samples = 10
 vocab_size_1 = featureList[0]["vocab_size"]
 vocab_size_2 = 1  # For non-embedded feature
 

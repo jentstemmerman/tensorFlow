@@ -77,7 +77,7 @@ vocab_size_2 = 1  # For non-embedded feature
 
 
 embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples, sequence_length))
-direct_lstm_input_data = np.random.randint(100, 105, size=(num_samples, sequence_length))
+direct_lstm_input_data = np.random.randint(100, 105,                  size=(num_samples, sequence_length))
 regression_labels      = np.random.randint(0, 3, size=(num_samples))
 
 embedded_input_data_tensor    = tf.convert_to_tensor(embedded_input_data)
@@ -91,17 +91,19 @@ print(next(iterator))
 print(next(iterator))
 dataset = dataset_tensor.batch(3, drop_remainder = True)
 
-model.fit(dataset, epochs=10)
+model.fit(dataset, epochs=5)
 
 
 
 
 embedded_input = tf.ones((32, sequence_length))
-direct_lstm_input = tf.ones((32, sequence_length, 1))
+direct_lstm_input = tf.ones((32, sequence_length))
 
-inputList = [embedded_input, direct_lstm_input]
+datasetInputData_tensor = tf.stack((embedded_input, direct_lstm_input), axis = 1)
 
-model(inputList)
+modelPrediction = model(datasetInputData_tensor)
+print("modelPrediction: ")
+print(modelPrediction.shape)
 
 
 

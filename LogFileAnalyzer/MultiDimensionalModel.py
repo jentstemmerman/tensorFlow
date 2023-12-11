@@ -19,13 +19,15 @@ class CustomIdentityLayer(tf.keras.layers.Layer):
 
 class LSTMPrintfLogMultiModel(tf.keras.Model):
 
-    def __init__(self, featureList, rnn_units, sequence_length, datatype):
+    def __init__(self, featureList, rnn_units, sequence_length, return_states, datatype):
         super().__init__()
         self.numberOfFeatures = len(featureList)    
-        self.featureList = featureList
-        self.input_layerList= []
-        inputList = []
+        self.return_states    = return_states
+        self.featureList      = featureList
         self.datatype = datatype
+        
+        self.input_layerList = []
+        inputList            = []
 
         for feature in featureList:
             if (feature["embedded"] == True):
@@ -39,7 +41,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             inputList.append(lstm_input)
 
         self.concatenated = tf.keras.layers.concatenate(inputList)
-        self.lstm_layer   = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length), return_sequences=False)
+        self.lstm_layer   = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length), return_sequences=return_states)
 
     def call(self, inputs, training=False):
         input_outputs = []
@@ -49,10 +51,13 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             input_outputs.append(output)
 
         concatenated_inputs = tf.keras.layers.concatenate(input_outputs, axis=-1)
-
-        lstm_output = self.lstm_layer(concatenated_inputs, training=training)
         
-        return lstm_output
+        if (self.return_states):
+            lstm_output, states = self.lstm_layer(concatenated_inputs, training=training)
+            return lstm_output, states
+        else:
+            lstm_output = self.lstm_layer(concatenated_inputs, training=training)
+            return lstm_output
     
 
 datatype = tf.float64
@@ -60,12 +65,13 @@ tf.config.run_functions_eagerly(True)
 tf.data.experimental.enable_debug_mode()
 sequence_length = 16
 rnn_units       = 64
+return_states   = False
 
 featureList = []
 featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
 featureList.append({"embedded": False})
 
-model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, datatype = datatype)
+model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, return_states=return_states, datatype = datatype)
 model.compile(optimizer='adam', loss='mse')  # You might want to change the loss function based on your task
 
 
@@ -76,13 +82,19 @@ vocab_size_1 = featureList[0]["vocab_size"]
 vocab_size_2 = 1  # For non-embedded feature
 
 
+##################### training ######################
 embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples, sequence_length))
 direct_lstm_input_data = np.random.randint(100, 105,                  size=(num_samples, sequence_length))
-regression_labels      = np.random.randint(0, 3, size=(num_samples))
+
+if (return_states):
+    regression_labels      = np.random.randint(0, 3,                      size=(num_samples, sequence_length))
+else:
+    regression_labels      = np.random.randint(0, 3,                      size=(num_samples))
 
 embedded_input_data_tensor    = tf.convert_to_tensor(embedded_input_data)
 direct_lstm_input_data_tensor = tf.convert_to_tensor(direct_lstm_input_data)
 regression_labels_tensor      = tf.convert_to_tensor(regression_labels)
+
 
 datasetInputData_tensor = tf.stack((embedded_input_data_tensor, direct_lstm_input_data_tensor), axis = 1)
 dataset_tensor = tf.data.Dataset.from_tensor_slices((datasetInputData_tensor, regression_labels_tensor))
@@ -94,7 +106,7 @@ dataset = dataset_tensor.batch(3, drop_remainder = True)
 model.fit(dataset, epochs=5)
 
 
-
+##################### inference ######################
 
 embedded_input = tf.ones((32, sequence_length))
 direct_lstm_input = tf.ones((32, sequence_length))

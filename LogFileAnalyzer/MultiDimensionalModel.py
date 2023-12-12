@@ -52,42 +52,37 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
         concatenated_inputs = tf.keras.layers.concatenate(input_outputs, axis=-1)
         
-        if (self.return_states):
-            lstm_output, states = self.lstm_layer(concatenated_inputs, training=training)
-            return lstm_output, states
-        else:
-            lstm_output = self.lstm_layer(concatenated_inputs, training=training)
-            return lstm_output
+        lstm_output = self.lstm_layer(concatenated_inputs, training=training)
+        return lstm_output
     
 
-datatype = tf.float64
+##################### Settings ######################
 tf.config.run_functions_eagerly(True)  
 tf.data.experimental.enable_debug_mode()
+
+datatype        = tf.float64
 sequence_length = 16
 rnn_units       = 64
-return_states   = False
+return_states   = True
 
 featureList = []
 featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
 featureList.append({"embedded": False})
 
-model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, return_states=return_states, datatype = datatype)
-model.compile(optimizer='adam', loss='mse')  # You might want to change the loss function based on your task
-
-
-
+model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, return_states = return_states, datatype = datatype)
+model.compile(optimizer='adam', loss='mse') 
 
 num_samples = 10
 vocab_size_1 = featureList[0]["vocab_size"]
-vocab_size_2 = 1  # For non-embedded feature
+vocab_size_2 = 1  
 
 
 ##################### training ######################
 embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples, sequence_length))
-direct_lstm_input_data = np.random.randint(100, 105,                  size=(num_samples, sequence_length))
+direct_lstm_input_data = np.random.randint(100, 105,                  size=(num_samples, sequence_length ))
 
 if (return_states):
-    regression_labels      = np.random.randint(0, 3,                      size=(num_samples, sequence_length))
+    regression_labels      = np.random.randint(0, 3,                      size=(num_samples, sequence_length, rnn_units))
 else:
     regression_labels      = np.random.randint(0, 3,                      size=(num_samples))
 

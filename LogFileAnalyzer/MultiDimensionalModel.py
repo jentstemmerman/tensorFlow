@@ -49,6 +49,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
     def call(self, inputs, training=False):
         input_outputs = []
+        
         for i, input_layer in enumerate(self.input_layerList):
             input_to_layer = inputs[:, i, :]
             output = input_layer(input_to_layer, training=training)
@@ -63,69 +64,69 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             
         return output
     
+if __name__ == '__main__':
+    ##################### Settings ######################
+    tf.config.run_functions_eagerly(True)  
+    tf.data.experimental.enable_debug_mode()
 
-##################### Settings ######################
-tf.config.run_functions_eagerly(True)  
-tf.data.experimental.enable_debug_mode()
+    datatype        = tf.float64
+    sequence_length = 16
+    rnn_units       = 64
+    return_states   = True
+    dense_layer     = False
 
-datatype        = tf.float64
-sequence_length = 16
-rnn_units       = 64
-return_states   = True
-dense_layer     = False
+    featureList = []
+    featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
+    featureList.append({"embedded": False})
 
-featureList = []
-featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
-featureList.append({"embedded": False})
+    model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, dense_layer = dense_layer, return_states = return_states, datatype = datatype)
+    model.compile(optimizer='adam', loss='mse') 
 
-model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, dense_layer = dense_layer, return_states = return_states, datatype = datatype)
-model.compile(optimizer='adam', loss='mse') 
-
-num_samples = 10
-vocab_size_1 = featureList[0]["vocab_size"]
-vocab_size_2 = 1  
+    num_samples = 10
+    vocab_size_1 = featureList[0]["vocab_size"]
+    vocab_size_2 = 1  
 
 
-##################### training ######################
-embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples, sequence_length))
-direct_lstm_input_data = np.random.randint(100, 105,                  size=(num_samples, sequence_length ))
+    ##################### training ######################
+    embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples, sequence_length))
+    direct_lstm_input_data = np.random.randint(100, 105,                  size=(num_samples, sequence_length ))
 
-if (dense_layer):
-    if (not return_states):
-        regression_labels      = np.random.randint(0, 3,              size=(num_samples, featureList[0]["vocab_size"] ))
+    if (dense_layer):
+        if (not return_states):
+            regression_labels      = np.random.randint(0, 3,              size=(num_samples, featureList[0]["vocab_size"] ))
+        else:
+            regression_labels      = np.random.randint(0, 3,              size=(num_samples, sequence_length, featureList[0]["vocab_size"] ))
     else:
-        regression_labels      = np.random.randint(0, 3,              size=(num_samples, sequence_length, featureList[0]["vocab_size"] ))
-else:
-    if (return_states):
-        regression_labels      = np.random.randint(0, 3,              size=(num_samples, sequence_length, rnn_units))
-    else:
-        regression_labels      = np.random.randint(0, 3,              size=(num_samples))
+        if (return_states):
+            regression_labels      = np.random.randint(0, 3,              size=(num_samples, sequence_length, rnn_units))
+        else:
+            regression_labels      = np.random.randint(0, 3,              size=(num_samples))
 
-embedded_input_data_tensor    = tf.convert_to_tensor(embedded_input_data)
-direct_lstm_input_data_tensor = tf.convert_to_tensor(direct_lstm_input_data)
-regression_labels_tensor      = tf.convert_to_tensor(regression_labels)
+    embedded_input_data_tensor    = tf.convert_to_tensor(embedded_input_data)
+    direct_lstm_input_data_tensor = tf.convert_to_tensor(direct_lstm_input_data)
+    regression_labels_tensor      = tf.convert_to_tensor(regression_labels)
 
 
-datasetInputData_tensor = tf.stack((embedded_input_data_tensor, direct_lstm_input_data_tensor), axis = 1)
-dataset_tensor = tf.data.Dataset.from_tensor_slices((datasetInputData_tensor, regression_labels_tensor))
-iterator = iter(dataset_tensor)
-print(next(iterator))
-print(next(iterator))
-dataset = dataset_tensor.batch(3, drop_remainder = True)
+    datasetInputData_tensor = tf.stack((embedded_input_data_tensor, direct_lstm_input_data_tensor), axis = 1)
+    dataset_tensor = tf.data.Dataset.from_tensor_slices((datasetInputData_tensor, regression_labels_tensor))
 
-model.fit(dataset, epochs=5)
+    dataset = dataset_tensor.batch(3, drop_remainder = True)
+    iterator = iter(dataset_tensor)
+    print(next(iterator))
+    print(next(iterator))
+    model.fit(dataset, epochs=5)
 
 
-##################### inference ######################
+    ##################### inference ######################
 
-embedded_input = tf.ones((32, sequence_length))
-direct_lstm_input = tf.ones((32, sequence_length))
+    embedded_input = tf.ones((32, sequence_length))
+    direct_lstm_input = tf.ones((32, sequence_length))
 
-datasetInputData_tensor = tf.stack((embedded_input, direct_lstm_input), axis = 1)
+    datasetInputData_tensor = tf.stack((embedded_input, direct_lstm_input), axis = 1)
 
-modelPrediction = model(datasetInputData_tensor)
-print("modelPrediction: ")
-print(modelPrediction.shape)
+    modelPrediction = model(datasetInputData_tensor)
+    print("modelPrediction: ")
+    print(modelPrediction.shape)
 
 
 

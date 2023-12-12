@@ -10,8 +10,9 @@ class UnitTestMultiDiensionalModel(unittest.TestCase):
         self.sequence_length = 16
         self.rnn_units       = 64
         self.num_samples     = 10
-        self.numberOfInterences = 201
-        
+        self.numberOfInferences = 201
+        self.vocab_size         = 1001
+
     def test_Model(self):
         print("TestModel test")
         self.featureList = []
@@ -27,9 +28,9 @@ class UnitTestMultiDiensionalModel(unittest.TestCase):
         inputTuple = (embedded_input_data, direct_lstm_input_data)
         dataset = self.CreateDataSet(inputTuple=inputTuple, output=regression_labels)
         model.fit(dataset, epochs=5)
-        prediction = self.Inference(model, self.numberOfInterences)
+        prediction = self.Inference(model, self.numberOfInferences)
         print("TestModel test DONE")
-        self.assertEqual(prediction.shape, (self.numberOfInterences, self.rnn_units))  # Test if 2 + (-7) equals -5
+        self.assertEqual(prediction.shape, (self.numberOfInferences, self.rnn_units))  
 
     def test_ModelOutputSequences(self):
         print("TestModelOutputSequences test")
@@ -46,10 +47,9 @@ class UnitTestMultiDiensionalModel(unittest.TestCase):
         inputTuple = (embedded_input_data, direct_lstm_input_data)
         dataset = self.CreateDataSet(inputTuple=inputTuple, output=regression_labels)
         model.fit(dataset, epochs=5)
-        prediction = self.Inference(model, self.numberOfInterences)
+        prediction = self.Inference(model, self.numberOfInferences)
         print("TestModelOutputSequences test DONE")
-        self.assertEqual(prediction.shape, (self.numberOfInterences, self.sequence_length, self.rnn_units))  # Test if 2 + (-7) equals -5
-
+        self.assertEqual(prediction.shape, (self.numberOfInferences, self.sequence_length, self.rnn_units))  
 
     def test_ModelDense(self):
         print("TestModelDense test")
@@ -66,9 +66,9 @@ class UnitTestMultiDiensionalModel(unittest.TestCase):
         inputTuple = (embedded_input_data, direct_lstm_input_data)
         dataset = self.CreateDataSet(inputTuple=inputTuple, output=regression_labels)
         model.fit(dataset, epochs=5)
-        prediction = self.Inference(model, self.numberOfInterences)
+        prediction = self.Inference(model, self.numberOfInferences)
         print("TestModelDense test DONE")
-        self.assertEqual(prediction.shape, (self.numberOfInterences, 1000))  
+        self.assertEqual(prediction.shape, (self.numberOfInferences, self.featureList[0]["vocab_size"]))  
 
     def test_ModelDenseAndSequences(self):
         print("TestModelDenseAndSequences test")
@@ -85,16 +85,16 @@ class UnitTestMultiDiensionalModel(unittest.TestCase):
         inputTuple = (embedded_input_data, direct_lstm_input_data)
         dataset = self.CreateDataSet(inputTuple=inputTuple, output=regression_labels)
         model.fit(dataset, epochs=5)
-        prediction = self.Inference(model, self.numberOfInterences)
+        prediction = self.Inference(model, self.numberOfInferences)
         
-        self.assertEqual(prediction.shape, (self.numberOfInterences, self.sequence_length, 1000))  # Test if 2 + (-7) equals -5
+        self.assertEqual(prediction.shape, (self.numberOfInferences, self.sequence_length, self.featureList[0]["vocab_size"]))  
         print("TestModelDenseAndSequences test DONE")
 
     def Inference(self, model, numberOfInterences):
         embedded_input = tf.ones((numberOfInterences, self.sequence_length))
         direct_lstm_input = tf.ones((numberOfInterences, self.sequence_length))
         datasetInputData_tensor = tf.stack((embedded_input, direct_lstm_input), axis = 1)
-        modelPrediction = model(datasetInputData_tensor, self.numberOfInterences)
+        modelPrediction = model(datasetInputData_tensor, self.numberOfInferences)
         return modelPrediction
 
     def CreateDataSet(self, inputTuple, output):

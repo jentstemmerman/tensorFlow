@@ -48,11 +48,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedd
             TrainingLogTensor = np.concatenate((TrainingLogTensor, TensorOfThisFile), axis=0)
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
-    
-    #if (embedding_layer_used):
-    #    TrainingLogTensor = tf.squeeze(TrainingLogTensor)
-
-    
+       
     datasetfast = tf.data.Dataset.from_tensor_slices(TrainingLogTensor)
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
     datasetfast = datasetfast.flat_map(lambda window2: window2)

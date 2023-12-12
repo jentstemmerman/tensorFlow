@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from tensorflow import keras
-import TokenParser
+
 
 class CustomIdentityLayer(tf.keras.layers.Layer):
     def __init__(self, datatype):

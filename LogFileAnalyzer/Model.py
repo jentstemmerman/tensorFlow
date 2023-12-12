@@ -11,6 +11,7 @@ import sys
 import worker
 import Logger
 import LogFileIterator
+import MultiDimensionalModel
 
 def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile):
     CrossReferenceTokens = False
@@ -157,12 +158,15 @@ force_train_model     = True
 CreateNewOutDirectory = True
 AnalyzeFiles          = True
 tf.config.run_functions_eagerly(True)  
+#tf.data.experimental.enable_debug_mode()
 
-TrainingsParameter = {"Model": {"Network":"LSTM",
+TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "returnState":True,
                                 "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
                                 "seq_length":16 ,
+                                "dense_layer": True,
+                                "return_states": True
                                 },
                       "EPOCHS":1,
                       "Use_Validation":False,
@@ -299,16 +303,39 @@ else:
 CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile)
 
 if (train_model):
-    model
-    numberOfInputs = len(TokenParser.GetItemListToSearchFor(itemFile))
+    itemList = TokenParser.GetItemListToSearchFor(itemFile)
+    
+    if (TrainingsParameter["Model"]["Network"] == "LSTMMultiModel"):
+        def CreateModelFeatureListFromItemList(itemList):
+            modelFeatureList = []
 
-    if (TrainingsParameter["Model"]["Network"] == "LSTM"):  # does not work yet
+            for index, item in enumerate(itemList):
+                assert(("Categorical" in item) == True)
+                if (item["Categorical"] == "True"):
+                    assert(id_from_tokenList[index] != None, "id_from_tokenList[" + str(index) + "] is None")
+                    embedded_dimension = 256 
+                    modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension})
+                else:
+                    assert(id_from_tokenList[index] == None, "id_from_tokenList[" + index + "] is None")
+                    modelFeatureList.append({"embedded": False})
+            return modelFeatureList
+        modelFeatureList = CreateModelFeatureListFromItemList(itemList)
+        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(modelFeatureList, 
+                                                                TrainingsParameter["Model"]["rnn_units"],
+                                                                TrainingsParameter["Model"]["seq_length"], 
+                                                                dense_layer = TrainingsParameter["Model"]["dense_layer"], 
+                                                                return_states = TrainingsParameter["Model"]["return_states"] , 
+                                                                datatype = DataTypeForTensors)
+     
+    elif (TrainingsParameter["Model"]["Network"] == "LSTM"):  # does not work yet
+        numberOfInputs = len(itemList)
         model = ModelClass.LSTMPrintfLogModel(
             vocab_size=len(id_from_tokenList[0].get_vocabulary()),
             embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
             rnn_units=TrainingsParameter["Model"]["rnn_units"],
             numberOfInputs=numberOfInputs)
-    if (TrainingsParameter["Model"]["Network"] == "GRU"):
+    elif (TrainingsParameter["Model"]["Network"] == "GRU"):
+        numberOfInputs = len(itemList)
         model = ModelClass.GruPrintfLogModel(
             vocab_size=len(id_from_tokenList.get_vocabulary()),
             embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
@@ -316,7 +343,8 @@ if (train_model):
             return_state=TrainingsParameter["Model"]["returnState"],
             numberOfInputs = numberOfInputs)
     
-    if (TrainingsParameter["Model"]["Network"] == "SimpleRnn"):    # supposed to be faster. I don't see it.
+    elif (TrainingsParameter["Model"]["Network"] == "SimpleRnn"):    # supposed to be faster. I don't see it.
+        numberOfInputs = len(itemList)
         model = ModelClass.SimpleRnnPrintfLogModel(
             vocab_size=len(id_from_tokenList.get_vocabulary()),
             embedding_dim=TrainingsParameter["Model"]["embedding_dim"],

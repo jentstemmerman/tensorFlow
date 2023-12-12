@@ -19,9 +19,10 @@ class CustomIdentityLayer(tf.keras.layers.Layer):
 
 class LSTMPrintfLogMultiModel(tf.keras.Model):
 
-    def __init__(self, featureList, rnn_units, sequence_length, return_states, datatype):
+    def __init__(self, featureList, rnn_units, sequence_length, dense_layer, return_states, datatype):
         super().__init__()
         self.numberOfFeatures = len(featureList)    
+        self.use_dense_layer  = dense_layer
         self.return_states    = return_states
         self.featureList      = featureList
         self.datatype = datatype
@@ -42,6 +43,9 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
         self.concatenated = tf.keras.layers.concatenate(inputList)
         self.lstm_layer   = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length), return_sequences=return_states)
+        if (self.use_dense_layer):
+            self.dense_layer     = tf.keras.layers.Dense(units = featureList[0]["vocab_size"])
+
 
     def call(self, inputs, training=False):
         input_outputs = []
@@ -52,8 +56,12 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
         concatenated_inputs = tf.keras.layers.concatenate(input_outputs, axis=-1)
         
-        lstm_output = self.lstm_layer(concatenated_inputs, training=training)
-        return lstm_output
+        output = self.lstm_layer(concatenated_inputs, training=training)
+
+        if (self.use_dense_layer):
+            output = self.dense_layer(output)
+            
+        return output
     
 
 ##################### Settings ######################
@@ -64,12 +72,13 @@ datatype        = tf.float64
 sequence_length = 16
 rnn_units       = 64
 return_states   = True
+dense_layer     = False
 
 featureList = []
 featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
 featureList.append({"embedded": False})
 
-model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, return_states = return_states, datatype = datatype)
+model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, dense_layer = dense_layer, return_states = return_states, datatype = datatype)
 model.compile(optimizer='adam', loss='mse') 
 
 num_samples = 10
@@ -81,10 +90,16 @@ vocab_size_2 = 1
 embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples, sequence_length))
 direct_lstm_input_data = np.random.randint(100, 105,                  size=(num_samples, sequence_length ))
 
-if (return_states):
-    regression_labels      = np.random.randint(0, 3,                      size=(num_samples, sequence_length, rnn_units))
+if (dense_layer):
+    if (not return_states):
+        regression_labels      = np.random.randint(0, 3,              size=(num_samples, featureList[0]["vocab_size"] ))
+    else:
+        regression_labels      = np.random.randint(0, 3,              size=(num_samples, sequence_length, featureList[0]["vocab_size"] ))
 else:
-    regression_labels      = np.random.randint(0, 3,                      size=(num_samples))
+    if (return_states):
+        regression_labels      = np.random.randint(0, 3,              size=(num_samples, sequence_length, rnn_units))
+    else:
+        regression_labels      = np.random.randint(0, 3,              size=(num_samples))
 
 embedded_input_data_tensor    = tf.convert_to_tensor(embedded_input_data)
 direct_lstm_input_data_tensor = tf.convert_to_tensor(direct_lstm_input_data)

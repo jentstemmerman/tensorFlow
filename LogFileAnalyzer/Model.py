@@ -186,7 +186,7 @@ else:
     DataTypeForTensors    = 'int64'
 ValidationsParameter = {"temperature": 1 }
 
-trainingSet = 3                
+trainingSet = 2                
 
 if ( TrainingsParameter["SampleDataSet"]):
     # dit werkt niet goed. 
@@ -320,14 +320,14 @@ if (train_model):
                     modelFeatureList.append({"embedded": False})
             return modelFeatureList
         modelFeatureList = CreateModelFeatureListFromItemList(itemList)
-        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(modelFeatureList, 
+        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
                                                                 TrainingsParameter["Model"]["rnn_units"],
                                                                 TrainingsParameter["Model"]["seq_length"], 
                                                                 dense_layer = TrainingsParameter["Model"]["dense_layer"], 
-                                                                return_states = TrainingsParameter["Model"]["return_states"] , 
+                                                                return_sequences = TrainingsParameter["Model"]["return_states"] , 
                                                                 datatype = DataTypeForTensors)
      
-    elif (TrainingsParameter["Model"]["Network"] == "LSTM"):  # does not work yet
+    elif (TrainingsParameter["Model"]["Network"] == "LSTM"):  
         numberOfInputs = len(itemList)
         model = ModelClass.LSTMPrintfLogModel(
             vocab_size=len(id_from_tokenList[0].get_vocabulary()),

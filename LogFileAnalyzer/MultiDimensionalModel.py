@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from tensorflow import keras
-
+import TokenParser
 
 class CustomIdentityLayer(tf.keras.layers.Layer):
     def __init__(self, datatype):
@@ -19,16 +19,16 @@ class CustomIdentityLayer(tf.keras.layers.Layer):
 
 class LSTMPrintfLogMultiModel(tf.keras.Model):
 
-    def __init__(self, featureList, rnn_units, sequence_length, dense_layer, return_states, datatype):
+    def __init__(self, featureList, rnn_units, sequence_length, dense_layer, return_sequences, datatype):
         super().__init__()
         self.numberOfFeatures = len(featureList)    
-        self.use_dense_layer  = dense_layer
-        self.return_states    = return_states
+
+        self.return_states    = return_sequences
         self.featureList      = featureList
-        self.datatype = datatype
+        self.datatype         = datatype
         
-        self.input_layerList = []
-        inputList            = []
+        self.input_layerList  = []
+        inputList             = []
 
         for feature in featureList:
             if (feature["embedded"] == True):
@@ -42,27 +42,42 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             inputList.append(lstm_input)
 
         self.concatenated = tf.keras.layers.concatenate(inputList)
-        self.lstm_layer   = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length), return_sequences=return_states)
-        if (self.use_dense_layer):
-            self.dense_layer     = tf.keras.layers.Dense(units = featureList[0]["vocab_size"])
+        self.lstm_layer   = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfFeatures), return_sequences=return_sequences)
+        
+        self.output_layerList  = []
+
+        for i, feature in enumerate(featureList):
+
+            layer_name = feature["name"]
+
+            if (feature["embedded"] == True):
+                dense_output_layer = tf.keras.layers.Dense(feature["vocab_size"], name=layer_name)
+            else:
+                dense_output_layer = tf.keras.layers.Dense(1, name=layer_name)
+
+            self.output_layerList.append(dense_output_layer)  
+
 
 
     def call(self, inputs, training=False):
         input_outputs = []
         
         for i, input_layer in enumerate(self.input_layerList):
-            input_to_layer = inputs[:, i, :]
-            output = input_layer(input_to_layer, training=training)
+            input_to_layer = inputs[:, :, i]
+            output = input_layer(input_to_layer, training = training)
             input_outputs.append(output)
 
         concatenated_inputs = tf.keras.layers.concatenate(input_outputs, axis=-1)
-        
-        output = self.lstm_layer(concatenated_inputs, training=training)
 
-        if (self.use_dense_layer):
-            output = self.dense_layer(output)
-            
-        return output
+        lstm_out = self.lstm_layer(concatenated_inputs, training=training)
+
+        output_List = []
+
+        for i, output_layer in enumerate(self.output_layerList):
+            layer_output = output_layer(lstm_out)
+            output_List.append(layer_output)
+        
+        return output_List
     
 if __name__ == '__main__':
     ##################### Settings ######################
@@ -72,32 +87,48 @@ if __name__ == '__main__':
     datatype        = tf.float64
     sequence_length = 16
     rnn_units       = 64
-    return_states   = True
-    dense_layer     = False
+    return_sequences = True
+    dense_layer      = True
 
     featureList = []
-    featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
-    featureList.append({"embedded": False})
+    featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100, "name": "output_1"})
+    featureList.append({"embedded": False, "name": "output_2"})
+    loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+    
+    model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, dense_layer = dense_layer, return_sequences = return_sequences, datatype = datatype)
 
-    model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, dense_layer = dense_layer, return_states = return_states, datatype = datatype)
-    model.compile(optimizer='adam', loss='mse') 
+    name0 = featureList[0]["name"]
+    name1 = featureList[1]["name"]
+    model.compile(optimizer='adam', loss={name0: 'binary_crossentropy', name1: 'mean_squared_error'}, metrics=['accuracy'])
 
-    num_samples = 10
+    num_samples = 1000
     vocab_size_1 = featureList[0]["vocab_size"]
     vocab_size_2 = 1  
 
+    ##################### inference ######################
+
+    embedded_input = tf.ones((32, sequence_length))
+    direct_lstm_input = tf.ones((32, sequence_length))
+
+    datasetInputData_tensor = tf.stack((embedded_input, direct_lstm_input), axis = -1)
+
+    modelPrediction = model(datasetInputData_tensor)
+    print("modelPrediction: ")
+    print(modelPrediction[0].shape)
+    print(modelPrediction[1].shape)
+
 
     ##################### training ######################
-    embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples, sequence_length))
-    direct_lstm_input_data = np.random.randint(100, 105,                  size=(num_samples, sequence_length ))
+    embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples))
+    direct_lstm_input_data = np.random.randint(100, 105,                  size=(num_samples ))
 
     if (dense_layer):
-        if (not return_states):
+        if (not return_sequences):
             regression_labels      = np.random.randint(0, 3,              size=(num_samples, featureList[0]["vocab_size"] ))
         else:
             regression_labels      = np.random.randint(0, 3,              size=(num_samples, sequence_length, featureList[0]["vocab_size"] ))
     else:
-        if (return_states):
+        if return_sequences:
             regression_labels      = np.random.randint(0, 3,              size=(num_samples, sequence_length, rnn_units))
         else:
             regression_labels      = np.random.randint(0, 3,              size=(num_samples))
@@ -108,9 +139,27 @@ if __name__ == '__main__':
 
 
     datasetInputData_tensor = tf.stack((embedded_input_data_tensor, direct_lstm_input_data_tensor), axis = 1)
-    dataset_tensor = tf.data.Dataset.from_tensor_slices((datasetInputData_tensor, regression_labels_tensor))
 
-    dataset = dataset_tensor.batch(3, drop_remainder = True)
+    dataset_tensor = tf.data.Dataset.from_tensor_slices(datasetInputData_tensor)
+
+    print(next(iter(dataset_tensor)))
+
+
+    dataset_tensor = dataset_tensor.window(sequence_length + 1, shift=1, drop_remainder=True)
+    iterator = iter(dataset_tensor)
+    print(next(iter(dataset_tensor)))
+    dataset_tensor = dataset_tensor.flat_map(lambda window2: window2)
+    dataset_tensor = dataset_tensor.batch(sequence_length + 1, drop_remainder = True)
+    iterator = iter(dataset_tensor)
+    print(next(iterator))
+    print(next(iterator))
+
+
+    dataset_tensor = dataset_tensor.map(TokenParser.split_input_target_multidim) # generate "labels"
+    iterator = iter(dataset_tensor)
+    print(next(iterator))
+    print(next(iterator))
+    dataset = dataset_tensor.batch(10, drop_remainder = True)
     iterator = iter(dataset_tensor)
     print(next(iterator))
     print(next(iterator))

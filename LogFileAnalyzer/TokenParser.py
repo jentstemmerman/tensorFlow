@@ -124,6 +124,12 @@ def split_input_target(sequence):
     target_text = sequence[1:]
     return input_text, target_text
 
+def split_input_target_multidim(sequence):
+    # Tensorflow -> input_text: Tensorflo, target_text = ensorfloW
+    input_text = sequence[:-1,:]
+    target_text = sequence[1:,:]
+    return input_text, target_text
+
 def returnValue(sequence):
     return sequence
 

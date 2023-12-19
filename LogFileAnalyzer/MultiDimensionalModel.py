@@ -74,7 +74,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
         output_List = []
 
         for i, output_layer in enumerate(self.output_layerList):
-            layer_output = output_layer(lstm_out)
+            layer_output = output_layer(lstm_out, training=training)
             output_List.append(layer_output)
         
         return output_List
@@ -99,7 +99,7 @@ if __name__ == '__main__':
 
     name0 = featureList[0]["name"]
     name1 = featureList[1]["name"]
-    model.compile(optimizer='adam', loss={name0: 'binary_crossentropy', name1: 'mean_squared_error'}, metrics=['accuracy'])
+    model.compile(optimizer='adam', loss={name0: 'SparseCategoricalCrossentropy', name1: 'mean_squared_error'}, metrics=['accuracy'])
 
     num_samples = 1000
     vocab_size_1 = featureList[0]["vocab_size"]
@@ -117,7 +117,9 @@ if __name__ == '__main__':
     print(modelPrediction[0].shape)
     print(modelPrediction[1].shape)
 
-
+    modelPredictionShape = model.compute_output_shape(datasetInputData_tensor.shape)
+    print("modelPredictionShape: ")
+    print(modelPredictionShape)
     ##################### training ######################
     embedded_input_data    = np.random.randint(1000, 1000 + vocab_size_1, size=(num_samples))
     direct_lstm_input_data = np.random.randint(100, 105,                  size=(num_samples ))
@@ -139,30 +141,17 @@ if __name__ == '__main__':
 
 
     datasetInputData_tensor = tf.stack((embedded_input_data_tensor, direct_lstm_input_data_tensor), axis = 1)
-
     dataset_tensor = tf.data.Dataset.from_tensor_slices(datasetInputData_tensor)
 
-    print(next(iter(dataset_tensor)))
-
-
     dataset_tensor = dataset_tensor.window(sequence_length + 1, shift=1, drop_remainder=True)
-    iterator = iter(dataset_tensor)
-    print(next(iter(dataset_tensor)))
     dataset_tensor = dataset_tensor.flat_map(lambda window2: window2)
     dataset_tensor = dataset_tensor.batch(sequence_length + 1, drop_remainder = True)
-    iterator = iter(dataset_tensor)
-    print(next(iterator))
-    print(next(iterator))
-
-
-    dataset_tensor = dataset_tensor.map(TokenParser.split_input_target_multidim) # generate "labels"
-    iterator = iter(dataset_tensor)
-    print(next(iterator))
-    print(next(iterator))
-    dataset = dataset_tensor.batch(10, drop_remainder = True)
-    iterator = iter(dataset_tensor)
-    print(next(iterator))
-    print(next(iterator))
+    dataset_tensor = dataset_tensor.map(TokenParser.split_input_target_multidim) 
+    dataset = dataset_tensor.batch(2, drop_remainder = True)
+    dataset_iterator = iter(dataset)
+    print(next(dataset_iterator))
+    print(next(iter(dataset)))
+    
     model.fit(dataset, epochs=5)
 
 

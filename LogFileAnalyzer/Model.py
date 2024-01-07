@@ -320,7 +320,7 @@ if (train_model):
                     embedded_dimension = 256 
                     modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension, "layer_name": name})
                 else:
-                    assert(id_from_tokenList[index] == None, "id_from_tokenList[" + index + "] is None")
+                    assert(id_from_tokenList[index] == None, "id_from_tokenList[" + str(index) + "] is None")
                     name = name + "_NonCathegorical_layer"
                     modelFeatureList.append({"embedded": False, "layer_name": name})
             return modelFeatureList

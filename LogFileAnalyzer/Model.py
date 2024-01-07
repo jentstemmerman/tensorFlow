@@ -173,7 +173,7 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                       "BatchSize":32 ,
                       "removeDuplicates":True,
                       "num_parallel_calls":10,
-                      "stride_dataset": 128,
+                      "stride_dataset": 64,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -184,6 +184,8 @@ if (TrainingsParameter["Model"]["embedding_dim"] == -1):
     DataTypeForTensors    = 'float64'
 else:
     DataTypeForTensors    = 'int64'
+
+DataTypeForTensors    = 'float64'
 ValidationsParameter = {"temperature": 1 }
 
 trainingSet = 2                
@@ -310,14 +312,17 @@ if (train_model):
             modelFeatureList = []
 
             for index, item in enumerate(itemList):
+                name = "Layer_" + str(index)
                 assert(("Categorical" in item) == True)
                 if (item["Categorical"] == "True"):
+                    name = name + "_Cathegorical_layer"
                     assert(id_from_tokenList[index] != None, "id_from_tokenList[" + str(index) + "] is None")
                     embedded_dimension = 256 
-                    modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension})
+                    modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension, "layer_name": name})
                 else:
                     assert(id_from_tokenList[index] == None, "id_from_tokenList[" + index + "] is None")
-                    modelFeatureList.append({"embedded": False})
+                    name = name + "_NonCathegorical_layer"
+                    modelFeatureList.append({"embedded": False, "layer_name": name})
             return modelFeatureList
         modelFeatureList = CreateModelFeatureListFromItemList(itemList)
         model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
@@ -412,12 +417,12 @@ if (train_model):
         history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
     else:
        # history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
-        history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
+        history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback])
     
     sample_element = next(iter(datasetForTraining))[0]
 
 
-    temp_predicted_logits = model(inputs=sample_element, states=None, return_state=False)
+    temp_predicted_logits = model(inputs=sample_element)
     model.compute_output_shape(sample_element.shape)
     
     sys.stdout = sys.__stdout__

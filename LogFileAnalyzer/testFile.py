@@ -22,9 +22,10 @@ class MyModel(tf.keras.Model):
         concatenated = tf.concat([embedded_1, embedded_2], axis=-1)
         
         lstm_output = self.lstm(concatenated)
-        
-        output_1 = self.dense_1(tf.reduce_mean(lstm_output, axis=1))  # Dense for first feature
-        output_2 = self.dense_2(tf.reduce_mean(lstm_output, axis=1))  # Dense for second feature
+        dense_input = tf.reduce_mean(lstm_output, axis=1)
+                
+        output_1 = self.dense_1(dense_input)  # Dense for first feature
+        output_2 = self.dense_2(dense_input)  # Dense for second feature
         
         return output_1, output_2
 
@@ -36,14 +37,16 @@ vocab_size_2 = 20
 embedding_dim = 32
 lstm_units = 64
 dense_units_1 = 32
-dense_units_2 = 16
+dense_units_2 = 24
 
 # Dummy data generation (replace this with your dataset)
-data_size = 1000
-input_1_data = tf.random.uniform((data_size, 1), maxval=vocab_size_1, dtype=tf.int32)
-input_2_data = tf.random.uniform((data_size, 1), maxval=vocab_size_2, dtype=tf.int32)
-target_1_data = tf.random.normal((data_size, dense_units_1))
-target_2_data = tf.random.normal((data_size, dense_units_2))
+data_size = 10
+sequence_lenght = 16
+input_shape = (data_size, sequence_lenght)
+input_1_data = tf.random.uniform(input_shape, maxval=vocab_size_1, dtype=tf.int32)
+input_2_data = tf.random.uniform(input_shape, maxval=vocab_size_2, dtype=tf.int32)
+target_1_data = tf.random.uniform((data_size, dense_units_1))
+target_2_data = tf.random.uniform((data_size, dense_units_2))
 
 dataset = tf.data.Dataset.from_tensor_slices(((input_1_data, input_2_data), (target_1_data, target_2_data)))
 dataset = dataset.shuffle(buffer_size=data_size).batch(32)
@@ -54,3 +57,5 @@ model = MyModel(vocab_size_1, vocab_size_2, embedding_dim, lstm_units, dense_uni
 # Compile and train the model
 model.compile(optimizer='adam', loss='mse')
 model.fit(dataset, epochs=5)
+
+model((input_1_data, input_2_data))

@@ -48,7 +48,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
         for i, feature in enumerate(featureList):
 
-            layer_name = feature["name"]
+            layer_name = feature["layer_name"]
 
             if (feature["embedded"] == True):
                 dense_output_layer = tf.keras.layers.Dense(units=feature["vocab_size"], name=layer_name)

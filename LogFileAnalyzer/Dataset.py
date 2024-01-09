@@ -72,7 +72,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedd
     if (verbose):
         PrintDatasetTuple(datasetfast)
     else:
-        PrintDatasetTuple(datasetfast, 2)
+        PrintDatasetTuple(datasetfast, 1)
         
 
     dataset = datasetfast
@@ -100,6 +100,7 @@ def PrintDatasetTuple(dataSet, count = 0):
 
         for element in dataSet:
             if (numberOfElements < count):
+                print("element: ", str(numberOfElements))
                 print(element[0].numpy(), element[1].numpy())
             numberOfElements += 1
 

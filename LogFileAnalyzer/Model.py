@@ -164,15 +164,15 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "returnState":True,
                                 "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
-                                "seq_length":16 ,
+                                "seq_length":5 ,
                                 "dense_layer": True,
                                 "return_states": True
                                 },
                       "EPOCHS":1,
                       "Use_Validation":False,
-                      "BatchSize":32 ,
+                      "BatchSize":1 ,
                       "removeDuplicates":True,
-                      "num_parallel_calls":10,
+                      "num_parallel_calls":1,
                       "stride_dataset": 64,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
@@ -357,9 +357,34 @@ if (train_model):
             numberOfInputs=numberOfInputs)
         
     ############################################################################################# Train the model
-    loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+   # loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+    def custom_loss_with_param(parameter):
+        def custom_multi_output_loss_jents(input, output):
+            print("custom_multi_output_loss:")
+
+            print("y_true_task1:", type(input), " shape: ", input.shape)
+            print("y_pred_task1:", type(output), " shape: ", output.shape)
+            
+            inputList = tf.split(input, num_or_size_splits=2, axis=-1)
+
+            print("input1:", type(inputList[0]), " shape: ", inputList[0].shape)
+            
+            # Define individual losses for each task (you can use different loss functions for each task)
+            loss_task1 = tf.keras.losses.sparse_categorical_crossentropy(inputList[0], output, from_logits=True)
+            print("loss_task1: ", type(loss_task1), " shape: ", loss_task1.shape, " Value: ", loss_task1)
+            #loss_task2 = 1 #tf.keras.losses.sparse_categorical_crossentropy(y_true_task2, y_pred_task2, from_logits=True)
+            
+            # You might weigh the losses differently or use other methods to combine them
+            # = loss_task1 + loss_task2  # For simplicity, just summing the losses
+
+            return loss_task1
+        return custom_multi_output_loss_jents
     
-    model.compile(optimizer='adam', loss=loss)
+    tf.config.run_functions_eagerly(True)  
+    tf.data.experimental.enable_debug_mode()    
+
+    loss_function = custom_loss_with_param(modelFeatureList)  # een custom loss function met toegang to modelFeatureList
+    model.compile(optimizer='adam', loss=loss_function)
 
     # Name of the checkpoint files
     checkpoint_prefix = os.path.join(TrainingCheckpointDir, "ckpt_{epoch}")
@@ -411,7 +436,7 @@ if (train_model):
                 self.subsetForBatchTraining     = datasetForTraining.shuffle(TrainingsParameter["BUFFER_SIZE"]).take(self.numberOfBatchesToTrainPerEpoch)
                 Dataset.PrintDatasetTuple(self.subsetForBatchTraining)
                 print("on_epoch_end Creating new subsetForBatchTraining done")
-        
+            
 
         Epoch_End_callback = EpochEndCallback(numberOfBatchesToTrainPerEpoch, numberOfBatchesToValidatePerEpoch)
         history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])

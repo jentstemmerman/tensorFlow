@@ -359,25 +359,36 @@ if (train_model):
     ############################################################################################# Train the model
    # loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
     def custom_loss_with_param(parameter):
+        output_index = 0
+        numberOfOutputs = len(parameter)
+        modelFeatureList = parameter
         def custom_multi_output_loss_jents(input, output):
-            print("custom_multi_output_loss:")
-
-            print("y_true_task1:", type(input), " shape: ", input.shape)
-            print("y_pred_task1:", type(output), " shape: ", output.shape)
+            nonlocal output_index
+            nonlocal numberOfOutputs
+            nonlocal modelFeatureList
             
+            print("custom_multi_output_loss (", str(output_index), "):")
+            print(modelFeatureList[output_index])
+
+           
             inputList = tf.split(input, num_or_size_splits=2, axis=-1)
 
-            print("input1:", type(inputList[0]), " shape: ", inputList[0].shape)
             
             # Define individual losses for each task (you can use different loss functions for each task)
-            loss_task1 = tf.keras.losses.sparse_categorical_crossentropy(inputList[0], output, from_logits=True)
-            print("loss_task1: ", type(loss_task1), " shape: ", loss_task1.shape, " Value: ", loss_task1)
+            if (modelFeatureList[output_index]["embedded"] == True):
+                print("embedded loss calculation:")
+                individual_output_loss = tf.keras.losses.sparse_categorical_crossentropy(inputList[0], output, from_logits=True)
+            else:
+                print("non-embedded loss calculation:")
+                individual_output_loss = 0 # todo
+
+            print("individual_output_loss: ", individual_output_loss)
             #loss_task2 = 1 #tf.keras.losses.sparse_categorical_crossentropy(y_true_task2, y_pred_task2, from_logits=True)
             
             # You might weigh the losses differently or use other methods to combine them
             # = loss_task1 + loss_task2  # For simplicity, just summing the losses
-
-            return loss_task1
+            output_index = (output_index + 1) % numberOfOutputs
+            return individual_output_loss
         return custom_multi_output_loss_jents
     
     tf.config.run_functions_eagerly(True)  

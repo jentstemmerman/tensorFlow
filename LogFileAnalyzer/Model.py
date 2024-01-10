@@ -168,7 +168,7 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "dense_layer": True,
                                 "return_states": True
                                 },
-                      "EPOCHS":1,
+                      "EPOCHS":5,
                       "Use_Validation":False,
                       "BatchSize":1 ,
                       "removeDuplicates":True,
@@ -358,7 +358,7 @@ if (train_model):
             numberOfInputs=numberOfInputs)
         
     ############################################################################################# Train the model
-   # loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+    single_loss_function = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
     def custom_loss_with_param(parameter):
         output_index = 0
         numberOfOutputs = len(parameter)
@@ -367,22 +367,22 @@ if (train_model):
             nonlocal output_index
             nonlocal numberOfOutputs
             nonlocal modelFeatureList
-                       
-            inputList = tf.split(input, num_or_size_splits=2, axis=-1)
+            #print("input.shape: ", input.shape, input.shape[2] )           
+            inputList = tf.split(input, num_or_size_splits=input.shape[2], axis=-1)
             
             # Define individual losses for each task (you can use different loss functions for each task)
             if (modelFeatureList[output_index]["embedded"] == True):
-               #print("embedded loss calculation:")
+               #
                 individual_output_loss = tf.keras.losses.sparse_categorical_crossentropy(inputList[0], output, from_logits=True)
+                #print("embedded loss calculation: individual_output_loss: ", individual_output_loss, "\n")
             else:
                 mask_value = modelFeatureList[output_index]["MaskValue"]
                 mask = tf.cast(tf.not_equal(inputList[1], mask_value), tf.float32) 
-                #mask = tf.not_equal(output, mask_value)
 
                 inputMasked  = inputList[1] * mask
                 outputMasked = output * mask
                 individual_output_loss = tf.keras.losses.mean_squared_error(inputMasked, outputMasked)
-                print("\nnon-embedded loss calculation:  inputList[1]: ",  inputList[1], "\n inputMasked", inputMasked, "\noutput: ", outputMasked, "\nloss: ", individual_output_loss, "\n", "Mask: ", mask)
+                #print("\nnon-embedded loss calculation:  inputList[1]: ",  inputList[1], "\n inputMasked", inputMasked, "\noutput: ", outputMasked, "\nloss: ", individual_output_loss, "\n", "Mask: ", mask)
 
             output_index = (output_index + 1) % numberOfOutputs
             return individual_output_loss

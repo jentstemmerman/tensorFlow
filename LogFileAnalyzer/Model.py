@@ -321,8 +321,9 @@ if (train_model):
                     modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension, "layer_name": name})
                 else:
                     assert(id_from_tokenList[index] == None, "id_from_tokenList[" + str(index) + "] is None")
+                    maskValue = item["MaskValue"]
                     name = name + "_NonCathegorical_layer"
-                    modelFeatureList.append({"embedded": False, "layer_name": name})
+                    modelFeatureList.append({"embedded": False, "layer_name": name, "MaskValue": maskValue})
             return modelFeatureList
         modelFeatureList = CreateModelFeatureListFromItemList(itemList)
         model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
@@ -366,27 +367,23 @@ if (train_model):
             nonlocal output_index
             nonlocal numberOfOutputs
             nonlocal modelFeatureList
-            
-            print("custom_multi_output_loss (", str(output_index), "):")
-            print(modelFeatureList[output_index])
-
-           
+                       
             inputList = tf.split(input, num_or_size_splits=2, axis=-1)
-
             
             # Define individual losses for each task (you can use different loss functions for each task)
             if (modelFeatureList[output_index]["embedded"] == True):
-                print("embedded loss calculation:")
+               #print("embedded loss calculation:")
                 individual_output_loss = tf.keras.losses.sparse_categorical_crossentropy(inputList[0], output, from_logits=True)
             else:
-                print("non-embedded loss calculation:")
-                individual_output_loss = 0 # todo
+                mask_value = modelFeatureList[output_index]["MaskValue"]
+                mask = tf.cast(tf.not_equal(inputList[1], mask_value), tf.float32) 
+                #mask = tf.not_equal(output, mask_value)
 
-            print("individual_output_loss: ", individual_output_loss)
-            #loss_task2 = 1 #tf.keras.losses.sparse_categorical_crossentropy(y_true_task2, y_pred_task2, from_logits=True)
-            
-            # You might weigh the losses differently or use other methods to combine them
-            # = loss_task1 + loss_task2  # For simplicity, just summing the losses
+                inputMasked  = inputList[1] * mask
+                outputMasked = output * mask
+                individual_output_loss = tf.keras.losses.mean_squared_error(inputMasked, outputMasked)
+                print("\nnon-embedded loss calculation:  inputList[1]: ",  inputList[1], "\n inputMasked", inputMasked, "\noutput: ", outputMasked, "\nloss: ", individual_output_loss, "\n", "Mask: ", mask)
+
             output_index = (output_index + 1) % numberOfOutputs
             return individual_output_loss
         return custom_multi_output_loss_jents

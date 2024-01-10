@@ -16,8 +16,9 @@ class DataTreatment:
         result = value
 
         if ("Numerical" in item):
+            MaskValue = item["MaskValue"]
             if (value == ""):
-                result = DataTreatment.cModelMask
+                result = MaskValue
             else:    
                 if (item["Numerical"] == "Hex"):
                     result = int(result, 16)
@@ -31,6 +32,6 @@ class DataTreatment:
                         result                       -= previousValue
                     else:
                         self.state[index]["Previous"] = result
-                        result = DataTreatment.cModelMask
+                        result = MaskValue
         return result
             

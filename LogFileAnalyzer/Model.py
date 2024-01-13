@@ -166,13 +166,13 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "returnState":True,
                                 "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
-                                "seq_length":16 ,
+                                "seq_length":10 ,
                                 "dense_layer": True,
                                 "return_states": True
                                 },
                       "EPOCHS":10,
                       "Use_Validation":False,
-                      "BatchSize":32 ,
+                      "BatchSize":1 ,
                       "removeDuplicates":True,
                       "num_parallel_calls":1,
                       "stride_dataset": 128,
@@ -366,7 +366,8 @@ if (train_model):
         numberOfFeatures = len(parameter)
         modelFeatureList = parameter
         DataTypeForTensors = DataTypeForTensors
-
+        
+        # we krijgen elke keer alle features van output true, maar maar 1 feature per call van output predicted. De totale loss wordt buiten deze functie berekend. 
         def custom_multi_output_loss_jents(output_true, feature_output_predicted):
             nonlocal featureIndex
             nonlocal numberOfFeatures
@@ -374,6 +375,9 @@ if (train_model):
 
             numberOfFeatures = output_true.shape[2]
             
+            
+            
+            # deze cast zou eigenlijk niet nodig moeten zijn, ooit eens uitzoeken waarom het model geen float64 doorgeeft aan deze functie
             output_true              = tf.cast(output_true, DataTypeForTensors) 
             feature_output_predicted = tf.cast(feature_output_predicted, DataTypeForTensors) 
 
@@ -398,7 +402,7 @@ if (train_model):
                 tf.debugging.check_numerics(feature_output_loss, message="Tensor contains NaN or Inf values")
 
                 #individual_output_loss = tf.keras.losses.mean_error(feature_output_true_masked, feature_output_predicted_masked)
-                #print("\nnon-embedded loss calculation:  inputItem: ",  inputItem, "\n inputMasked", inputMasked, "\noutput: ", outputMasked,  "\nMask: ", mask, "\n")
+                print("\nnon-embedded loss calculation:\n feature_output_true_masked:\n",  feature_output_true_masked, "\n feature_output_predicted_masked:\n", feature_output_predicted_masked, "\nMask: ", mask, "\n", "feature_output_loss:\n", feature_output_loss, "\n")
 
             #print(featureIndex, ": individual_output_loss: ", individual_output_loss, "\n")
             featureIndex = (featureIndex + 1) % numberOfFeatures

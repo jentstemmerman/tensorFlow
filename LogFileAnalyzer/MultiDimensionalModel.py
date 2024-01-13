@@ -8,12 +8,14 @@ class CustomIdentityLayer(tf.keras.layers.Layer):
         super().__init__()
         self.factor = 0
         self.datatype = datatype
+        self.normalisationLayer = tf.keras.layers.BatchNormalization()
     def get_config(self):
         return {"factor": self.factor}
      
     
     def call(self, input, training=False):
         input = tf.cast(input, dtype=self.datatype)
+        input = self.normalisationLayer(input, training=training)
         input = tf.expand_dims(input = input, axis=-1)
         return input
 
@@ -36,11 +38,13 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
                 lstm_input  = tf.keras.layers.Input(shape=(sequence_length, feature["vocab_size"]))
             else:
                 input_layer = CustomIdentityLayer(datatype=datatype) 
+                
                 lstm_input  = tf.keras.layers.Input(shape=(sequence_length, 1))
-
+            
             self.input_layerList.append(input_layer)    
             inputList.append(lstm_input)
-
+        
+        #
         self.concatenated = tf.keras.layers.concatenate(inputList)
         self.lstm_layer   = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfFeatures), return_sequences=return_sequences)
         

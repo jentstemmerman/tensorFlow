@@ -12,6 +12,8 @@ import worker
 import Logger
 import LogFileIterator
 import MultiDimensionalModel
+import neptune
+from neptune.integrations.tensorflow_keras import NeptuneCallback
 
 def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile):
     CrossReferenceTokens = False
@@ -168,12 +170,12 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "dense_layer": True,
                                 "return_states": True
                                 },
-                      "EPOCHS":5,
+                      "EPOCHS":10,
                       "Use_Validation":False,
-                      "BatchSize":1 ,
+                      "BatchSize":32 ,
                       "removeDuplicates":True,
                       "num_parallel_calls":1,
-                      "stride_dataset": 16,
+                      "stride_dataset": 128,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -385,7 +387,13 @@ if (train_model):
 
                 inputMasked  = inputItem * mask
                 outputMasked = output * mask
-                individual_output_loss = tf.keras.losses.mean_squared_error(inputMasked, outputMasked)
+       
+               #individual_output_loss = tf.math.log(tf.cosh(error))
+                individual_output_loss = tf.abs(inputMasked - outputMasked)
+
+                tf.debugging.check_numerics(individual_output_loss, message="Tensor contains NaN or Inf values")
+
+                #individual_output_loss = tf.keras.losses.mean_squared_error(inputMasked, outputMasked)
                 #print("\nnon-embedded loss calculation:  inputItem: ",  inputItem, "\n inputMasked", inputMasked, "\noutput: ", outputMasked,  "\nMask: ", mask, "\n")
 
             #print(featureIndex, ": individual_output_loss: ", individual_output_loss, "\n")
@@ -431,7 +439,11 @@ if (train_model):
     EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True)
     
     Epoch_End_callback = None
-    
+
+    run = neptune.init_run(project='Log/TensorFlowLogger', api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5NDRiM2JmMC1kNGI4LTQ4NDEtYjc5NS0wYmY2YTdhZjg1YTUifQ==')
+
+    neptune_callback = NeptuneCallback(run=run) 
+
     if ( TrainingsParameter["SampleDataSet"]):
         # dit werkt niet zo goed
         class EpochEndCallback(tf.keras.callbacks.Callback):
@@ -455,7 +467,7 @@ if (train_model):
         history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
     else:
        # history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
-        history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback])
+        history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, neptune_callback])
     
     sample_element = next(iter(datasetForTraining))[0]
 

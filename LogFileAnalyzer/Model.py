@@ -164,7 +164,7 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "returnState":True,
                                 "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
-                                "seq_length":5 ,
+                                "seq_length":16 ,
                                 "dense_layer": True,
                                 "return_states": True
                                 },
@@ -173,7 +173,7 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                       "BatchSize":1 ,
                       "removeDuplicates":True,
                       "num_parallel_calls":1,
-                      "stride_dataset": 64,
+                      "stride_dataset": 16,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -358,33 +358,38 @@ if (train_model):
             numberOfInputs=numberOfInputs)
         
     ############################################################################################# Train the model
-    single_loss_function = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
     def custom_loss_with_param(parameter):
-        output_index = 0
-        numberOfOutputs = len(parameter)
+        
+        featureIndex = 0
+        numberOfFeatures = len(parameter)
         modelFeatureList = parameter
+        
         def custom_multi_output_loss_jents(input, output):
-            nonlocal output_index
-            nonlocal numberOfOutputs
+            nonlocal featureIndex
+            nonlocal numberOfFeatures
             nonlocal modelFeatureList
-            #print("input.shape: ", input.shape, input.shape[2] )           
-            inputList = tf.split(input, num_or_size_splits=input.shape[2], axis=-1)
-            
-            # Define individual losses for each task (you can use different loss functions for each task)
-            if (modelFeatureList[output_index]["embedded"] == True):
-               #
-                individual_output_loss = tf.keras.losses.sparse_categorical_crossentropy(inputList[0], output, from_logits=True)
-                #print("embedded loss calculation: individual_output_loss: ", individual_output_loss, "\n")
-            else:
-                mask_value = modelFeatureList[output_index]["MaskValue"]
-                mask = tf.cast(tf.not_equal(inputList[1], mask_value), tf.float32) 
 
-                inputMasked  = inputList[1] * mask
+            numberOfInputs = input.shape[2]
+            inputList = tf.split(input, num_or_size_splits=numberOfInputs, axis=-1)
+
+            #print("\ncustom_multi_output_loss_jents output_index = ", featureIndex)
+
+            inputItem = inputList[featureIndex]
+
+            if (modelFeatureList[featureIndex]["embedded"] == True):
+                individual_output_loss = tf.keras.losses.sparse_categorical_crossentropy(inputItem, output, from_logits=True)
+            else:
+
+                mask_value = modelFeatureList[featureIndex]["MaskValue"]
+                mask = tf.cast(tf.not_equal(inputItem, mask_value), tf.float32) 
+
+                inputMasked  = inputItem * mask
                 outputMasked = output * mask
                 individual_output_loss = tf.keras.losses.mean_squared_error(inputMasked, outputMasked)
-                #print("\nnon-embedded loss calculation:  inputList[1]: ",  inputList[1], "\n inputMasked", inputMasked, "\noutput: ", outputMasked, "\nloss: ", individual_output_loss, "\n", "Mask: ", mask)
+                #print("\nnon-embedded loss calculation:  inputItem: ",  inputItem, "\n inputMasked", inputMasked, "\noutput: ", outputMasked,  "\nMask: ", mask, "\n")
 
-            output_index = (output_index + 1) % numberOfOutputs
+            #print(featureIndex, ": individual_output_loss: ", individual_output_loss, "\n")
+            featureIndex = (featureIndex + 1) % numberOfFeatures
             return individual_output_loss
         return custom_multi_output_loss_jents
     

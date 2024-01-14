@@ -58,10 +58,9 @@ def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions
 
     return reducedParameters, numberOfParallelExecutions, numberOfThreads
 
-def AddProbabilitiesPrintfFileParallel(model, embedding_layer_used, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, temperature, seq_length, id_from_tokenNumpy):
+def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, token_from_idList, id_from_tokenList, temperature, seq_length, id_from_tokenNumpy):
     with tf.device('/CPU:0'):
         numberOfIdenticals = 0
-        averageNextTokenProbability = 0
         averagePredictedTokenProbability = 0
         accumulatedNextTokenProbability = 0.0
         accumulatedPredictedTokenProbability = 0.0
@@ -78,12 +77,12 @@ def AddProbabilitiesPrintfFileParallel(model, embedding_layer_used, numberOfThre
         nextTokens   = []
 
         queueTimeout                         = 50
-        maxNumberOfParallelExecutions        = 500
+        maxNumberOfParallelExecutions        = 1
         numberOfAnalyzedLines                = 0
         accumulatedNextTokenProbability      = 0
         accumulatedPredictedTokenProbability = 0
 
-        one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
+        one_step_model = ModelClass.OneStep(model, token_from_idList, id_from_tokenList, temperature=temperature)
         use_manager = False
         sharedTokenList  = []
         manager          = None
@@ -120,7 +119,7 @@ def AddProbabilitiesPrintfFileParallel(model, embedding_layer_used, numberOfThre
 
             for threadId in range(0,numberOfThreads):
                 inputQueue  = Workers[threadId]["inputQueue"]
-                inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, embedding_layer_used, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, shared_id_from_token, window_size,)))
+                inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, shared_id_from_token, window_size,)))
                 newPrint = origPrintfList[indexOfFirstPrediction - 1:indexOfFirstPrediction + numberOfParallelExecutions - 1]
                 printfList.append(newPrint)
                 if (threadId == 0):
@@ -153,7 +152,7 @@ def AddProbabilitiesPrintfFileParallel(model, embedding_layer_used, numberOfThre
                 if (not reducedParameters):
                     for threadId in range(0,numberOfThreads):
                         inputQueue  = Workers[threadId]["inputQueue"]
-                        inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, embedding_layer_used, DataTypeForTensors, indexOfFirstPredictionTemp, numberOfParallelExecutions, sharedTokenList, shared_id_from_token, window_size,)))
+                        inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPredictionTemp, numberOfParallelExecutions, sharedTokenList, shared_id_from_token, window_size,)))
                         indexOfFirstPredictionTemp  += numberOfParallelExecutions
                 
                 generationStartTime = time.time()

@@ -189,8 +189,9 @@ class OneStep(tf.keras.Model):
     with tf.device('/GPU:0'):
 
       # Run the model.
-      predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
+      predicted_logits_list = self.model(inputs=inputTensor)
       # Only use the last prediction.
+      predicted_logits = predicted_logits_list[0]   # TODO, we only take prediction of the tokens, we want all
       predicted_logits = predicted_logits[:, -1, :]
       predicted_logits = predicted_logits/self.temperature
       # Apply the prediction mask: prevent "[UNK]" from being generated.

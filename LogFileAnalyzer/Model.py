@@ -67,7 +67,7 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
     itemListFromFile    = TokenParser.GetItemListToSearchFor(itemFile)
     id_from_tokenList   = []
     token_from_idList   = []
-    VocabularyNumpyList = None
+    id_from_tokenNumpyList = None
 
     for itemsInLine in itemListFromFile:
         # only create encoder-decoder for items that are cathegorical.
@@ -84,16 +84,17 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
                 VocabularyNumpy = [inner_list[0] for inner_list in tokenListList]
                 VocabularyNumpy = np.array(VocabularyNumpy)
 
-                if (VocabularyNumpyList is None):
-                    VocabularyNumpyList = VocabularyNumpy
+                if (id_from_tokenNumpyList is None):
+                    id_from_tokenNumpyList = VocabularyNumpy
                 else:
-                    VocabularyNumpyList = np.concatenate((VocabularyNumpyList, VocabularyNumpy), axis=0)
+                    id_from_tokenNumpyList = np.concatenate((id_from_tokenNumpyList, VocabularyNumpy), axis=0)
 
                 VocabularyTensor  = tf.convert_to_tensor(VocabularyNumpy)
 
                 # encoder
                 id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
                 id_from_tokenList.append(id_from_token)
+                
                 # decoder
                 token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
                 token_from_idList.append(token_from_id)
@@ -103,11 +104,12 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
             id_from_tokenList.append(None)
             token_from_idList.append(None)
             none_type_array = np.array([])  
-            VocabularyNumpyList = np.concatenate((VocabularyNumpyList, none_type_array), axis=0)
+            #none_type_array = np.empty((0,3), int)
+            id_from_tokenNumpyList = np.concatenate((id_from_tokenNumpyList, none_type_array), axis=0)
             
-    return id_from_tokenList, token_from_idList, VocabularyNumpyList
+    return id_from_tokenList, token_from_idList, id_from_tokenNumpyList
 
-def AnalyzePrintfFiles(model, embedding_layer_used, inputDirectory, outputDirectory, itemFile, temperature, seq_length, token_from_id, id_from_tokenNumpy, numberOfThreads, Workers):
+def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, token_from_idList, id_from_tokenNumpy, numberOfThreads, Workers):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     verificationFileIterator = LogFileIterator.LogfileIterator(inputDirectory)
@@ -117,7 +119,7 @@ def AnalyzePrintfFiles(model, embedding_layer_used, inputDirectory, outputDirect
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".mdtxt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, embedding_layer_used=embedding_layer_used, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_id=token_from_id, id_from_token=id_from_tokenList, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_idList=token_from_idList, id_from_tokenList=id_from_tokenList, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -166,16 +168,16 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "returnState":True,
                                 "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
-                                "seq_length":10 ,
+                                "seq_length":16 ,
                                 "dense_layer": True,
                                 "return_states": True
                                 },
                       "EPOCHS":10,
                       "Use_Validation":False,
-                      "BatchSize":1 ,
+                      "BatchSize":32 ,
                       "removeDuplicates":True,
-                      "num_parallel_calls":1,
-                      "stride_dataset": 128,
+                      "num_parallel_calls":32,
+                      "stride_dataset": 8,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -319,7 +321,7 @@ if (train_model):
                 if (item["Categorical"] == "True"):
                     name = name + "_Cathegorical_layer"
                     assert(id_from_tokenList[index] != None, "id_from_tokenList[" + str(index) + "] is None")
-                    embedded_dimension = 256 
+                    embedded_dimension = 256  #TODO, adapt
                     modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension, "layer_name": name})
                 else:
                     assert(id_from_tokenList[index] == None, "id_from_tokenList[" + str(index) + "] is None")
@@ -361,7 +363,7 @@ if (train_model):
         
     ############################################################################################# Train the model
     def custom_loss_with_param(parameter, DataTypeForTensors):
-        
+        verbose = False
         featureIndex = 0
         numberOfFeatures = len(parameter)
         modelFeatureList = parameter
@@ -402,7 +404,8 @@ if (train_model):
                 tf.debugging.check_numerics(feature_output_loss, message="Tensor contains NaN or Inf values")
 
                 #individual_output_loss = tf.keras.losses.mean_error(feature_output_true_masked, feature_output_predicted_masked)
-                print("\nnon-embedded loss calculation:\n feature_output_true_masked:\n",  feature_output_true_masked, "\n feature_output_predicted_masked:\n", feature_output_predicted_masked, "\nMask: ", mask, "\n", "feature_output_loss:\n", feature_output_loss, "\n")
+                
+                #print("\nnon-embedded loss calculation:\n feature_output_true_masked:\n",  feature_output_true_masked, "\n feature_output_predicted_masked:\n", feature_output_predicted_masked, "\nMask: ", mask, "\n", "feature_output_loss:\n", feature_output_loss, "\n")
 
             #print(featureIndex, ": individual_output_loss: ", individual_output_loss, "\n")
             featureIndex = (featureIndex + 1) % numberOfFeatures
@@ -538,19 +541,19 @@ if (AnalyzeFiles):
     print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
     with tf.device('/CPU:0'):
-        Workers = worker.CreateWorkers(numberOfThreads)
+        
+        Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
     
         if (Workers == None):
             print("Could not start workers")
         else:
             AnalyzePrintfFiles(model, 
-                               embedding_layer_used,
                                inputDirectory=VerificationDirectory, 
                                outputDirectory=OutputDirectoryVerification, 
                                itemFile=itemFile, 
                                temperature=ValidationsParameter["temperature"], 
                                seq_length=TrainingsParameter["Model"]["seq_length"], 
-                               token_from_id=token_from_idList, 
+                               token_from_idList=token_from_idList, 
                                id_from_tokenNumpy=id_from_tokenNumpyList, 
                                numberOfThreads=numberOfThreads, 
                                Workers=Workers)

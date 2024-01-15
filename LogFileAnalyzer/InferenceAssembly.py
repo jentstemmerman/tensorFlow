@@ -16,31 +16,45 @@ with tf.device('/CPU:0'):
         nextTokenIdWindow[-1] = newTokenId
         return nextTokenIdWindow
 
-    def GetFirstSequenceData(startIndex, tokenList, id_from_token, window_size, DataTypeForTensors):
+    def GetFirstSequenceData(startIndex, tokenList, id_from_tokenList, window_size, DataTypeForTensors):
 
         if (tokenList is not None):
             tokenWindow       = tokenList[startIndex:startIndex + window_size]
-
             outputToken       = tokenList[startIndex + window_size]
 
-            nextTokenIdWindow = id_from_token(tokenWindow)
-            outputTokenId     = id_from_token(outputToken)
+            tokenIdWindow = tokenWindow
+            outputTokenId = outputToken
 
-            nextTokenIdWindow = tf.cast(nextTokenIdWindow, dtype=DataTypeForTensors)
-            outputTokenId     = tf.cast(outputTokenId,     dtype=DataTypeForTensors)
+            column = 0
+            for id_from_token in id_from_tokenList:
+                if (id_from_token is not None):
+                    for tokenInWindow in tokenIdWindow:
+                        tokenInWindow[column] = id_from_token(tokenInWindow[column])
+                                                  
+                    outputTokenId[column] = id_from_token(outputToken[column])
+                column += 1  
+
+            tokenIdWindow = tf.cast(tokenIdWindow, dtype=DataTypeForTensors)
+            outputTokenId = tf.cast(outputTokenId, dtype=DataTypeForTensors)
         else:
             tokenWindow = None 
             outputToken = None 
-            nextTokenIdWindow = None  
+            tokenIdWindow = None  
             outputTokenId = None 
 
+        return tokenWindow, outputToken, tokenIdWindow, outputTokenId
 
-        return tokenWindow, outputToken, nextTokenIdWindow, outputTokenId
-
-    def GetNextSequenceData(newToken, id_from_token, prevWindow, prevInputTokens, prevOutputToken, prevOutputTokenId, DataTypeForTensors):
+    def GetNextSequenceData(newToken, id_from_tokenList, prevWindow, prevInputTokens, prevOutputToken, prevOutputTokenId, DataTypeForTensors):
         
-        newWindow           = GetNextTokenWindow(prevWindow, prevOutputToken)
-        newTokenId          = id_from_token(newToken)
+        newWindow = GetNextTokenWindow(prevWindow, prevOutputToken)
+        newTokenId = newToken
+        column = 0
+        for id_from_token in id_from_tokenList:
+            if (id_from_token is not None):
+                newTokenId[column] = id_from_token(newToken[column])
+
+            column += 1
+
         newTokenId          = tf.cast(newTokenId, dtype=DataTypeForTensors)
         nextTokenIdWindow   = GetNextTokenIdWindow(prevInputTokens, prevOutputTokenId)
 
@@ -51,12 +65,12 @@ with tf.device('/CPU:0'):
         with tf.device('/CPU:0'):
 
             #VocabularyTensor  = tf.convert_to_tensor(shared_id_from_token)
-            id_from_token     = workerParameter[0] # tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
+            id_from_tokenList     = workerParameter # tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
             inputTensor  = []
             nexttokenIds = []
             nextTokens   = []
             
-            window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(indexOfFirstPrediction - (window_size+1),  newTokenList, id_from_token, window_size, DataTypeForTensors)
+            window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(indexOfFirstPrediction - (window_size+1),  newTokenList, id_from_tokenList, window_size, DataTypeForTensors)
             inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
             nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
             nextTokens.append(nextToken)
@@ -73,7 +87,7 @@ with tf.device('/CPU:0'):
                     print("   AssembleInputsnextTokenBatchStartTime Time = {:2.3f}.".format((time.time() - AssembleInputsnextTokenBatchStartTime) * 8 * numberOfParallelExecutions))
                 
 
-                window, nextToken, nexttokenId, tokenIdWindow = GetNextSequenceData(nextTokenBatch, id_from_token, window, tokenIdWindow, nextToken, nexttokenId, DataTypeForTensors)
+                window, nextToken, nexttokenId, tokenIdWindow = GetNextSequenceData(nextTokenBatch, id_from_tokenList, window, tokenIdWindow, nextToken, nexttokenId, DataTypeForTensors)
                 
                 
                 if (window is None):

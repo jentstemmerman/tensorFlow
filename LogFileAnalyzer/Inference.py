@@ -11,29 +11,6 @@ import InferenceAssembly
 import InferenceOutput
 import sys
 
-def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
-    
-    inputTensor  = []
-    nexttokenIds = []
-    nextTokens   = []
-    Windows      = []
-    PrintfList   = []
-
-    for executionIndex in range(numberOfParallelExecutions):
-        
-        window, nextToken, nexttokenId, tokenIdWindow, printf = InferenceAssembly.GetNextSequenceData(newTokenList[executionIndex], newPrintfList[executionIndex], id_from_token, window, tokenIdWindow, nextToken, nexttokenId, DataTypeForTensors)
-        
-        if (window is None):
-            break
-        else:
-            Windows.append(window) 
-            PrintfList.append(printf)
-            inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
-            nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
-            nextTokens.append(nextToken)
-    
-    return Windows, nextTokens, PrintfList, inputTensor, nexttokenIds, window, tokenIdWindow, nextToken, nexttokenId
-
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     numberOfParallelExecutions  = maxNumberOfParallelExecutions
     numberOfLinesPerCycle       = numberOfThreads * maxNumberOfParallelExecutions

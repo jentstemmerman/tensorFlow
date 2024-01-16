@@ -158,8 +158,8 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model     = True
-CreateNewOutDirectory = True
+force_train_model     = False
+CreateNewOutDirectory = False
 AnalyzeFiles          = True
 tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()
@@ -177,7 +177,7 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                       "BatchSize":32 ,
                       "removeDuplicates":True,
                       "num_parallel_calls":32,
-                      "stride_dataset": 128,
+                      "stride_dataset": 256,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -227,7 +227,7 @@ if (force_train_model):
     model = None
 else:
     try:
-        model = tf.keras.models.load_model(ModelDirectory, compile=True)
+        model = tf.keras.models.load_model(ModelDirectory, compile=False)
     except:
         model = None
 
@@ -488,7 +488,10 @@ if (train_model):
     
     sys.stdout = sys.__stdout__
 
-    model.save(ModelDirectory)
+    try:
+        model.save(ModelDirectory)
+    except:
+        model = None
 
 ############################################################################################# Use the model
 

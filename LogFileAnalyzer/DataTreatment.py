@@ -1,7 +1,7 @@
 
 
 class DataTreatment:
-    cModelMask = 64000
+    
     def __init__(self, numberOfItems):
 
         self.state = []

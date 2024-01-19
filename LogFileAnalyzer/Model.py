@@ -158,8 +158,8 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model     = False
-CreateNewOutDirectory = False
+force_train_model     = True
+CreateNewOutDirectory = True
 AnalyzeFiles          = True
 tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()
@@ -540,7 +540,7 @@ else:
 
 if (AnalyzeFiles):
     
-    numberOfThreads = 8  # 1 for the main process
+    numberOfThreads = 1  # 1 for the main process
     print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
     with tf.device('/CPU:0'):

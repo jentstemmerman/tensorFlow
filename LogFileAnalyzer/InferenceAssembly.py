@@ -1,19 +1,21 @@
 import multiprocessing
 import numpy as np
-import os
+import copy
 import tensorflow as tf
 import time
 
 with tf.device('/CPU:0'):
     def GetNextTokenWindow(oldWindow, newToken):
         newWindow = oldWindow[1:]  
-        arnewWindowr = np.append(newWindow, newToken)
+        newWindowr = np.append(newWindow, newToken)
         #newWindow.append(newToken)
         return newWindow
 
     def GetNextTokenIdWindow(oldTokenIdWindow, newTokenId):
-        nextTokenIdWindow = np.roll(oldTokenIdWindow, -1)
-        nextTokenIdWindow[-1] = newTokenId
+        nextTokenIdWindow = oldTokenIdWindow[1:]
+        newTokenId = tf.reshape(newTokenId, [1, 2])  # maak compatibel met concat van nextTokenIdWindow
+        nextTokenIdWindow = tf.concat([nextTokenIdWindow, newTokenId], axis=0)
+
         return nextTokenIdWindow
 
     def GetFirstSequenceData(startIndex, tokenList, id_from_tokenList, window_size, DataTypeForTensors):
@@ -22,8 +24,8 @@ with tf.device('/CPU:0'):
             tokenWindow       = tokenList[startIndex:startIndex + window_size]
             outputToken       = tokenList[startIndex + window_size]
 
-            tokenIdWindow = tokenWindow
-            outputTokenId = outputToken
+            tokenIdWindow = copy.deepcopy(tokenWindow)
+            outputTokenId = copy.deepcopy(outputToken)
 
             column = 0
             for id_from_token in id_from_tokenList:
@@ -34,8 +36,8 @@ with tf.device('/CPU:0'):
                     outputTokenId[column] = id_from_token(outputToken[column])
                 column += 1  
 
-            tokenIdWindow = tf.cast(tokenIdWindow, dtype=DataTypeForTensors)
-            outputTokenId = tf.cast(outputTokenId, dtype=DataTypeForTensors)
+            tokenIdWindow = tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors)
+            outputTokenId = tf.convert_to_tensor(outputTokenId, dtype=DataTypeForTensors)
         else:
             tokenWindow = None 
             outputToken = None 
@@ -47,7 +49,8 @@ with tf.device('/CPU:0'):
     def GetNextSequenceData(newToken, id_from_tokenList, prevWindow, prevInputTokens, prevOutputToken, prevOutputTokenId, DataTypeForTensors):
         
         newWindow = GetNextTokenWindow(prevWindow, prevOutputToken)
-        newTokenId = newToken
+        newTokenId = copy.deepcopy(newToken)
+
         column = 0
         for id_from_token in id_from_tokenList:
             if (id_from_token is not None):
@@ -55,7 +58,7 @@ with tf.device('/CPU:0'):
 
             column += 1
 
-        newTokenId          = tf.cast(newTokenId, dtype=DataTypeForTensors)
+        newTokenId          = tf.convert_to_tensor(newTokenId, dtype=DataTypeForTensors)
         nextTokenIdWindow   = GetNextTokenIdWindow(prevInputTokens, prevOutputTokenId)
 
         return newWindow, newToken, newTokenId, nextTokenIdWindow
@@ -64,15 +67,15 @@ with tf.device('/CPU:0'):
     def AssembleInputsThread(workerParameter, threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, shared_id_from_token, window_size):
         with tf.device('/CPU:0'):
 
-            #VocabularyTensor  = tf.convert_to_tensor(shared_id_from_token)
             id_from_tokenList     = workerParameter # tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
             inputTensor  = []
             nexttokenIds = []
             nextTokens   = []
             
             window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(indexOfFirstPrediction - (window_size+1),  newTokenList, id_from_tokenList, window_size, DataTypeForTensors)
-            inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
-            nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
+            
+            inputTensor.append(tokenIdWindow)
+            nexttokenIds.append(nexttokenId)  
             nextTokens.append(nextToken)
             index = 0
 

@@ -186,8 +186,8 @@ class OneStep(tf.keras.Model):
       predicted_logits_list = self.model(inputs=inputTensor)
     
       predictions            = []
-      probabilityPredictions = None
-      probabilityNextTokens  = None
+      probabilityOfPredictions = None
+      probabilityOfActuals  = None
 
       for index, Tokens_from_ids in enumerate(self.Tokens_from_idList):
           predicted_logits = predicted_logits_list[index]
@@ -199,27 +199,29 @@ class OneStep(tf.keras.Model):
 
 
           if (Tokens_from_ids is not None):
-              predicted_tokensColumn = (self.Tokens_from_idList[index])(predicted_id).numpy()
+              prediction = (self.Tokens_from_idList[index])(predicted_id).numpy()
+
+              for i, pred in enumerate(prediction):
+                 prediction[i] = pred.decode('utf-8') 
+
           else:
-              predicted_tokensColumn = predicted_id.numpy()
+              prediction = predicted_id.numpy()
           
-          predictions.append(predicted_tokensColumn)
+          predictions.append(prediction)
           
-          probabilityPredictionColumn = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id).numpy()
-          if (probabilityPredictions is None):
-              probabilityPredictions = probabilityPredictionColumn
+          probabilityOfPrediction = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id).numpy()
+          if (probabilityOfPredictions is None):
+              probabilityOfPredictions = probabilityOfPrediction
           else:
-              probabilityPredictions  = np.stack((probabilityPredictions, probabilityPredictionColumn))
+              probabilityOfPredictions  = np.stack((probabilityOfPredictions, probabilityOfPrediction))
 
 
-          probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
+          probabilityOfActual = self.GetProbabilitiesFromLogits(softmaxLogits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
 
-          if (probabilityNextTokens is None):
-              probabilityNextTokens = probabilityNextToken
+          if (probabilityOfActuals is None):
+              probabilityOfActuals = probabilityOfActual
           else:
-              probabilityNextTokens  = np.stack((probabilityNextTokens, probabilityNextToken))
+              probabilityOfActuals  = np.stack((probabilityOfActuals, probabilityOfActual))
 
-
-      # Return the characters and model state.
-      return predictions, probabilityPredictions, probabilityNextTokens
+      return predictions, probabilityOfPredictions, probabilityOfActuals
       

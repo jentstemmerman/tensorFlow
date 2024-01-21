@@ -64,10 +64,10 @@ with tf.device('/CPU:0'):
         return newWindow, newToken, newTokenId, nextTokenIdWindow
 
 
-    def AssembleInputsThread(workerParameter, threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, shared_id_from_token, window_size):
+    def AssembleInputsThread(workerParameter, threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, window_size):
         with tf.device('/CPU:0'):
 
-            id_from_tokenList     = workerParameter # tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
+            id_from_tokenList = workerParameter 
             inputTensor  = []
             nexttokenIds = []
             nextTokens   = []

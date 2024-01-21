@@ -179,50 +179,47 @@ class OneStep(tf.keras.Model):
     #probabilities = tf.gather(params, indices)
     return probabilities
   
-  def generate_steps(self, inputTensor, nexttokenIds, states=None):
-      predicted_tokens, probabilityPredictedToken, probabilityNextToken = self.generate_steps_optimized(inputTensor, nexttokenIds, states=None)
-      
-      return predicted_tokens.numpy(), probabilityPredictedToken, probabilityNextToken
-  
   #@tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
-
       # Run the model.
       predicted_logits_list = self.model(inputs=inputTensor)
-      # Only use the last prediction.
-      predicted_logits = predicted_logits_list[0]   # TODO, we only take prediction of the tokens, we want all
-      predicted_logits = predicted_logits[:, -1, :]
-      predicted_logits = predicted_logits/self.temperature
-      # Apply the prediction mask: prevent "[UNK]" from being generated.
-      #predicted_logits = predicted_logits + self.prediction_mask
-      #predicted_id = tf.argmax(predicted_logits, axis=1)
-      # Sample the output logits to generate token IDs.
-      #predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
-      #predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
-      softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
-      predicted_id = tf.argmax(predicted_logits, axis=1)
-      # Convert from token ids to characters
-
- #     predicted_tokensColumn = np.array()
-      predicted_tokens = None
+    
+      predictions            = []
+      probabilityPredictions = None
+      probabilityNextTokens  = None
 
       for index, Tokens_from_ids in enumerate(self.Tokens_from_idList):
-          
+          predicted_logits = predicted_logits_list[index]
+          predicted_logits = predicted_logits[:, -1, :]
+          predicted_logits = predicted_logits / self.temperature
+
+          softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
+          predicted_id = tf.argmax(predicted_logits, axis=1)
+
+
           if (Tokens_from_ids is not None):
-              predicted_tokensColumn = (self.Tokens_from_idList[index])(predicted_id)
+              predicted_tokensColumn = (self.Tokens_from_idList[index])(predicted_id).numpy()
           else:
-              predicted_tokensColumn = predicted_id[index]
+              predicted_tokensColumn = predicted_id.numpy()
           
-          if (predicted_tokens is None):
-              predicted_tokens = predicted_tokensColumn
+          predictions.append(predicted_tokensColumn)
+          
+          probabilityPredictionColumn = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id).numpy()
+          if (probabilityPredictions is None):
+              probabilityPredictions = probabilityPredictionColumn
           else:
-              predicted_tokens  = np.stack(predicted_tokens, predicted_tokensColumn)
-   
-      probabilityPredictedToken = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id)
-      
-      nexttokenIds = tf.cast(nexttokenIds, dtype=tf.int32)
-      probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, nexttokenIds)
+              probabilityPredictions  = np.stack((probabilityPredictions, probabilityPredictionColumn))
+
+
+          probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
+
+          if (probabilityNextTokens is None):
+              probabilityNextTokens = probabilityNextToken
+          else:
+              probabilityNextTokens  = np.stack((probabilityNextTokens, probabilityNextToken))
+
+
       # Return the characters and model state.
-      return predicted_tokens, probabilityPredictedToken, probabilityNextToken
+      return predictions, probabilityPredictions, probabilityNextTokens
       

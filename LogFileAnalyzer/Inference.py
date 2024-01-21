@@ -134,7 +134,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 
                 generationStartTime = time.time()
                 for threadId in range(0, numberOfThreads):
-                    nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
+                    nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps_optimized(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
                     
                     nextPredictedTokensList.append(nextPredictedTokens)
                     probabilityPredictionsList.append(probabilityPredictions)

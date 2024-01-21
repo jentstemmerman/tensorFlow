@@ -80,7 +80,7 @@ with tf.device('/CPU:0'):
             index = 0
 
             
-            for executionIndex in range(indexOfFirstPrediction, indexOfFirstPrediction + numberOfParallelExecutions):
+            for executionIndex in range(indexOfFirstPrediction, indexOfFirstPrediction + numberOfParallelExecutions - 1):
                 
                 if (threadId == 5) and (index == 20):
                      AssembleInputsnextTokenBatchStartTime = time.time()
@@ -103,6 +103,7 @@ with tf.device('/CPU:0'):
                     nextTokens.append(nextToken)
 
                 index += 1
+            
             inputTensor  = tf.stack(inputTensor,  axis=0)
             nexttokenIds = tf.stack(nexttokenIds, axis=0)
 

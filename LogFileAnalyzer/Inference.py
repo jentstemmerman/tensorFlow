@@ -41,7 +41,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         averagePredictedTokenProbability = 0
         accumulatedNextTokenProbability = 0.0
         accumulatedPredictedTokenProbability = 0.0
-
+        numberOfFeatures = len(id_from_tokenList)
         window_size = seq_length
         
         LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
@@ -174,7 +174,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 for threadId in range(0, numberOfThreads):
 
                     outputQueue = Workers[threadId]["outputQueue"]
-                    linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbabilityTemp, accumulatedPredictedTokenProbabilityTemp = outputQueue.get(timeout=queueTimeout)
+                    linesToWrite, numberOfIdenticalsInThisCycle, accumulatedActualProbability, accumulatedPredictedProbability = outputQueue.get(timeout=queueTimeout)
                     
                     if (threadId == (numberOfThreads-1)):
                         print("   Output thread Time = {:2.3f}.".format(time.time() - outputStartTime))
@@ -182,8 +182,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     newPrint = origPrintfList[indexOfFirstPrediction - 1:indexOfFirstPrediction + numberOfParallelExecutions - 1]
                     printfList.append(newPrint)
 
-                    accumulatedNextTokenProbability      += accumulatedNextTokenProbabilityTemp
-                    accumulatedPredictedTokenProbability += accumulatedPredictedTokenProbabilityTemp
+                    accumulatedNextTokenProbability      += accumulatedActualProbability
+                    accumulatedPredictedTokenProbability += accumulatedPredictedProbability
                     numberOfIdenticals                   += numberOfIdenticalsInThisCycle
                     numberOfAnalyzedLines                += numberOfParallelExecutions
                     numberOfAnalyzedLinesThisCycle       += numberOfParallelExecutions
@@ -201,11 +201,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 
                 Endtime = time.time()
                 remainingNumberOfLines           = (numberOfFoundTokens - indexOfFirstPrediction) - (window_size + 1)
-                averageNextTokenProbabilities    = accumulatedNextTokenProbability / numberOfAnalyzedLines
+                averageNextTokenProbabilities    = accumulatedNextTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
                 
                 averageNextTokenProbabilities = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
 
-                averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
+                averagePredictedTokenProbability = accumulatedPredictedTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
                 analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
                 remainingTimeInMinutes           = remainingNumberOfLines/(numberOfAnalyzedLines/(time.time() - analyzeStartTime)) / 60
                 

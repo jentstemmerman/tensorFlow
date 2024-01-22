@@ -17,9 +17,9 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
         numberOfFeatures = len(id_from_tokenList)
         linesToWrite = []
         numberOfIdenticals = 0
-        accumulatedNextTokenProbability = 0
-        accumulatedPredictedTokenProbability = 0
-
+        accumulatedActualProbability = 0
+        accumulatedPredictedProbability = 0
+        
         for executionIndex in range(numberOfParallelExecutions):
             
             ProbabilityOfActualsString = "Prob of actual: "
@@ -44,21 +44,20 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
                 ProbabilityOfActualsString += "{:2.3f} ".format(probabilityOfActual)
 
                 probabilityOfPrediction         = probabilityOfPredictions[featureIndex][executionIndex]
-                ProbabilityOfPredictionsString += "{:2.3f} ".format(probabilityOfPrediction)
+                ProbabilityOfPredictionsString += "{:2.3f} ".format(probabilityOfPrediction)    
+
+                accumulatedActualProbability      += probabilityOfActual
+                accumulatedPredictedProbability += probabilityOfPrediction
 
             lineToWrite = actualsString  + ProbabilityOfActualsString + "  " + predictionsString + ProbabilityOfPredictionsString + PrintfList[executionIndex]
             linesToWrite.append(lineToWrite)
 
-            for nextTokenProbability in probabilityOfActual:
-                accumulatedNextTokenProbability += nextTokenProbability
-
-            accumulatedPredictedTokenProbability += probabilityOfPredictions[executionIndex].numpy()
-        return linesToWrite, numberOfIdenticals, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
+        return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
 
 
 
 
-def ComposeLineListOld(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
+def ComposeLineListColored(numberOfParallelExecutions, nextPredictedTokens, nextTokens, PrintfList, probabilityOfNextTokens, probabilityPredictions):
     with tf.device('/CPU:0'):
         linesToWrite = []
         numberOfIdenticals = 0
@@ -92,7 +91,7 @@ def ComposeLineListOld(numberOfParallelExecutions, nextPredictedTokens, nextToke
 def InferenceOutputThread(workerParameter, threadId, numberOfParallelExecutions, predictions, nextTokens, PrintfList, probabilityOfActuals, probabilityOfPredictions):
     with tf.device('/CPU:0'):
         id_from_tokenList = workerParameter
-        linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability = ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, nextTokens, PrintfList, probabilityOfActuals, probabilityOfPredictions)
-        return linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
+        linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, nextTokens, PrintfList, probabilityOfActuals, probabilityOfPredictions)
+        return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
 
 

@@ -5,6 +5,14 @@ import tensorflow as tf
 import numpy as np
 from numbers import Number
 
+def extend_string_with_spaces(s, target_length):
+    if len(s) >= target_length:
+        return s  # String is already at or beyond the target length
+
+    spaces_to_add = target_length - len(s)
+    extended_string = s + ' ' * spaces_to_add
+    return extended_string
+
 def TranslateToString(value):
     if isinstance(value, (Number, np.number)):
         value = str(value)
@@ -14,6 +22,8 @@ def TranslateToString(value):
 
 def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, probabilityOfPredictions):
     with tf.device('/CPU:0'):
+        string_length = 13
+        number_string_length = 6
         numberOfFeatures = len(id_from_tokenList)
         linesToWrite = []
         numberOfIdenticals = 0
@@ -24,7 +34,7 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
             
             ProbabilityOfActualsString = "Prob of actual: "
             ProbabilityOfPredictionsString= "Prob of pred: "
-            predictionsString = "Predicted: " 
+            predictionsString = ". Predicted: " 
             actualsString = "Actual: " 
             
             for featureIndex in range(numberOfFeatures):
@@ -33,23 +43,28 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
                 actual     = TranslateToString(actuals[executionIndex][featureIndex])
                 
                 actualsString += (actual + ", ")
+                actualsString  = extend_string_with_spaces(actualsString, string_length)
 
                 if (actual == prediction):
                     predictionsString += " Identical "
                     numberOfIdenticals += 1
                 else:
                     predictionsString += (prediction + ", ")
+                
+                predictionsString  = extend_string_with_spaces(predictionsString, string_length)
                     
                 probabilityOfActual         = probabilityOfActuals[featureIndex][executionIndex]
                 ProbabilityOfActualsString += "{:2.3f} ".format(probabilityOfActual)
+                ProbabilityOfActualsString  = extend_string_with_spaces(ProbabilityOfActualsString, number_string_length)
 
                 probabilityOfPrediction         = probabilityOfPredictions[featureIndex][executionIndex]
                 ProbabilityOfPredictionsString += "{:2.3f} ".format(probabilityOfPrediction)    
+                ProbabilityOfPredictionsString  = extend_string_with_spaces(ProbabilityOfPredictionsString, number_string_length)
 
-                accumulatedActualProbability      += probabilityOfActual
+                accumulatedActualProbability    += probabilityOfActual
                 accumulatedPredictedProbability += probabilityOfPrediction
 
-            lineToWrite = actualsString  + ProbabilityOfActualsString + "  " + predictionsString + ProbabilityOfPredictionsString + PrintfList[executionIndex]
+            lineToWrite = actualsString + predictionsString + ProbabilityOfActualsString + "  "  + ProbabilityOfPredictionsString + PrintfList[executionIndex]
             linesToWrite.append(lineToWrite)
 
         return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability

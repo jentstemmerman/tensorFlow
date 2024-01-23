@@ -3,6 +3,56 @@ import numpy as np
 from tensorflow import keras
 import TokenParser
 
+def Custom_loss_function(parameter, DataTypeForTensors):
+    verbose = False
+    featureIndex = 0
+    numberOfFeatures = len(parameter)
+    modelFeatureList = parameter
+    DataTypeForTensors = DataTypeForTensors
+
+    # we krijgen elke keer alle features van output true, maar maar 1 feature per call van output predicted. De totale loss wordt buiten deze functie berekend. 
+    def custom_multi_output_loss_jents(output_true, feature_output_predicted):
+        nonlocal featureIndex
+        nonlocal numberOfFeatures
+        nonlocal modelFeatureList
+
+        numberOfFeatures = output_true.shape[2]
+        
+        
+        
+        # deze cast zou eigenlijk niet nodig moeten zijn, ooit eens uitzoeken waarom het model geen float64 doorgeeft aan deze functie
+        output_true              = tf.cast(output_true, DataTypeForTensors) 
+        feature_output_predicted = tf.cast(feature_output_predicted, DataTypeForTensors) 
+
+        list_output_true = tf.split(output_true, num_or_size_splits=numberOfFeatures, axis=-1)
+
+        #print("\ncustom_multi_output_loss_jents output_index = ", featureIndex)
+
+        feature_output_true = list_output_true[featureIndex]
+
+        if (modelFeatureList[featureIndex]["embedded"] == True):
+            feature_output_loss = tf.keras.losses.sparse_categorical_crossentropy(feature_output_true, feature_output_predicted, from_logits=True)
+        else:
+            mask_value = modelFeatureList[featureIndex]["MaskValue"]
+            mask = tf.cast(tf.not_equal(feature_output_true, mask_value), DataTypeForTensors) 
+
+            feature_output_true_masked      = feature_output_true      * mask
+            feature_output_predicted_masked = feature_output_predicted * mask
+
+            # feature_output_loss = tf.keras.losses.mean_error(feature_output_true_masked, feature_output_predicted_masked)
+            feature_output_loss = tf.abs(feature_output_true_masked - feature_output_predicted_masked)
+
+            tf.debugging.check_numerics(feature_output_loss, message="Tensor contains NaN or Inf values")
+
+            #individual_output_loss = tf.keras.losses.mean_error(feature_output_true_masked, feature_output_predicted_masked)
+            
+            #print("\nnon-embedded loss calculation:\n feature_output_true_masked:\n",  feature_output_true_masked, "\n feature_output_predicted_masked:\n", feature_output_predicted_masked, "\nMask: ", mask, "\n", "feature_output_loss:\n", feature_output_loss, "\n")
+
+        #print(featureIndex, ": individual_output_loss: ", individual_output_loss, "\n")
+        featureIndex = (featureIndex + 1) % numberOfFeatures
+        return feature_output_loss
+    return custom_multi_output_loss_jents
+
 class CustomIdentityLayer(tf.keras.layers.Layer):
     def __init__(self, datatype):
         super().__init__()

@@ -172,12 +172,12 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "dense_layer": True,
                                 "return_states": True
                                 },
-                      "EPOCHS":1,
+                      "EPOCHS":20,
                       "Use_Validation":False,
-                      "BatchSize":32 ,
+                      "BatchSize":32,
                       "removeDuplicates":True,
                       "num_parallel_calls":32,
-                      "stride_dataset": 256,
+                      "stride_dataset": 2,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -491,7 +491,7 @@ else:
 
 if (AnalyzeFiles):
     
-    numberOfThreads = 1  # 1 for the main process
+    numberOfThreads = 7  # 1 for the main process
     print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
     with tf.device('/CPU:0'):

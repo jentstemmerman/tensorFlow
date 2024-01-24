@@ -18,9 +18,7 @@ def Custom_loss_function(parameter, DataTypeForTensors):
 
         numberOfFeatures = output_true.shape[2]
         
-        
-        
-        # deze cast zou eigenlijk niet nodig moeten zijn, ooit eens uitzoeken waarom het model geen float64 doorgeeft aan deze functie
+        # TODO deze cast zou eigenlijk niet nodig moeten zijn, ooit eens uitzoeken waarom het model geen float64 doorgeeft aan deze functie
         output_true              = tf.cast(output_true, DataTypeForTensors) 
         feature_output_predicted = tf.cast(feature_output_predicted, DataTypeForTensors) 
 
@@ -39,17 +37,20 @@ def Custom_loss_function(parameter, DataTypeForTensors):
             feature_output_true_masked      = feature_output_true      * mask
             feature_output_predicted_masked = feature_output_predicted * mask
 
-            # feature_output_loss = tf.keras.losses.mean_error(feature_output_true_masked, feature_output_predicted_masked)
-            feature_output_loss = tf.abs(feature_output_true_masked - feature_output_predicted_masked)
-
+            feature_output_loss = tf.keras.losses.mean_absolute_error(feature_output_true_masked, feature_output_predicted_masked)
+            
             tf.debugging.check_numerics(feature_output_loss, message="Tensor contains NaN or Inf values")
-
-            #individual_output_loss = tf.keras.losses.mean_error(feature_output_true_masked, feature_output_predicted_masked)
             
             #print("\nnon-embedded loss calculation:\n feature_output_true_masked:\n",  feature_output_true_masked, "\n feature_output_predicted_masked:\n", feature_output_predicted_masked, "\nMask: ", mask, "\n", "feature_output_loss:\n", feature_output_loss, "\n")
 
         #print(featureIndex, ": individual_output_loss: ", individual_output_loss, "\n")
         featureIndex = (featureIndex + 1) % numberOfFeatures
+        #scalar_loss = tf.reduce_mean(feature_output_loss)
+        #if (scalar_loss > 100000):
+        #    print("\scalar_loss = ", scalar_loss)
+        #    print("\nfeature_output_true_masked = ", feature_output_true_masked)
+        #    print("\nfeature_output_predicted_masked = ", feature_output_predicted_masked)
+        #    exit()
         return feature_output_loss
     return custom_multi_output_loss_jents
 
@@ -67,6 +68,20 @@ class CustomIdentityLayer(tf.keras.layers.Layer):
         input = tf.cast(input, dtype=self.datatype)
         input = self.normalisationLayer(input, training=training)
         input = tf.expand_dims(input = input, axis=-1)
+        return input
+    
+class CustomDenseLayer(tf.keras.layers.Layer):
+    def __init__(self, numberOfInputs, numberOfOutputs):
+        super().__init__()
+        self.numberOfCells = 0
+        self.dense_output_layer1 = tf.keras.layers.Dense(units=20, input_shape=(numberOfInputs,), activation='relu')
+        self.dense_output_layer2 = tf.keras.layers.Dense(units=1, input_shape=(numberOfOutputs,))
+    def get_config(self):
+        return {"layer1": self.dense_output_layer1, "layer2": self.dense_output_layer2}
+         
+    def call(self, input, training=False):
+        input = self.dense_output_layer1(input)
+        input = self.dense_output_layer2(input)
         return input
 
 class LSTMPrintfLogMultiModel(tf.keras.Model):
@@ -107,7 +122,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             if (feature["embedded"] == True):
                 dense_output_layer = tf.keras.layers.Dense(units=feature["vocab_size"], name=layer_name)
             else:
-                dense_output_layer = tf.keras.layers.Dense(units=1, name=layer_name)
+                dense_output_layer = CustomDenseLayer(rnn_units, 1) 
 
             self.output_layerList.append(dense_output_layer)  
 

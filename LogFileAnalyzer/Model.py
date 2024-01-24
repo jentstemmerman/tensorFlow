@@ -109,7 +109,7 @@ def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyF
             
     return id_from_tokenList, token_from_idList, id_from_tokenNumpyList
 
-def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, token_from_idList, id_from_tokenNumpy, numberOfThreads, Workers):
+def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, id_from_tokenNumpy, numberOfThreads, Workers):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     verificationFileIterator = LogFileIterator.LogfileIterator(inputDirectory)
@@ -119,7 +119,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".mdtxt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, token_from_idList=token_from_idList, id_from_tokenList=id_from_tokenList, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -151,6 +151,23 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
 
     return Accumulator / AccumulatorCount
 
+def CreateModelFeatureListFromItemList(itemList):
+    modelFeatureList = []
+
+    for index, item in enumerate(itemList):
+        name = "Layer_" + str(index)
+        assert(("Categorical" in item) == True)
+        if (item["Categorical"] == "True"):
+            name = name + "_Cathegorical_layer"
+            assert(id_from_tokenList[index] != None, "id_from_tokenList[" + str(index) + "] is None")
+            embedded_dimension = 256  #TODO, adapt
+            modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension, "layer_name": name})
+        else:
+            assert(id_from_tokenList[index] == None, "id_from_tokenList[" + str(index) + "] is None")
+            maskValue = item["MaskValue"]
+            name = name + "_NonCathegorical_layer"
+            modelFeatureList.append({"embedded": False, "layer_name": name, "MaskValue": maskValue})
+    return modelFeatureList
 
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
@@ -158,11 +175,12 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model     = True
-CreateNewOutDirectory = True
+force_train_model     = False
+CreateNewOutDirectory = False
 AnalyzeFiles          = True
 tf.config.run_functions_eagerly(True)  
-#tf.data.experimental.enable_debug_mode()
+#tf.data.experimental.enable_debug_mode()    
+
 
 TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "returnState":True,
@@ -172,12 +190,12 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "dense_layer": True,
                                 "return_states": True
                                 },
-                      "EPOCHS":20,
+                      "EPOCHS":1,
                       "Use_Validation":False,
                       "BatchSize":32,
                       "removeDuplicates":True,
                       "num_parallel_calls":32,
-                      "stride_dataset": 2,
+                      "stride_dataset": 256,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -223,17 +241,6 @@ TrainingCheckpointDir       = OutputDirectory + os.path.sep + "TrainingCheckPoin
 OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
 OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
-if (force_train_model):
-    model = None
-else:
-    try:
-        model = tf.keras.models.load_model(ModelDirectory, compile=True )
-    except:
-        model = None
-
-train_model = (model == None)
-
-
 if (CreateNewOutDirectory):
 
     old_directory_name = OutputDirectory
@@ -252,20 +259,20 @@ if (CreateNewOutDirectory):
         except OSError as e:
             print(f"Error: {e}")
 
-
 id_from_tokenList, token_from_idList, id_from_tokenNumpyList = GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, VocabularyFile, itemFile )  
 
-print("Creating datasets...")
+################## check whether the logfile tokens only contains tokens that are in the tokenfile
+CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile)
 
-if (train_model):
-    
-    ################# Create a dataset for training and throw all files that are in the training output dir in it
-    if os.path.exists(TrainingDataSetFile.strip()):
-        datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())
-        trainingFileList = None
-    else:
-        datasetForTraining, trainingFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=TrainingDirectory, 
-                                                                                    OutputDirectory=OutputDirectoryTraining, 
+################# Create a dataset for verification and throw all files that are in the verification output dir in it
+
+
+#if os.path.exists(VerificationDataSetFile.strip()):
+#    datasetForVerification = Dataset.LoadDataset(VerificationDataSetFile.strip())
+#    verificationFileList = None
+#else:
+datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=VerificationDirectory, 
+                                                                                    OutputDirectory=OutputDirectoryVerification, 
                                                                                     itemFile=itemFile,
                                                                                     embedding_layer_used=embedding_layer_used,
                                                                                     id_from_tokenList=id_from_tokenList,
@@ -273,64 +280,53 @@ if (train_model):
                                                                                     stride=TrainingsParameter["stride_dataset"], 
                                                                                     shuffle=TrainingsParameter["shuffleTraining"], 
                                                                                     BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
-                                                                                    seq_length=TrainingsParameter["Model"]["seq_length"], 
+                                                                                    seq_length=TrainingsParameter["Model"]["seq_length"],
                                                                                     DataTypeForTensors = DataTypeForTensors,
                                                                                     removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                                                                     num_parallel_calls = TrainingsParameter["num_parallel_calls"],
-                                                                                    verbose = False, 
-                                                                                    ) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
-        Dataset.SaveDataset(datasetForTraining, TrainingDataSetFile.strip())
+                                                                                    verbose = False)    
+#    Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
 
-################# Create a dataset for verification and throw all files that are in the verification output dir in it
-
-
-if os.path.exists(VerificationDataSetFile.strip()):
-    datasetForVerification = Dataset.LoadDataset(VerificationDataSetFile.strip())
-    verificationFileList = None
+itemList = TokenParser.GetItemListToSearchFor(itemFile)
+modelFeatureList = CreateModelFeatureListFromItemList(itemList)
+    
+if (force_train_model):
+    model = None
 else:
-    datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=VerificationDirectory, 
-                                                                                        OutputDirectory=OutputDirectoryVerification, 
-                                                                                        itemFile=itemFile,
-                                                                                        embedding_layer_used=embedding_layer_used,
-                                                                                        id_from_tokenList=id_from_tokenList,
-                                                                                        batch_size=TrainingsParameter["BatchSize"], 
-                                                                                        stride=TrainingsParameter["stride_dataset"], 
-                                                                                        shuffle=TrainingsParameter["shuffleTraining"], 
-                                                                                        BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
-                                                                                        seq_length=TrainingsParameter["Model"]["seq_length"],
-                                                                                        DataTypeForTensors = DataTypeForTensors,
-                                                                                        removeDuplicates=TrainingsParameter["removeDuplicates"], 
-                                                                                        num_parallel_calls = TrainingsParameter["num_parallel_calls"],
-                                                                                        verbose = False)    
-    Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
+    try:
+        model = tf.keras.models.load_model(ModelDirectory, compile=False )
+        loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, DataTypeForTensors)  # een custom loss function met toegang to modelFeatureList
+        model.compile(optimizer='adam', loss=loss_function)
+    except:
+        model = None
 
-################## check whether the logfile tokens only contains tokens that are in the tokenfile
-
-CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile)
+train_model = (model == None)
 
 if (train_model):
-    itemList = TokenParser.GetItemListToSearchFor(itemFile)
-    
-    if (TrainingsParameter["Model"]["Network"] == "LSTMMultiModel"):
-        def CreateModelFeatureListFromItemList(itemList):
-            modelFeatureList = []
+    ################# Create a dataset for training and throw all files that are in the training output dir in it
+#    if os.path.exists(TrainingDataSetFile.strip()):
+#        datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())
+#        trainingFileList = None
+#    else:
+    datasetForTraining, trainingFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=TrainingDirectory, 
+                                                                                OutputDirectory=OutputDirectoryTraining, 
+                                                                                itemFile=itemFile,
+                                                                                embedding_layer_used=embedding_layer_used,
+                                                                                id_from_tokenList=id_from_tokenList,
+                                                                                batch_size=TrainingsParameter["BatchSize"], 
+                                                                                stride=TrainingsParameter["stride_dataset"], 
+                                                                                shuffle=TrainingsParameter["shuffleTraining"], 
+                                                                                BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
+                                                                                seq_length=TrainingsParameter["Model"]["seq_length"], 
+                                                                                DataTypeForTensors = DataTypeForTensors,
+                                                                                removeDuplicates=TrainingsParameter["removeDuplicates"], 
+                                                                                num_parallel_calls = TrainingsParameter["num_parallel_calls"],
+                                                                                verbose = False, 
+                                                                                ) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+#    Dataset.SaveDataset(datasetForTraining, TrainingDataSetFile.strip())
 
-            for index, item in enumerate(itemList):
-                name = "Layer_" + str(index)
-                assert(("Categorical" in item) == True)
-                if (item["Categorical"] == "True"):
-                    name = name + "_Cathegorical_layer"
-                    assert(id_from_tokenList[index] != None, "id_from_tokenList[" + str(index) + "] is None")
-                    embedded_dimension = 256  #TODO, adapt
-                    modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension, "layer_name": name})
-                else:
-                    assert(id_from_tokenList[index] == None, "id_from_tokenList[" + str(index) + "] is None")
-                    maskValue = item["MaskValue"]
-                    name = name + "_NonCathegorical_layer"
-                    modelFeatureList.append({"embedded": False, "layer_name": name, "MaskValue": maskValue})
-            return modelFeatureList
-        modelFeatureList = CreateModelFeatureListFromItemList(itemList)
-        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
+    if (TrainingsParameter["Model"]["Network"] == "LSTMMultiModel"):
+         model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
                                                                 TrainingsParameter["Model"]["rnn_units"],
                                                                 TrainingsParameter["Model"]["seq_length"], 
                                                                 dense_layer = TrainingsParameter["Model"]["dense_layer"], 
@@ -363,9 +359,6 @@ if (train_model):
         
     ############################################################################################# Train the model
     
-    tf.config.run_functions_eagerly(True)  
-    tf.data.experimental.enable_debug_mode()    
-
     loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, DataTypeForTensors)  # een custom loss function met toegang to modelFeatureList
     model.compile(optimizer='adam', loss=loss_function)
 
@@ -444,9 +437,8 @@ if (train_model):
     except:
         model = None
 
-############################################################################################# Use the model
+    ############################################################################################# Use the model
 
-if (train_model):
     end = time.time()
 
     print("Files used to train: \n")
@@ -488,6 +480,11 @@ if (train_model):
         sys.stdout = original_stdout
 else:
     losstraining = "Not Appl"
+sample_element = next(iter(datasetForVerification))[0]
+temp_predicted_logits = model(inputs=sample_element)
+print(sample_element)
+#print(temp_predicted_logits[0])
+print(temp_predicted_logits[1])
 
 if (AnalyzeFiles):
     
@@ -507,6 +504,7 @@ if (AnalyzeFiles):
                                itemFile=itemFile, 
                                temperature=ValidationsParameter["temperature"], 
                                seq_length=TrainingsParameter["Model"]["seq_length"], 
+                               id_from_tokenList = id_from_tokenList,
                                token_from_idList=token_from_idList, 
                                id_from_tokenNumpy=id_from_tokenNumpyList, 
                                numberOfThreads=numberOfThreads, 

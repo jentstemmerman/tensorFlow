@@ -141,9 +141,9 @@ def process_log_files_to_tokens_recursive(directory, outputDirectory, itemList):
                 full_path = os.path.join(root, filename)
                 # Do something with the content of the log file
                 outputFile = outputDirectory + "/" + filename.replace(".log", "") + "_onlyTokens.log" 
-                if (not os.path.exists(outputFile)):
-                    tokenListList = process_files(full_path, outputFile, itemList)
-                    tokenListListList.append(tokenListList)
+                #if (not os.path.exists(outputFile)):
+                tokenListList = process_files(full_path, outputFile, itemList)
+                tokenListListList.append(tokenListList)
     return tokenListListList
 
 def TransformToListIfSingularType(value):

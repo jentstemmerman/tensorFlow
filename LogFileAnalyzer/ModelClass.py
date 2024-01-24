@@ -194,22 +194,29 @@ class OneStep(tf.keras.Model):
           predicted_logits = predicted_logits[:, -1, :]
           predicted_logits = predicted_logits / self.temperature
 
-          softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
-          predicted_id = tf.argmax(predicted_logits, axis=1)
-
+            
 
           if (Tokens_from_ids is not None):
+              predicted_id = tf.argmax(predicted_logits, axis=1)
               prediction = (self.Tokens_from_idList[index])(predicted_id).numpy()
 
               for i, pred in enumerate(prediction):
                  prediction[i] = pred.decode('utf-8') 
 
+              softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
+              probabilityOfPrediction = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id).numpy()
+
           else:
+              predicted_id = predicted_logits
+              predicted_id = tf.reshape(predicted_id, [-1])
               prediction = predicted_id.numpy()
+              tensor_shape = (inputTensor.shape[0],)
+              probabilityOfPrediction = tf.zeros(shape=tensor_shape) # did heeft geen zin voor non-cathegorical, maar er moet iets ingevuld zijn
+
           
           predictions.append(prediction)
           
-          probabilityOfPrediction = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id).numpy()
+          
           if (probabilityOfPredictions is None):
               probabilityOfPredictions = probabilityOfPrediction
           else:

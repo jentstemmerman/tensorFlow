@@ -15,7 +15,7 @@ def extend_string_with_spaces(s, target_length):
 
 def TranslateToString(value):
     if isinstance(value, (Number, np.number)):
-        value = str(value)
+        value = "{:5.2f} ".format(value)  
     else:
         value = value
     return value

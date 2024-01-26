@@ -80,8 +80,8 @@ class CustomDenseLayer(tf.keras.layers.Layer):
         return {"layer1": self.dense_output_layer1, "layer2": self.dense_output_layer2}
          
     def call(self, input, training=False):
-        input = self.dense_output_layer1(input)
-        input = self.dense_output_layer2(input)
+        input = self.dense_output_layer1(input, training=training)
+        input = self.dense_output_layer2(input, training=training)
         return input
 
 class LSTMPrintfLogMultiModel(tf.keras.Model):

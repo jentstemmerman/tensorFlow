@@ -175,8 +175,8 @@ def CreateModelFeatureListFromItemList(itemList):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model     = False
-CreateNewOutDirectory = False
+force_train_model     = True
+CreateNewOutDirectory = True
 AnalyzeFiles          = True
 tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()    

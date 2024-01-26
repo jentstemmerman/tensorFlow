@@ -178,7 +178,7 @@ def CreateModelFeatureListFromItemList(itemList):
 force_train_model     = True
 CreateNewOutDirectory = True
 AnalyzeFiles          = True
-tf.config.run_functions_eagerly(True)  
+#tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()    
 
 
@@ -186,31 +186,27 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "returnState":True,
                                 "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
-                                "seq_length":16 ,
+                                "seq_length":32 ,
                                 "dense_layer": True,
                                 "return_states": True
                                 },
-                      "EPOCHS":1,
+                      "EPOCHS":10,
                       "Use_Validation":False,
-                      "BatchSize":32,
-                      "removeDuplicates":True,
-                      "num_parallel_calls":32,
-                      "stride_dataset": 256,
-                      "shuffleTraining":True,
+                      "BatchSize":64,
+                      "removeDuplicates":False,
+                      "num_parallel_calls":128,
+                      "stride_dataset": 4,
+                      "shuffleTraining":False,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
                     }
 
 embedding_layer_used = (TrainingsParameter["Model"]["embedding_dim"] != -1)
-if (TrainingsParameter["Model"]["embedding_dim"] == -1):
-    DataTypeForTensors    = 'float64'
-else:
-    DataTypeForTensors    = 'int64'
+DataTypeForTensors    = 'float32'
 
-DataTypeForTensors    = 'float64'
 ValidationsParameter = {"temperature": 1 }
 
-trainingSet = 2                
+trainingSet = 3                
 
 if ( TrainingsParameter["SampleDataSet"]):
     # dit werkt niet goed. 

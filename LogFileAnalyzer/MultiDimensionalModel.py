@@ -2,26 +2,26 @@ import tensorflow as tf
 import numpy as np
 from tensorflow import keras
 import TokenParser
-
 def Custom_loss_function(parameter, DataTypeForTensors):
     verbose = False
     featureIndex = 0
     numberOfFeatures = len(parameter)
     modelFeatureList = parameter
     DataTypeForTensors = DataTypeForTensors
+#    maskValueList = []
+#    for index in range(numberOfFeatures):
+#        maskvalue = tf.cast(modelFeatureList[featureIndex]["MaskValue"], 'float32')
+ #       maskValueList.append(maskvalue)
 
     # we krijgen elke keer alle features van output true, maar maar 1 feature per call van output predicted. De totale loss wordt buiten deze functie berekend. 
+    @tf.function
     def custom_multi_output_loss_jents(output_true, feature_output_predicted):
         nonlocal featureIndex
         nonlocal numberOfFeatures
         nonlocal modelFeatureList
 
-        numberOfFeatures = output_true.shape[2]
+        #numberOfFeatures = output_true.shape[2]
         
-        # TODO deze cast zou eigenlijk niet nodig moeten zijn, ooit eens uitzoeken waarom het model geen float64 doorgeeft aan deze functie
-        output_true              = tf.cast(output_true, DataTypeForTensors) 
-        feature_output_predicted = tf.cast(feature_output_predicted, DataTypeForTensors) 
-
         list_output_true = tf.split(output_true, num_or_size_splits=numberOfFeatures, axis=-1)
 
         #print("\ncustom_multi_output_loss_jents output_index = ", featureIndex)
@@ -31,15 +31,16 @@ def Custom_loss_function(parameter, DataTypeForTensors):
         if (modelFeatureList[featureIndex]["embedded"] == True):
             feature_output_loss = tf.keras.losses.sparse_categorical_crossentropy(feature_output_true, feature_output_predicted, from_logits=True)
         else:
-            mask_value = modelFeatureList[featureIndex]["MaskValue"]
-            mask = tf.cast(tf.not_equal(feature_output_true, mask_value), DataTypeForTensors) 
+            mask_value = tf.cast(modelFeatureList[featureIndex]["MaskValue"], 'float32')
+            mask = tf.not_equal(feature_output_true, mask_value)
+            mask = tf.cast(mask, dtype=tf.float32)
 
             feature_output_true_masked      = feature_output_true      * mask
             feature_output_predicted_masked = feature_output_predicted * mask
 
-            feature_output_loss = tf.keras.losses.mean_absolute_error(feature_output_true_masked, feature_output_predicted_masked)
+            feature_output_loss = tf.keras.losses.mean_squared_error(feature_output_true_masked, feature_output_predicted_masked)
             
-            tf.debugging.check_numerics(feature_output_loss, message="Tensor contains NaN or Inf values")
+            #tf.debugging.check_numerics(feature_output_loss, message="Tensor contains NaN or Inf values")
             
             #print("\nnon-embedded loss calculation:\n feature_output_true_masked:\n",  feature_output_true_masked, "\n feature_output_predicted_masked:\n", feature_output_predicted_masked, "\nMask: ", mask, "\n", "feature_output_loss:\n", feature_output_loss, "\n")
 
@@ -111,7 +112,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
         
         #
         self.concatenated = tf.keras.layers.concatenate(inputList)
-        self.lstm_layer   = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfFeatures), return_sequences=return_sequences)
+        self.lstm_layer   = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfFeatures), return_sequences=return_sequences, dropout=0.1)
         
         self.output_layerList  = []
 

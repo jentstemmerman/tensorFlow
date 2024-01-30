@@ -178,7 +178,7 @@ def CreateModelFeatureListFromItemList(itemList):
 force_train_model     = True
 CreateNewOutDirectory = True
 AnalyzeFiles          = True
-#tf.config.run_functions_eagerly(True)  
+tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()    
 
 
@@ -194,8 +194,8 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                       "Use_Validation":False,
                       "BatchSize":64,
                       "removeDuplicates":False,
-                      "num_parallel_calls":128,
-                      "stride_dataset": 4,
+                      "num_parallel_calls":64,
+                      "stride_dataset": 256,
                       "shuffleTraining":False,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better

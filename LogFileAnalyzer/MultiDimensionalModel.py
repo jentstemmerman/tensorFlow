@@ -4,54 +4,66 @@ from tensorflow import keras
 import TokenParser
 def Custom_loss_function(parameter, DataTypeForTensors):
     verbose = False
+    counter = 0
     featureIndex = 0
     numberOfFeatures = len(parameter)
     modelFeatureList = parameter
     DataTypeForTensors = DataTypeForTensors
-#    maskValueList = []
-#    for index in range(numberOfFeatures):
-#        maskvalue = tf.cast(modelFeatureList[featureIndex]["MaskValue"], 'float32')
- #       maskValueList.append(maskvalue)
+    maskValueList = np.array([modelFeatureList[featureIndex].get("MaskValue", None) for featureIndex in range(numberOfFeatures)])
+    #maskValueList = tf.convert_to_tensor(maskValueList, dtype=tf.float32)
+    print(maskValueList)
+    embeddedList  = np.array([modelFeatureList[featureIndex]["embedded"] for featureIndex in range(numberOfFeatures)])
+    embeddedList = tf.convert_to_tensor(embeddedList, dtype=tf.bool)
+    print(embeddedList)
 
     # we krijgen elke keer alle features van output true, maar maar 1 feature per call van output predicted. De totale loss wordt buiten deze functie berekend. 
-    @tf.function
+    #@tf.function
     def custom_multi_output_loss_jents(output_true, feature_output_predicted):
         nonlocal featureIndex
         nonlocal numberOfFeatures
         nonlocal modelFeatureList
+        nonlocal counter
+        nonlocal maskValueList
+        counter += 1
+        mask = None
+        feature_output_true_masked = None
+        feature_output_predicted_masked = None
 
-        #numberOfFeatures = output_true.shape[2]
-        
         list_output_true = tf.split(output_true, num_or_size_splits=numberOfFeatures, axis=-1)
-
-        #print("\ncustom_multi_output_loss_jents output_index = ", featureIndex)
-
         feature_output_true = list_output_true[featureIndex]
 
-        if (modelFeatureList[featureIndex]["embedded"] == True):
+        #feature_output_true = tf.gather(output_true, featureIndex, axis=-1)
+
+
+        if (embeddedList[featureIndex]):
             feature_output_loss = tf.keras.losses.sparse_categorical_crossentropy(feature_output_true, feature_output_predicted, from_logits=True)
         else:
-            mask_value = tf.cast(modelFeatureList[featureIndex]["MaskValue"], 'float32')
+            mask_value = maskValueList[featureIndex]
             mask = tf.not_equal(feature_output_true, mask_value)
             mask = tf.cast(mask, dtype=tf.float32)
-
+            
             feature_output_true_masked      = feature_output_true      * mask
             feature_output_predicted_masked = feature_output_predicted * mask
 
             feature_output_loss = tf.keras.losses.mean_squared_error(feature_output_true_masked, feature_output_predicted_masked)
-            
-            #tf.debugging.check_numerics(feature_output_loss, message="Tensor contains NaN or Inf values")
-            
-            #print("\nnon-embedded loss calculation:\n feature_output_true_masked:\n",  feature_output_true_masked, "\n feature_output_predicted_masked:\n", feature_output_predicted_masked, "\nMask: ", mask, "\n", "feature_output_loss:\n", feature_output_loss, "\n")
 
-        #print(featureIndex, ": individual_output_loss: ", individual_output_loss, "\n")
+            
+        scalar_loss = tf.reduce_mean(feature_output_loss)
+        
+        if ((scalar_loss > 1000000) and (counter > 10)):
+            print("\ncounter = ", counter)
+            print("\nscalar_loss = ", scalar_loss)
+            print("\nfeatureIndex = ", featureIndex)
+            print("\nmask = ", mask)
+            print("\noutput_true = ", output_true)
+            print("\nfeature_output_predicted = ", feature_output_predicted)
+            print("\nfeature_output_true_masked = ", feature_output_true_masked)
+            print("\nfeature_output_predicted_masked = ", feature_output_predicted_masked)
+            print("\nEnd scalar loss.")
+            #exit()
+
         featureIndex = (featureIndex + 1) % numberOfFeatures
-        #scalar_loss = tf.reduce_mean(feature_output_loss)
-        #if (scalar_loss > 100000):
-        #    print("\scalar_loss = ", scalar_loss)
-        #    print("\nfeature_output_true_masked = ", feature_output_true_masked)
-        #    print("\nfeature_output_predicted_masked = ", feature_output_predicted_masked)
-        #    exit()
+
         return feature_output_loss
     return custom_multi_output_loss_jents
 

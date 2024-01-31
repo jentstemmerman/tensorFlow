@@ -11,7 +11,7 @@ def Custom_loss_function(parameter, DataTypeForTensors):
     DataTypeForTensors = DataTypeForTensors
     maskValueList = np.array([modelFeatureList[featureIndex].get("MaskValue", None) for featureIndex in range(numberOfFeatures)])
     #maskValueList = tf.convert_to_tensor(maskValueList, dtype=tf.float32)
-    print(maskValueList)
+  #  print(maskValueList)
     embeddedList  = np.array([modelFeatureList[featureIndex]["embedded"] for featureIndex in range(numberOfFeatures)])
     embeddedList = tf.convert_to_tensor(embeddedList, dtype=tf.bool)
     print(embeddedList)
@@ -25,20 +25,20 @@ def Custom_loss_function(parameter, DataTypeForTensors):
         nonlocal counter
         nonlocal maskValueList
         counter += 1
-        mask = None
+
+
         feature_output_true_masked = None
         feature_output_predicted_masked = None
 
-        list_output_true = tf.split(output_true, num_or_size_splits=numberOfFeatures, axis=-1)
+        list_output_true    = tf.split(output_true, num_or_size_splits=numberOfFeatures, axis=-1)
         feature_output_true = list_output_true[featureIndex]
 
-        #feature_output_true = tf.gather(output_true, featureIndex, axis=-1)
-
-
-        if (embeddedList[featureIndex]):
+        if (modelFeatureList[featureIndex]["embedded"] == True):
             feature_output_loss = tf.keras.losses.sparse_categorical_crossentropy(feature_output_true, feature_output_predicted, from_logits=True)
         else:
-            mask_value = maskValueList[featureIndex]
+            mask_value = tf.cast(modelFeatureList[featureIndex]["MaskValue"], 'float32')
+
+         #   mask_value = maskValueList[featureIndex]
             mask = tf.not_equal(feature_output_true, mask_value)
             mask = tf.cast(mask, dtype=tf.float32)
             
@@ -54,11 +54,11 @@ def Custom_loss_function(parameter, DataTypeForTensors):
             print("\ncounter = ", counter)
             print("\nscalar_loss = ", scalar_loss)
             print("\nfeatureIndex = ", featureIndex)
-            print("\nmask = ", mask)
+            #print("\nmask = ", mask)
             print("\noutput_true = ", output_true)
             print("\nfeature_output_predicted = ", feature_output_predicted)
-            print("\nfeature_output_true_masked = ", feature_output_true_masked)
-            print("\nfeature_output_predicted_masked = ", feature_output_predicted_masked)
+           # print("\nfeature_output_true_masked = ", feature_output_true_masked)
+            #print("\nfeature_output_predicted_masked = ", feature_output_predicted_masked)
             print("\nEnd scalar loss.")
             #exit()
 

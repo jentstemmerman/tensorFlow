@@ -17,7 +17,7 @@ def Custom_loss_function(parameter, DataTypeForTensors):
     print(embeddedList)
 
     # we krijgen elke keer alle features van output true, maar maar 1 feature per call van output predicted. De totale loss wordt buiten deze functie berekend. 
-    #@tf.function
+    @tf.function
     def custom_multi_output_loss_jents(output_true, feature_output_predicted):
         nonlocal featureIndex
         nonlocal numberOfFeatures

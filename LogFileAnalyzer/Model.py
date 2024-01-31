@@ -178,7 +178,7 @@ def CreateModelFeatureListFromItemList(itemList):
 force_train_model     = True
 CreateNewOutDirectory = True
 AnalyzeFiles          = True
-tf.config.run_functions_eagerly(True)  
+#tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()    
 
 

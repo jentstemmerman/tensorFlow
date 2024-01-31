@@ -10,7 +10,7 @@ def Custom_loss_function(parameter, DataTypeForTensors):
     modelFeatureList = parameter
     DataTypeForTensors = DataTypeForTensors
     maskValueList = np.array([modelFeatureList[featureIndex].get("MaskValue", None) for featureIndex in range(numberOfFeatures)])
-    #maskValueList = tf.convert_to_tensor(maskValueList, dtype=tf.float32)
+    maskValueList = tf.convert_to_tensor(maskValueList, dtype=tf.float32)
   #  print(maskValueList)
     embeddedList  = np.array([modelFeatureList[featureIndex]["embedded"] for featureIndex in range(numberOfFeatures)])
     embeddedList = tf.convert_to_tensor(embeddedList, dtype=tf.bool)
@@ -26,18 +26,17 @@ def Custom_loss_function(parameter, DataTypeForTensors):
         nonlocal maskValueList
         counter += 1
 
-
         feature_output_true_masked = None
         feature_output_predicted_masked = None
 
-        list_output_true    = tf.split(output_true, num_or_size_splits=numberOfFeatures, axis=-1)
-        feature_output_true = list_output_true[featureIndex]
+        feature_output_true = tf.gather(output_true, featureIndex, axis=-1)
+        feature_output_true = tf.expand_dims(feature_output_true,  axis=-1 )
 
         if (modelFeatureList[featureIndex]["embedded"] == True):
             feature_output_loss = tf.keras.losses.sparse_categorical_crossentropy(feature_output_true, feature_output_predicted, from_logits=True)
         else:
-            mask_value = tf.cast(modelFeatureList[featureIndex]["MaskValue"], 'float32')
-
+            #mask_value = tf.cast(modelFeatureList[featureIndex]["MaskValue"], 'float32')
+            mask_value = maskValueList[featureIndex]
          #   mask_value = maskValueList[featureIndex]
             mask = tf.not_equal(feature_output_true, mask_value)
             mask = tf.cast(mask, dtype=tf.float32)

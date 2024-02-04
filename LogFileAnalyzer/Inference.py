@@ -54,7 +54,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         nextTokens   = []
 
         queueTimeout                         = 50
-        maxNumberOfParallelExecutions        = 250  # dit is het aantal samples dat de GPU inferes in 1 keer
+        maxNumberOfParallelExecutions        = 500  # dit is het aantal samples dat de GPU inferes in 1 keer
         numberOfAnalyzedLines                = 0
         accumulatedNextTokenProbability      = 0
         accumulatedPredictedTokenProbability = 0

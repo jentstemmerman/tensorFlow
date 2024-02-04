@@ -12,6 +12,7 @@ import worker
 import Logger
 import LogFileIterator
 import MultiDimensionalModel
+import ModelCallbacks
 import neptune
 from neptune.integrations.tensorflow_keras import NeptuneCallback
 
@@ -63,7 +64,7 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-def GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, OutputVocabularyFile, itemFile):
+def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, OutputVocabularyFile, itemFile):
     itemListFromFile    = TokenParser.GetItemListToSearchFor(itemFile)
     id_from_tokenList   = []
     token_from_idList   = []
@@ -151,7 +152,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
 
     return Accumulator / AccumulatorCount
 
-def CreateModelFeatureListFromItemList(itemList):
+def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
     modelFeatureList = []
 
     for index, item in enumerate(itemList):
@@ -169,15 +170,42 @@ def CreateModelFeatureListFromItemList(itemList):
             modelFeatureList.append({"embedded": False, "layer_name": name, "MaskValue": maskValue})
     return modelFeatureList
 
+def GetModel(modelSource, modelFeatureList):
+    model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
+                                                            TrainingsParameter["Model"]["rnn_units"],
+                                                            TrainingsParameter["Model"]["seq_length"], 
+                                                            dense_layer = TrainingsParameter["Model"]["dense_layer"], 
+                                                            return_sequences = TrainingsParameter["Model"]["return_states"] , 
+                                                            datatype = DataTypeForTensors)
+    
+    loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, DataTypeForTensors)  
+
+    if (modelSource["Source"] == "NewModel"):
+        model.compile(optimizer='adam', loss=loss_function)
+
+    elif (modelSource["Source"]  == "FromCheckpoint"):
+        checkpointPath        = modelSource["CheckpointPath"] + os.path.sep + "ckpt_" + str(modelSource["CheckpointNumber"])
+        model.compile(optimizer='adam', loss=loss_function)
+        model.load_weights(checkpointPath)
+
+    elif (modelSource["Source"]  == "FromFile"):
+        model = tf.keras.models.load_model(ModelDirectory, compile=False )
+        loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, DataTypeForTensors)  
+        model.compile(optimizer='adam', loss=loss_function)
+
+    return model
+
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model     = True
-CreateNewOutDirectory = True
+force_train_model     = False
+CreateNewOutDirectory = False
 AnalyzeFiles          = True
+loadCheckPoint        = 2
+
 #tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()    
 
@@ -190,20 +218,19 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "dense_layer": True,
                                 "return_states": True
                                 },
-                      "EPOCHS":10,
+                      "EPOCHS":8,
                       "Use_Validation":False,
                       "BatchSize":64,
                       "removeDuplicates":False,
                       "num_parallel_calls":64,
-                      "stride_dataset": 256,
+                      "stride_dataset": 512,
                       "shuffleTraining":False,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
                     }
 
 embedding_layer_used = (TrainingsParameter["Model"]["embedding_dim"] != -1)
-DataTypeForTensors    = 'float32'
-
+DataTypeForTensors   = 'float32'
 ValidationsParameter = {"temperature": 1 }
 
 trainingSet = 3                
@@ -214,17 +241,12 @@ if ( TrainingsParameter["SampleDataSet"]):
     numberOfBatchesToValidatePerEpoch = 10
     TrainingsParameter["BUFFER_SIZE"] = numberOfBatchesToTrainPerEpoch
 
-
-start = time.time()
-
-itemFile                    = "Itemfile.txt"  # file containing the regexes that we train on
-
+itemFile  = "Itemfile.txt"  # file containing the regexes that we train on
 Directory = "../TrainingSet" + str(trainingSet)
 
 TrainingDirectory           = Directory       + os.path.sep + "Training"
 VerificationDirectory       = Directory       + os.path.sep + "Verification"
 OriginalTokenFileDirectory  = Directory 
-
 OutputDirectory             = Directory       + os.path.sep + "out"
 ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
 TrainingLogFile             = OutputDirectory + os.path.sep + "TrainingLog.txt"
@@ -237,8 +259,13 @@ TrainingCheckpointDir       = OutputDirectory + os.path.sep + "TrainingCheckPoin
 OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
 OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
-if (CreateNewOutDirectory):
+itemList         = TokenParser.GetItemListToSearchFor(itemFile)
+id_from_tokenList, token_from_idList, id_from_tokenNumpyList = GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, VocabularyFile, itemFile)  
+modelFeatureList = CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
 
+
+if (CreateNewOutDirectory) or (force_train_model):
+    train_model = True
     old_directory_name = OutputDirectory
     
     if os.path.exists(old_directory_name):
@@ -254,12 +281,16 @@ if (CreateNewOutDirectory):
             print(f"Directory '{old_directory_name}' renamed to '{new_directory_name}' successfully.")
         except OSError as e:
             print(f"Error: {e}")
+    modelSource = {"Source": "NewModel"}
+else:
+    modelSource = {"Source": "FromCheckpoint", "CheckpointNumber": 2, "CheckpointPath": TrainingCheckpointDir}
+    train_model = False
 
-id_from_tokenList, token_from_idList, id_from_tokenNumpyList = GetEncoderDecoderFromTokenFile(OriginalTokenFileDirectory, VocabularyFile, itemFile )  
+model = GetModel(modelSource, modelFeatureList)
+
 
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile)
-
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
 
 
@@ -283,20 +314,6 @@ datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirector
                                                                                     verbose = False)    
 #    Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
 
-itemList = TokenParser.GetItemListToSearchFor(itemFile)
-modelFeatureList = CreateModelFeatureListFromItemList(itemList)
-    
-if (force_train_model):
-    model = None
-else:
-    try:
-        model = tf.keras.models.load_model(ModelDirectory, compile=False )
-        loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, DataTypeForTensors)  # een custom loss function met toegang to modelFeatureList
-        model.compile(optimizer='adam', loss=loss_function)
-    except:
-        model = None
-
-train_model = (model == None)
 
 if (train_model):
     ################# Create a dataset for training and throw all files that are in the training output dir in it
@@ -321,54 +338,15 @@ if (train_model):
                                                                                 ) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
 #    Dataset.SaveDataset(datasetForTraining, TrainingDataSetFile.strip())
 
-    if (TrainingsParameter["Model"]["Network"] == "LSTMMultiModel"):
-         model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
-                                                                TrainingsParameter["Model"]["rnn_units"],
-                                                                TrainingsParameter["Model"]["seq_length"], 
-                                                                dense_layer = TrainingsParameter["Model"]["dense_layer"], 
-                                                                return_sequences = TrainingsParameter["Model"]["return_states"] , 
-                                                                datatype = DataTypeForTensors)
-     
-    elif (TrainingsParameter["Model"]["Network"] == "LSTM"):  
-        numberOfInputs = len(itemList)
-        model = ModelClass.LSTMPrintfLogModel(
-            vocab_size=len(id_from_tokenList[0].get_vocabulary()),
-            embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
-            rnn_units=TrainingsParameter["Model"]["rnn_units"],
-            numberOfInputs=numberOfInputs)
-    elif (TrainingsParameter["Model"]["Network"] == "GRU"):
-        numberOfInputs = len(itemList)
-        model = ModelClass.GruPrintfLogModel(
-            vocab_size=len(id_from_tokenList.get_vocabulary()),
-            embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
-            rnn_units=TrainingsParameter["Model"]["rnn_units"],
-            return_state=TrainingsParameter["Model"]["returnState"],
-            numberOfInputs = numberOfInputs)
-    
-    elif (TrainingsParameter["Model"]["Network"] == "SimpleRnn"):    # supposed to be faster. I don't see it.
-        numberOfInputs = len(itemList)
-        model = ModelClass.SimpleRnnPrintfLogModel(
-            vocab_size=len(id_from_tokenList.get_vocabulary()),
-            embedding_dim=TrainingsParameter["Model"]["embedding_dim"],
-            rnn_units=TrainingsParameter["Model"]["rnn_units"],
-            numberOfInputs=numberOfInputs)
         
     ############################################################################################# Train the model
     
-    loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, DataTypeForTensors)  # een custom loss function met toegang to modelFeatureList
-    model.compile(optimizer='adam', loss=loss_function)
-
+    sys.stdout = Logger.Logger(TrainingLogFile)
+    
     # Name of the checkpoint files
     checkpoint_prefix = os.path.join(TrainingCheckpointDir, "ckpt_{epoch}")
-
-    checkpoint_callback    = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
-
-    latest = tf.train.latest_checkpoint(TrainingCheckpointDir)
-    
-    if (latest is not None):
-        model.load_weights(latest)
-
-    sys.stdout = Logger.Logger(TrainingLogFile)
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
+  
     print("\nSettings used: ")
 
     ModelSummary = "EPOCHS: " + str(TrainingsParameter["EPOCHS"]) + "\n"
@@ -380,13 +358,13 @@ if (train_model):
     ModelSummary = ModelSummary + "embedding_dim:    " + str(TrainingsParameter["Model"]["embedding_dim"]) + "\n"
     ModelSummary = ModelSummary + "rnn_units:        " + str(TrainingsParameter["Model"]["rnn_units"]) + "\n"
 
-
     if ( TrainingsParameter["SampleDataSet"]):
         ModelSummary = ModelSummary + "numberOfBatchesToTrainPerEpoch: " + str(numberOfBatchesToTrainPerEpoch) + "\n"
         ModelSummary = ModelSummary + "numberOfBatchesToValidatePerEpoch: " + str(numberOfBatchesToValidatePerEpoch) + "\n"
 
     print(ModelSummary + "\n")
 
+    TrainBatchEnd_callback = ModelCallbacks.DebugCallback()
     EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True)
     
     Epoch_End_callback = None
@@ -395,36 +373,14 @@ if (train_model):
 
     neptune_callback = NeptuneCallback(run=run) 
 
-    if ( TrainingsParameter["SampleDataSet"]):
-        # dit werkt niet zo goed
-        class EpochEndCallback(tf.keras.callbacks.Callback):
-            def __init__(self, numberOfSamplesToTrainPerEpoch, numberOfSamplesToValidatePerEpoch):
-                print("EpochEndCallback start newcreating new subsetForBatchTraining")
-                self.numberOfBatchesToTrainPerEpoch    = numberOfSamplesToTrainPerEpoch
-                self.numberOfBatchesToValidatePerEpoch = numberOfSamplesToValidatePerEpoch
-                self.subsetForBatchTraining            = datasetForTraining.take(self.numberOfBatchesToTrainPerEpoch)
-                Dataset.PrintDatasetTuple(self.subsetForBatchTraining)
-                self.subsetForBatchVerification        = None
-                print("EpochEndCallback start newcreating new subsetForBatchTraining done")
-
-            def on_epoch_end(self, epoch, logs=None):
-                print("on_epoch_end -> Creating new subsetForBatchTraining")
-                self.subsetForBatchTraining     = datasetForTraining.shuffle(TrainingsParameter["BUFFER_SIZE"]).take(self.numberOfBatchesToTrainPerEpoch)
-                Dataset.PrintDatasetTuple(self.subsetForBatchTraining)
-                print("on_epoch_end Creating new subsetForBatchTraining done")
-            
-
-        Epoch_End_callback = EpochEndCallback(numberOfBatchesToTrainPerEpoch, numberOfBatchesToValidatePerEpoch)
-        history = model.fit(Epoch_End_callback.subsetForBatchTraining, validation_data=Epoch_End_callback.subsetForBatchVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback, Epoch_End_callback])
-    else:
-       # history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, EarlyStopping_callback])
-        history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, neptune_callback])
+    history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, neptune_callback,TrainBatchEnd_callback ])
     
+
+    # not sure this is still needed
     sample_element = next(iter(datasetForTraining))[0]
-
-
     temp_predicted_logits = model(inputs=sample_element)
     model.compute_output_shape(sample_element.shape)
+    ###
     
     sys.stdout = sys.__stdout__
 

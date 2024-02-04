@@ -82,7 +82,8 @@ def process_files(input_file, output_file, itemList):
     LogfileOnlyTokens = open(output_file, "w")
                                         
     tokenListList, PrintfList, numberOfFoundTokens = getLinesAndTokens(itemList, -1, reading_file, tokenList=None, PrintfList=None)
-    
+    lineNumber = 0
+    stopLine = False
     for tokenList in tokenListList:
         line = ""
         for index, token in enumerate(tokenList):
@@ -90,6 +91,19 @@ def process_files(input_file, output_file, itemList):
                 line = line + str(token) + ","
             else:
                 line = line + str(token) 
+
+            if (index == 1):  # vuile hack
+                value = int()
+                if(int(token) > 100000):
+                    print("stop at " + str(token) + " at line ", str(lineNumber))
+                    stopLine = True
+                    break
+
+        if (stopLine):
+            stopLine = False
+            continue
+        lineNumber += 1
+
         line = line + '\n'
         LogfileOnlyTokens.write(line)
 

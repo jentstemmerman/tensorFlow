@@ -64,51 +64,49 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, OutputVocabularyFile, itemFile):
-    itemListFromFile    = TokenParser.GetItemListToSearchFor(itemFile)
+def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, OutputVocabularyFile, itemList):
+
     id_from_tokenList   = []
     token_from_idList   = []
-    id_from_tokenNumpyList = None
 
-    for itemsInLine in itemListFromFile:
+    for itemsInLine in itemList:
         # only create encoder-decoder for items that are cathegorical.
         if (itemsInLine["Categorical"] == "True"):
-
-            OriginalTokenFile = itemsInLine["VocabularyFile"]
-
-            if (type(OriginalTokenFile) == str):
-
-                OriginalTokenFileName = OriginalTokenFileDirectory + os.path.sep + OriginalTokenFile
+            if ("VocabularyFile" in itemsInLine):
+                OriginalTokenFile = itemsInLine["VocabularyFile"]
                 
-                # only do one item process at a time
-                tokenListList = TokenParser.process_files(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
-                VocabularyNumpy = [inner_list[0] for inner_list in tokenListList]
-                VocabularyNumpy = np.array(VocabularyNumpy)
+                if (type(OriginalTokenFile) == str):
 
-                if (id_from_tokenNumpyList is None):
-                    id_from_tokenNumpyList = VocabularyNumpy
+                    OriginalTokenFileName = OriginalTokenFileDirectory + os.path.sep + OriginalTokenFile
+                    
+                    # only do one item process at a time
+                    tokenListList = TokenParser.process_files(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
+                    VocabularyNumpy = [inner_list[0] for inner_list in tokenListList]
+                    VocabularyNumpy = np.array(VocabularyNumpy)
                 else:
-                    id_from_tokenNumpyList = np.concatenate((id_from_tokenNumpyList, VocabularyNumpy), axis=0)
-
-                VocabularyTensor  = tf.convert_to_tensor(VocabularyNumpy)
-
-                # encoder
-                id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
-                id_from_tokenList.append(id_from_token)
-                
-                # decoder
-                token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
-                token_from_idList.append(token_from_id)
+                    raise ValueError("VocabularyFile " + OutputVocabularyFile + " not found")
+            elif ("RangeMin" in itemsInLine) and ("RangeMax" in itemsInLine):
+                rangeMin = itemsInLine["RangeMin"]
+                RangeMax = itemsInLine["RangeMax"]
+                VocabularyNumpy = np.arange(rangeMin, RangeMax + 1, 1)
+                VocabularyNumpy = VocabularyNumpy.astype(str)
             else:
-                raise ValueError("VocabularyFile " + OutputVocabularyFile + " not found")
+                raise ValueError("VocabularyFile " + OutputVocabularyFile + " or range not found")
+            
+            VocabularyTensor  = tf.convert_to_tensor(VocabularyNumpy)
+
+            # encoder
+            id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
+            id_from_tokenList.append(id_from_token)
+            
+            # decoder
+            token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
+            token_from_idList.append(token_from_id)
         else:
             id_from_tokenList.append(None)
             token_from_idList.append(None)
-            none_type_array = np.array([])  
-            #none_type_array = np.empty((0,3), int)
-            id_from_tokenNumpyList = np.concatenate((id_from_tokenNumpyList, none_type_array), axis=0)
             
-    return id_from_tokenList, token_from_idList, id_from_tokenNumpyList
+    return id_from_tokenList, token_from_idList
 
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, id_from_tokenNumpy, numberOfThreads, Workers):
 
@@ -120,7 +118,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".mdtxt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length, id_from_tokenNumpy=id_from_tokenNumpy)
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -201,8 +199,8 @@ def GetModel(modelSource, modelFeatureList):
 
 # https://www.tensorflow.org/text/tutorials/text_generation
 
-force_train_model     = False
-CreateNewOutDirectory = False
+force_train_model     = True
+CreateNewOutDirectory = True
 AnalyzeFiles          = True
 loadCheckPoint        = 2
 
@@ -260,7 +258,7 @@ OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
 OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
 itemList         = TokenParser.GetItemListToSearchFor(itemFile)
-id_from_tokenList, token_from_idList, id_from_tokenNumpyList = GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, VocabularyFile, itemFile)  
+id_from_tokenList, token_from_idList = GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, VocabularyFile, itemList)  
 modelFeatureList = CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
 
 
@@ -402,11 +400,7 @@ if (train_model):
         # Redirect the standard output to the file
         original_stdout = sys.stdout
         sys.stdout = f
-
-
-        print("Training finished in ", (end - start)/60, " minutes")
         
-        print("\n")
         if (trainingFileList is not None):
             print("Files used to train: \n")
             print(*trainingFileList, sep="\n")
@@ -457,8 +451,7 @@ if (AnalyzeFiles):
                                temperature=ValidationsParameter["temperature"], 
                                seq_length=TrainingsParameter["Model"]["seq_length"], 
                                id_from_tokenList = id_from_tokenList,
-                               token_from_idList=token_from_idList, 
-                               id_from_tokenNumpy=id_from_tokenNumpyList, 
+                               token_from_idList=token_from_idList,
                                numberOfThreads=numberOfThreads, 
                                Workers=Workers)
             

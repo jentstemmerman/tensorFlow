@@ -35,7 +35,7 @@ def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions
 
     return reducedParameters, numberOfParallelExecutions, numberOfThreads
 
-def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, id_from_tokenList, token_from_idList, temperature, seq_length, id_from_tokenNumpy):
+def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, id_from_tokenList, token_from_idList, temperature, seq_length):
     with tf.device('/CPU:0'):
         numberOfIdenticals = 0
         averagePredictedTokenProbability = 0

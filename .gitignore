@@ -181,3 +181,5 @@ LogFileAnalyzer/cuda_12.2.1_535.86.10_linux.run
 etFromDirectory
 LogFileAnalyzer/cuda-repo-wsl-ubuntu-11-8-local_11.8.0-1_amd64.deb
 TrainingSet3/*
+LogFileAnalyzer/.neptune
+LogFileAnalyzer/*.deb

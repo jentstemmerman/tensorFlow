@@ -17,6 +17,10 @@ class DataTreatment:
 
         if ("Numerical" in item):
             MaskValue = item["MaskValue"]
+
+            if ("Categorical" in item):
+                MaskValue = str(MaskValue)
+
             if (value == ""):
                 result = MaskValue
             else:    

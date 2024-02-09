@@ -24,7 +24,9 @@ class DataTreatment:
             if (value == ""):
                 result = MaskValue
             else:    
-                if (item["Numerical"] == "Hex"):
+                if ("Categorical" in item):
+                    result = str(result)
+                elif (item["Numerical"] == "Hex"):
                     result = int(result, 16)
                 elif (item["Numerical"] == "Dec"):
                     result = int(result)

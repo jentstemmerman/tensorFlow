@@ -54,7 +54,10 @@ with tf.device('/CPU:0'):
         column = 0
         for id_from_token in id_from_tokenList:
             if (id_from_token is not None):
-                newTokenId[column] = id_from_token(newToken[column])
+                if (type(newToken[column]) == str):
+                    newTokenId[column] = id_from_token(newToken[column])
+                else:
+                    exit()
 
             column += 1
 
@@ -89,7 +92,8 @@ with tf.device('/CPU:0'):
                 if (threadId == 5) and (index == 20):
                     print("   AssembleInputsnextTokenBatchStartTime Time = {:2.3f}.".format((time.time() - AssembleInputsnextTokenBatchStartTime) * 8 * numberOfParallelExecutions))
                 
-
+                if (type(nextTokenBatch[1]) != str):
+                    exit
                 window, nextToken, nexttokenId, tokenIdWindow = GetNextSequenceData(nextTokenBatch, id_from_tokenList, window, tokenIdWindow, nextToken, nexttokenId, DataTypeForTensors)
                 
                 

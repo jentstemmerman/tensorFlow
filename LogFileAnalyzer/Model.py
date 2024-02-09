@@ -108,7 +108,7 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, OutputVocabula
             
     return id_from_tokenList, token_from_idList
 
-def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, id_from_tokenNumpy, numberOfThreads, Workers):
+def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     verificationFileIterator = LogFileIterator.LogfileIterator(inputDirectory)
@@ -290,13 +290,13 @@ model = GetModel(modelSource, modelFeatureList)
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile)
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
+Force_dataset_creation = True
 
-
-#if os.path.exists(VerificationDataSetFile.strip()):
-#    datasetForVerification = Dataset.LoadDataset(VerificationDataSetFile.strip())
-#    verificationFileList = None
-#else:
-datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=VerificationDirectory, 
+if (Force_dataset_creation and  os.path.exists(VerificationDataSetFile.strip())):
+    datasetForVerification = Dataset.LoadDataset(VerificationDataSetFile.strip())
+    verificationFileList = None
+else:
+    datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=VerificationDirectory, 
                                                                                     OutputDirectory=OutputDirectoryVerification, 
                                                                                     itemFile=itemFile,
                                                                                     embedding_layer_used=embedding_layer_used,
@@ -310,7 +310,7 @@ datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirector
                                                                                     removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                                                                     num_parallel_calls = TrainingsParameter["num_parallel_calls"],
                                                                                     verbose = False)    
-#    Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
+    Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
 
 
 if (train_model):

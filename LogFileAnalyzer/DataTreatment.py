@@ -26,18 +26,19 @@ class DataTreatment:
             else:    
                 if ("Categorical" in item):
                     result = str(result)
-                elif (item["Numerical"] == "Hex"):
-                    result = int(result, 16)
-                elif (item["Numerical"] == "Dec"):
-                    result = int(result)
+                else:
+                    if (item["Numerical"] == "Hex"):
+                        result = int(result, 16)
+                    elif (item["Numerical"] == "Dec"):
+                        result = int(result)
 
-                if (("Delta" in item) and item["Delta"] == "True"):
-                    if ("Previous" in self.state[index]):
-                        previousValue                 = self.state[index]["Previous"]
-                        self.state[index]["Previous"] = result
-                        result                       -= previousValue
-                    else:
-                        self.state[index]["Previous"] = result
-                        result = MaskValue
+                    if (("Delta" in item) and item["Delta"] == "True"):
+                        if ("Previous" in self.state[index]):
+                            previousValue                 = self.state[index]["Previous"]
+                            self.state[index]["Previous"] = result
+                            result                       -= previousValue
+                        else:
+                            self.state[index]["Previous"] = result
+                            result = MaskValue
         return result
             

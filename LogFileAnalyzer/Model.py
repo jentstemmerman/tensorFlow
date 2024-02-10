@@ -86,10 +86,25 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, OutputVocabula
                 else:
                     raise ValueError("VocabularyFile " + OutputVocabularyFile + " not found")
             elif ("RangeMin" in itemsInLine) and ("RangeMax" in itemsInLine):
-                rangeMin = itemsInLine["RangeMin"]
-                RangeMax = itemsInLine["RangeMax"]
+                rangeMin = str(itemsInLine["RangeMin"])
+                RangeMax = str(itemsInLine["RangeMax"])
+                
+                if ("Numerical" in itemsInLine):
+                    Type = itemsInLine["Numerical"]
+                else:
+                    Type = "Dec"
+
+                if (Type == "Hex"):
+                    rangeMin = int(rangeMin, 16)
+                    RangeMax = int(RangeMax, 16)
+                else:
+                    rangeMin = int(rangeMin, 10)
+                    RangeMax = int(RangeMax, 10)
+
                 VocabularyNumpy = np.arange(rangeMin, RangeMax + 1, 1)
+                VocabularyNumpy = np.vectorize(hex)(VocabularyNumpy)
                 VocabularyNumpy = VocabularyNumpy.astype(str)
+                VocabularyNumpy = np.vectorize(lambda x: x[2:])(VocabularyNumpy)  # haal de 0x weg
             else:
                 raise ValueError("VocabularyFile " + OutputVocabularyFile + " or range not found")
             
@@ -216,12 +231,12 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "dense_layer": True,
                                 "return_states": True
                                 },
-                      "EPOCHS":8,
+                      "EPOCHS":1,
                       "Use_Validation":False,
                       "BatchSize":64,
                       "removeDuplicates":False,
                       "num_parallel_calls":64,
-                      "stride_dataset": 8,
+                      "stride_dataset": 128,
                       "shuffleTraining":False,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
@@ -230,7 +245,7 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
 embedding_layer_used = (TrainingsParameter["Model"]["embedding_dim"] != -1)
 DataTypeForTensors   = 'float32'
 ValidationsParameter = {"temperature": 1 }
-
+Force_dataset_creation = True
 trainingSet = 3                
 
 if ( TrainingsParameter["SampleDataSet"]):
@@ -290,9 +305,13 @@ model = GetModel(modelSource, modelFeatureList)
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
 CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile)
 ################# Create a dataset for verification and throw all files that are in the verification output dir in it
-Force_dataset_creation = True
 
-if (Force_dataset_creation and  os.path.exists(VerificationDataSetFile.strip())):
+
+
+
+
+
+if ((not Force_dataset_creation) and  os.path.exists(VerificationDataSetFile.strip())):
     datasetForVerification = Dataset.LoadDataset(VerificationDataSetFile.strip())
     verificationFileList = None
 else:
@@ -311,30 +330,28 @@ else:
                                                                                     num_parallel_calls = TrainingsParameter["num_parallel_calls"],
                                                                                     verbose = False)    
     Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
-
-
 if (train_model):
-    ################# Create a dataset for training and throw all files that are in the training output dir in it
-#    if os.path.exists(TrainingDataSetFile.strip()):
-#        datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())
-#        trainingFileList = None
-#    else:
-    datasetForTraining, trainingFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=TrainingDirectory, 
-                                                                                OutputDirectory=OutputDirectoryTraining, 
-                                                                                itemFile=itemFile,
-                                                                                embedding_layer_used=embedding_layer_used,
-                                                                                id_from_tokenList=id_from_tokenList,
-                                                                                batch_size=TrainingsParameter["BatchSize"], 
-                                                                                stride=TrainingsParameter["stride_dataset"], 
-                                                                                shuffle=TrainingsParameter["shuffleTraining"], 
-                                                                                BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
-                                                                                seq_length=TrainingsParameter["Model"]["seq_length"], 
-                                                                                DataTypeForTensors = DataTypeForTensors,
-                                                                                removeDuplicates=TrainingsParameter["removeDuplicates"], 
-                                                                                num_parallel_calls = TrainingsParameter["num_parallel_calls"],
-                                                                                verbose = False, 
-                                                                                ) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
-#    Dataset.SaveDataset(datasetForTraining, TrainingDataSetFile.strip())
+        ################# Create a dataset for training and throw all files that are in the training output dir in it
+    if ((not Force_dataset_creation) and os.path.exists(TrainingDataSetFile.strip())):
+        datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())
+        trainingFileList = None
+    else:
+        datasetForTraining, trainingFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=TrainingDirectory, 
+                                                                                    OutputDirectory=OutputDirectoryTraining, 
+                                                                                    itemFile=itemFile,
+                                                                                    embedding_layer_used=embedding_layer_used,
+                                                                                    id_from_tokenList=id_from_tokenList,
+                                                                                    batch_size=TrainingsParameter["BatchSize"], 
+                                                                                    stride=TrainingsParameter["stride_dataset"], 
+                                                                                    shuffle=TrainingsParameter["shuffleTraining"], 
+                                                                                    BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
+                                                                                    seq_length=TrainingsParameter["Model"]["seq_length"], 
+                                                                                    DataTypeForTensors = DataTypeForTensors,
+                                                                                    removeDuplicates=TrainingsParameter["removeDuplicates"], 
+                                                                                    num_parallel_calls = TrainingsParameter["num_parallel_calls"],
+                                                                                    verbose = False, 
+                                                                                    ) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+        Dataset.SaveDataset(datasetForTraining, TrainingDataSetFile.strip())
 
         
     ############################################################################################# Train the model
@@ -375,11 +392,14 @@ if (train_model):
     
 
     # not sure this is still needed
-    sample_element = next(iter(datasetForTraining))[0]
-    temp_predicted_logits = model(inputs=sample_element)
-    model.compute_output_shape(sample_element.shape)
+    #sample_element = next(iter(datasetForTraining))[0]
+   ## temp_predicted_logits = model(inputs=sample_element)
+   # model.compute_output_shape(sample_element.shape)
     ###
     
+
+
+
     sys.stdout = sys.__stdout__
 
     try:
@@ -426,11 +446,31 @@ if (train_model):
         sys.stdout = original_stdout
 else:
     losstraining = "Not Appl"
-sample_element = next(iter(datasetForVerification))[0]
-temp_predicted_logits = model(inputs=sample_element)
-print(sample_element)
+
+#sample_element = next(iter(datasetForVerification))[0]
+#temp_predicted_logits = model(inputs=sample_element)
+#print(sample_element)
+
+# Create a minimal dummy model
+def create_dummy_model():
+
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Dense(units=1, input_shape=(1,))
+    ])
+    return model
+
+# Force GPU initialization with a minimal model
+def force_gpu_init():
+
+    dummy_model = create_dummy_model()
+    dummy_input = tf.constant([[1.0]])  # Some dummy input
+    with tf.device('/GPU:0'):
+        _ = dummy_model(dummy_input)
+
+# Call the function to force GPU initialization
+force_gpu_init()
 #print(temp_predicted_logits[0])
-print(temp_predicted_logits[1])
+#print(temp_predicted_logits[1])
 
 if (AnalyzeFiles):
     

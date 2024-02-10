@@ -221,7 +221,7 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                       "BatchSize":64,
                       "removeDuplicates":False,
                       "num_parallel_calls":64,
-                      "stride_dataset": 512,
+                      "stride_dataset": 8,
                       "shuffleTraining":False,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better

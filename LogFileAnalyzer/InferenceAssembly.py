@@ -21,8 +21,15 @@ with tf.device('/CPU:0'):
     def GetFirstSequenceData(startIndex, tokenList, id_from_tokenList, window_size, DataTypeForTensors):
 
         if (tokenList is not None):
-            tokenWindow       = tokenList[startIndex:startIndex + window_size]
-            outputToken       = tokenList[startIndex + window_size]
+            try:
+                tokenWindow       = tokenList[startIndex:startIndex + window_size]
+                outputToken       = tokenList[startIndex + window_size]
+            except IndexError:
+                print(f"IndexError: Index {startIndex} is out of range for the list.")``
+
+
+
+
 
             tokenIdWindow = copy.deepcopy(tokenWindow)
             outputTokenId = copy.deepcopy(outputToken)

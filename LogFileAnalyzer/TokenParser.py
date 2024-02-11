@@ -11,7 +11,7 @@ def GetItemListToSearchFor(RegexFile):
     try:
         file = open(RegexFile, 'r')
         itemList = json.load(file)
-        print(itemList)
+
     except Exception as e:
         print("Error in RegexFile :", e)
         exit()

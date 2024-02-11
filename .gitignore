@@ -183,3 +183,7 @@ LogFileAnalyzer/cuda-repo-wsl-ubuntu-11-8-local_11.8.0-1_amd64.deb
 TrainingSet3/*
 LogFileAnalyzer/.neptune
 LogFileAnalyzer/*.deb
+1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_RebuildEnhanced_drive_log_analyzedprintf_1.mdtxt
+LogFileAnalyzer/cuda-keyring_1.1-1_all.deb.1
+LogFileAnalyzer/debug.txt
+LogFileAnalyzer/LogFileAnalyzerOld.code-workspace

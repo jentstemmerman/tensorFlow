@@ -3,7 +3,7 @@ from tensorflow import keras
 import numpy as np
 import TokenParser
 import LogFileIterator
-
+import os
 
 def GetDataSetInformation(dataSet):
     # Count the number of elements in the dataset
@@ -12,8 +12,8 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedding_layer_used, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
-    
+def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+    print("Creating vocabulary files\n")
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     tokenListListList = TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
     
@@ -26,11 +26,12 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedd
 
     for tokenListList in tokenListListList:
 
-        print("Adding " + tokenLogfileToProcess + " to the dataset...")
+        numberOfTokens = len([inner_list[0] for inner_list in tokenListList])
+        print("Adding " + tokenLogfileToProcess + " to the dataset. Number Of tokens: " + str(numberOfTokens))
         filesUsed.append(tokenLogfileToProcess)
         
         TensorOfThisFile = []
-        
+
         for index, id_from_token in enumerate(id_from_tokenList):
             column = [inner_list[index] for inner_list in tokenListList]
             column = np.array(column)
@@ -40,6 +41,9 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedd
                 TransformedItemTensor = tf.convert_to_tensor(column)
 
             TensorOfThisFile.append(TransformedItemTensor)
+        
+        #print("Number of items from file " + tokenLogfileToProcess+ " added " +  str(index) + "/" + str(numberOfTokens))
+
         TensorOfThisFile = tf.stack(TensorOfThisFile, axis=-1)
 
         if (TrainingLogTensor is None):
@@ -48,7 +52,10 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedd
             TrainingLogTensor = np.concatenate((TrainingLogTensor, TensorOfThisFile), axis=0)
 
         tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
-       
+ 
+
+        
+        
     datasetfast = tf.data.Dataset.from_tensor_slices(TrainingLogTensor)
     datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
     datasetfast = datasetfast.flat_map(lambda window2: window2)
@@ -71,8 +78,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, embedd
 
     if (verbose):
         PrintDatasetTuple(datasetfast)
-    else:
-        PrintDatasetTuple(datasetfast, 1)
+
         
 
     dataset = datasetfast
@@ -132,3 +138,65 @@ def LoadDataset(fileName):
 def MergeDatasets(dataSet1, dataSet2):
     datasetMerged = dataSet1.concatenate(dataSet2)
     return datasetMerged
+
+def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, OutputVocabularyDirectory, itemList):
+
+    id_from_tokenList   = []
+    token_from_idList   = []
+    itemIndex = 0
+    
+    for itemsInLine in itemList:
+        # only create encoder-decoder for items that are cathegorical.
+        if (itemsInLine["Categorical"] == "True"):
+            if ("VocabularyFile" in itemsInLine):
+                OriginalTokenFile = itemsInLine["VocabularyFile"]
+                
+                if (type(OriginalTokenFile) == str):
+
+                    OriginalTokenFileName = OriginalTokenFileDirectory + os.path.sep + OriginalTokenFile
+                    
+                    # only do one item process at a time
+                    OutputVocabularyFile = OutputVocabularyDirectory + os.path.sep + "VocabularyFileItem_" + str(itemIndex)
+                    tokenListList = TokenParser.process_files(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
+                    VocabularyNumpy = [inner_list[0] for inner_list in tokenListList]
+                    VocabularyNumpy = np.array(VocabularyNumpy)
+                else:
+                    raise ValueError("VocabularyFile " + OutputVocabularyFile + " not found")
+            elif ("RangeMin" in itemsInLine) and ("RangeMax" in itemsInLine):
+                rangeMin = str(itemsInLine["RangeMin"])
+                RangeMax = str(itemsInLine["RangeMax"])
+                
+                if ("Numerical" in itemsInLine):
+                    Type = itemsInLine["Numerical"]
+                else:
+                    Type = "Dec"
+
+                if (Type == "Hex"):
+                    rangeMin = int(rangeMin, 16)
+                    RangeMax = int(RangeMax, 16)
+                else:
+                    rangeMin = int(rangeMin, 10)
+                    RangeMax = int(RangeMax, 10)
+
+                VocabularyNumpy = np.arange(rangeMin, RangeMax + 1, 1)
+                VocabularyNumpy = np.vectorize(hex)(VocabularyNumpy)
+                VocabularyNumpy = VocabularyNumpy.astype(str)
+                VocabularyNumpy = np.vectorize(lambda x: x[2:])(VocabularyNumpy)  # haal de 0x weg
+            else:
+                raise ValueError("VocabularyFile " + OutputVocabularyFile + " or range not found")
+            
+            VocabularyTensor  = tf.convert_to_tensor(VocabularyNumpy)
+
+            # encoder
+            id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
+            id_from_tokenList.append(id_from_token)
+            
+            # decoder
+            token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
+            token_from_idList.append(token_from_id)
+        else:
+            id_from_tokenList.append(None)
+            token_from_idList.append(None)
+
+        itemIndex += 1    
+    return id_from_tokenList, token_from_idList

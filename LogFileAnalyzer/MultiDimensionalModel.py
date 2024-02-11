@@ -115,8 +115,9 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
     def __init__(self, featureList, rnn_units, sequence_length, dense_layer, return_sequences, datatype):
         super().__init__()
-        self.numberOfFeatures = len(featureList)    
+        self.numberOfFeatures = len(featureList)
 
+        self.numberOfInputsToTotalEmbedding = 0
         self.return_states    = return_sequences
         self.featureList      = featureList
         self.datatype         = datatype
@@ -128,16 +129,19 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             if (feature["embedded"] == True):
                 input_layer = tf.keras.layers.Embedding(input_dim=feature["vocab_size"], output_dim=feature["embedding_dim"], dtype=datatype)
                 lstm_input  = tf.keras.layers.Input(shape=(sequence_length, feature["vocab_size"]))
+                self.numberOfInputsToTotalEmbedding += feature["vocab_size"]
             else:
                 input_layer = CustomIdentityLayer(datatype=datatype) 
                 
                 lstm_input  = tf.keras.layers.Input(shape=(sequence_length, 1))
+                self.numberOfInputsToTotalEmbedding += 1
             
             self.input_layerList.append(input_layer)    
             inputList.append(lstm_input)
         
-        #
+        
         self.concatenated = tf.keras.layers.concatenate(inputList)
+        #self.Total_embedding = tf.keras.layers.Embedding(input_dim=self.numberOfInputsToTotalEmbedding, output_dim=self.numberOfFeatures, dtype=datatype)
         self.lstm_layer   = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfFeatures), return_sequences=return_sequences, dropout=0.1)
         
         self.output_layerList  = []
@@ -164,7 +168,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             input_outputs.append(output)
 
         concatenated_inputs = tf.keras.layers.concatenate(input_outputs, axis=-1)
-
+        #concatenated_inputs = self.Total_embedding(concatenated_inputs, training = training)
         lstm_out = self.lstm_layer(concatenated_inputs, training=training)
 
         output_List = []

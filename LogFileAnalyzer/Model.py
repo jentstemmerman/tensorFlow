@@ -15,6 +15,8 @@ import MultiDimensionalModel
 import ModelCallbacks
 import neptune
 from neptune.integrations.tensorflow_keras import NeptuneCallback
+import DefaultTrainingSettings
+import math
 
 def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile):
     CrossReferenceTokens = False
@@ -64,66 +66,9 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, OutputVocabularyFile, itemList):
 
-    id_from_tokenList   = []
-    token_from_idList   = []
 
-    for itemsInLine in itemList:
-        # only create encoder-decoder for items that are cathegorical.
-        if (itemsInLine["Categorical"] == "True"):
-            if ("VocabularyFile" in itemsInLine):
-                OriginalTokenFile = itemsInLine["VocabularyFile"]
-                
-                if (type(OriginalTokenFile) == str):
-
-                    OriginalTokenFileName = OriginalTokenFileDirectory + os.path.sep + OriginalTokenFile
-                    
-                    # only do one item process at a time
-                    tokenListList = TokenParser.process_files(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
-                    VocabularyNumpy = [inner_list[0] for inner_list in tokenListList]
-                    VocabularyNumpy = np.array(VocabularyNumpy)
-                else:
-                    raise ValueError("VocabularyFile " + OutputVocabularyFile + " not found")
-            elif ("RangeMin" in itemsInLine) and ("RangeMax" in itemsInLine):
-                rangeMin = str(itemsInLine["RangeMin"])
-                RangeMax = str(itemsInLine["RangeMax"])
-                
-                if ("Numerical" in itemsInLine):
-                    Type = itemsInLine["Numerical"]
-                else:
-                    Type = "Dec"
-
-                if (Type == "Hex"):
-                    rangeMin = int(rangeMin, 16)
-                    RangeMax = int(RangeMax, 16)
-                else:
-                    rangeMin = int(rangeMin, 10)
-                    RangeMax = int(RangeMax, 10)
-
-                VocabularyNumpy = np.arange(rangeMin, RangeMax + 1, 1)
-                VocabularyNumpy = np.vectorize(hex)(VocabularyNumpy)
-                VocabularyNumpy = VocabularyNumpy.astype(str)
-                VocabularyNumpy = np.vectorize(lambda x: x[2:])(VocabularyNumpy)  # haal de 0x weg
-            else:
-                raise ValueError("VocabularyFile " + OutputVocabularyFile + " or range not found")
-            
-            VocabularyTensor  = tf.convert_to_tensor(VocabularyNumpy)
-
-            # encoder
-            id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
-            id_from_tokenList.append(id_from_token)
-            
-            # decoder
-            token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
-            token_from_idList.append(token_from_id)
-        else:
-            id_from_tokenList.append(None)
-            token_from_idList.append(None)
-            
-    return id_from_tokenList, token_from_idList
-
-def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers):
+def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     verificationFileIterator = LogFileIterator.LogfileIterator(inputDirectory)
@@ -137,7 +82,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
-def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperature):
+def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperature, DataTypeForTensors):
 
     calculateAverage = 0
 
@@ -173,25 +118,28 @@ def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
         assert(("Categorical" in item) == True)
         if (item["Categorical"] == "True"):
             name = name + "_Cathegorical_layer"
-            assert(id_from_tokenList[index] != None, "id_from_tokenList[" + str(index) + "] is None")
-            embedded_dimension = 256  #TODO, adapt
-            modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension, "layer_name": name})
+            #assert(id_from_tokenList[index] is not None, "id_from_tokenList[" + str(index) + "] is None")
+            VocabularySize = len(id_from_tokenList[index].get_vocabulary())
+            embedded_dimension_rule_of_thumb = int(VocabularySize ** (1/2) )   
+            embedded_dimension_power_of_two = int(2**math.ceil(math.log2(embedded_dimension_rule_of_thumb)))
+            modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension_power_of_two, "layer_name": name})
         else:
-            assert(id_from_tokenList[index] == None, "id_from_tokenList[" + str(index) + "] is None")
+            # assert(id_from_tokenList[index] is None, "id_from_tokenList[" + str(index) + "] is None")
             maskValue = item["MaskValue"]
             name = name + "_NonCathegorical_layer"
             modelFeatureList.append({"embedded": False, "layer_name": name, "MaskValue": maskValue})
     return modelFeatureList
 
-def GetModel(modelSource, modelFeatureList):
+def GetModel(modelSource, modelFeatureList, TrainingsParameter):
+
     model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
                                                             TrainingsParameter["Model"]["rnn_units"],
                                                             TrainingsParameter["Model"]["seq_length"], 
                                                             dense_layer = TrainingsParameter["Model"]["dense_layer"], 
                                                             return_sequences = TrainingsParameter["Model"]["return_states"] , 
-                                                            datatype = DataTypeForTensors)
+                                                            datatype = TrainingsParameter["DataTypeForTensors"])
     
-    loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, DataTypeForTensors)  
+    loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, TrainingsParameter["DataTypeForTensors"])  
 
     if (modelSource["Source"] == "NewModel"):
         model.compile(optimizer='adam', loss=loss_function)
@@ -203,7 +151,7 @@ def GetModel(modelSource, modelFeatureList):
 
     elif (modelSource["Source"]  == "FromFile"):
         model = tf.keras.models.load_model(ModelDirectory, compile=False )
-        loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, DataTypeForTensors)  
+        loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, TrainingsParameter["DataTypeForTensors"])  
         model.compile(optimizer='adam', loss=loss_function)
 
     return model
@@ -222,28 +170,12 @@ loadCheckPoint        = 2
 #tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()    
 
+TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
 
-TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
-                                "returnState":True,
-                                "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
-                                "rnn_units":1024,
-                                "seq_length":32 ,
-                                "dense_layer": True,
-                                "return_states": True
-                                },
-                      "EPOCHS":1,
-                      "Use_Validation":False,
-                      "BatchSize":64,
-                      "removeDuplicates":False,
-                      "num_parallel_calls":64,
-                      "stride_dataset": 128,
-                      "shuffleTraining":False,
-                      "BUFFER_SIZE":65536,
-                      "SampleDataSet":False,   # does not really work, using stride is better
-                    }
+
 
 embedding_layer_used = (TrainingsParameter["Model"]["embedding_dim"] != -1)
-DataTypeForTensors   = 'float32'
+
 ValidationsParameter = {"temperature": 1 }
 Force_dataset_creation = True
 trainingSet = 3                
@@ -264,6 +196,7 @@ OutputDirectory             = Directory       + os.path.sep + "out"
 ScoreFile                   = OutputDirectory + os.path.sep + "ScoreFile.txt"
 TrainingLogFile             = OutputDirectory + os.path.sep + "TrainingLog.txt"
 SummaryFile                 = OutputDirectory + os.path.sep + "Summary.txt"
+VocabularyDirectory         = OutputDirectory
 VocabularyFile              = OutputDirectory + os.path.sep + "TokenfileOnlyTokens.dat"
 TrainingDataSetFile         = OutputDirectory + os.path.sep + "TrainingDataSetFile.dataset"
 VerificationDataSetFile     = OutputDirectory + os.path.sep + "VerificationDataSetFile.dataset"
@@ -273,7 +206,7 @@ OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
 OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
 itemList         = TokenParser.GetItemListToSearchFor(itemFile)
-id_from_tokenList, token_from_idList = GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, VocabularyFile, itemList)  
+id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, VocabularyFile, itemList)  
 modelFeatureList = CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
 
 
@@ -299,7 +232,7 @@ else:
     modelSource = {"Source": "FromCheckpoint", "CheckpointNumber": 2, "CheckpointPath": TrainingCheckpointDir}
     train_model = False
 
-model = GetModel(modelSource, modelFeatureList)
+model = GetModel(modelSource, modelFeatureList, TrainingsParameter)
 
 
 ################## check whether the logfile tokens only contains tokens that are in the tokenfile
@@ -315,42 +248,45 @@ if ((not Force_dataset_creation) and  os.path.exists(VerificationDataSetFile.str
     datasetForVerification = Dataset.LoadDataset(VerificationDataSetFile.strip())
     verificationFileList = None
 else:
+    print("\nStart dataset creation for verification")
     datasetForVerification, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=VerificationDirectory, 
                                                                                     OutputDirectory=OutputDirectoryVerification, 
                                                                                     itemFile=itemFile,
-                                                                                    embedding_layer_used=embedding_layer_used,
                                                                                     id_from_tokenList=id_from_tokenList,
                                                                                     batch_size=TrainingsParameter["BatchSize"], 
                                                                                     stride=TrainingsParameter["stride_dataset"], 
                                                                                     shuffle=TrainingsParameter["shuffleTraining"], 
                                                                                     BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
                                                                                     seq_length=TrainingsParameter["Model"]["seq_length"],
-                                                                                    DataTypeForTensors = DataTypeForTensors,
+                                                                                    DataTypeForTensors = TrainingsParameter["DataTypeForTensors"],
                                                                                     removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                                                                     num_parallel_calls = TrainingsParameter["num_parallel_calls"],
                                                                                     verbose = False)    
+    print("End dataset creation for verification")
     Dataset.SaveDataset(datasetForVerification, VerificationDataSetFile.strip())
+
 if (train_model):
         ################# Create a dataset for training and throw all files that are in the training output dir in it
     if ((not Force_dataset_creation) and os.path.exists(TrainingDataSetFile.strip())):
         datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())
         trainingFileList = None
     else:
+        print("Start dataset creation for training")
         datasetForTraining, trainingFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=TrainingDirectory, 
                                                                                     OutputDirectory=OutputDirectoryTraining, 
                                                                                     itemFile=itemFile,
-                                                                                    embedding_layer_used=embedding_layer_used,
                                                                                     id_from_tokenList=id_from_tokenList,
                                                                                     batch_size=TrainingsParameter["BatchSize"], 
                                                                                     stride=TrainingsParameter["stride_dataset"], 
                                                                                     shuffle=TrainingsParameter["shuffleTraining"], 
                                                                                     BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
                                                                                     seq_length=TrainingsParameter["Model"]["seq_length"], 
-                                                                                    DataTypeForTensors = DataTypeForTensors,
+                                                                                    DataTypeForTensors = TrainingsParameter["DataTypeForTensors"],
                                                                                     removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                                                                     num_parallel_calls = TrainingsParameter["num_parallel_calls"],
                                                                                     verbose = False, 
-                                                                                    ) # , ReductionInSamples=10) #, removeDuplicates=removeDuplicates)        
+                                                                                    )    
+        print("End dataset creation for training")   
         Dataset.SaveDataset(datasetForTraining, TrainingDataSetFile.strip())
 
         
@@ -390,15 +326,6 @@ if (train_model):
 
     history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, neptune_callback,TrainBatchEnd_callback ])
     
-
-    # not sure this is still needed
-    #sample_element = next(iter(datasetForTraining))[0]
-   ## temp_predicted_logits = model(inputs=sample_element)
-   # model.compute_output_shape(sample_element.shape)
-    ###
-    
-
-
 
     sys.stdout = sys.__stdout__
 
@@ -493,7 +420,8 @@ if (AnalyzeFiles):
                                id_from_tokenList = id_from_tokenList,
                                token_from_idList=token_from_idList,
                                numberOfThreads=numberOfThreads, 
-                               Workers=Workers)
+                               Workers=Workers,
+                               DataTypeForTensors=TrainingsParameter["DataTypeForTensors"] )
             
             worker.KillWorkers(Workers)
 

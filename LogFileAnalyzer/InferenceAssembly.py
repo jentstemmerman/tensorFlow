@@ -25,11 +25,7 @@ with tf.device('/CPU:0'):
                 tokenWindow       = tokenList[startIndex:startIndex + window_size]
                 outputToken       = tokenList[startIndex + window_size]
             except IndexError:
-                print(f"IndexError: Index {startIndex} is out of range for the list.")``
-
-
-
-
+                print("IndexError: Index {startIndex} is out of range for the list.")
 
             tokenIdWindow = copy.deepcopy(tokenWindow)
             outputTokenId = copy.deepcopy(outputToken)

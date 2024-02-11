@@ -5,8 +5,6 @@ import os
 
 def CreateTrainingDataset(Name, InputDirectory, IntermediateDirectory, itemFile, OriginalTokenFileDirectory, TrainingsParameter=None):
 
-    if (TrainingsParameter is None):
-        TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
 
     OutputVocabularyDirectory = IntermediateDirectory + os.path.sep + "Vocabularies"
     
@@ -41,7 +39,16 @@ if __name__ == "__main__":
     IntermediateDirectory = sys.argv[3] if len(sys.argv) > 3 else None
     itemFile              = sys.argv[4] if len(sys.argv) > 4 else None
     OriginalTokenFileDirectory = sys.argv[5] if len(sys.argv) > 5 else None
+    Stride                = sys.argv[6] if len(sys.argv) > 6 else None
 
-    print("Creating dataset from files in " + InputDirectory + " and saving to " + Name)
+    if (sys.argv == 5):
+        print("Creating dataset from files in " + InputDirectory + " and saving to " + Name)
+        
+    TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
+    
+    if (Stride is None):
+        TrainingsParameter["stride_dataset"] = Stride
 
-    CreateTrainingDataset(Name, InputDirectory, IntermediateDirectory, itemFile, OriginalTokenFileDirectory, TrainingsParameter=None)
+        CreateTrainingDataset(Name, InputDirectory, IntermediateDirectory, itemFile, OriginalTokenFileDirectory, TrainingsParameter=TrainingsParameter)
+    else:
+        print("Did not receive 5 parameters. Parameters received: " + str(sys.argv))

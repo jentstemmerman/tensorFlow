@@ -140,9 +140,10 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             inputList.append(lstm_input)
         
         
-        self.concatenated = tf.keras.layers.concatenate(inputList)
-        #self.Total_embedding = tf.keras.layers.Embedding(input_dim=self.numberOfInputsToTotalEmbedding, output_dim=self.numberOfFeatures, dtype=datatype)
-        self.lstm_layer   = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfFeatures), return_sequences=return_sequences, dropout=0.1)
+        self.concatenated     = tf.keras.layers.concatenate(inputList)
+        
+        #self.Total_embedding  = tf.keras.layers.Embedding(input_dim=self.numberOfInputsToTotalEmbedding, output_dim=int(self.numberOfInputsToTotalEmbedding / 2), dtype=datatype)
+        self.lstm_layer       = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfFeatures), return_sequences=return_sequences, dropout=0.1)
         
         self.output_layerList  = []
 
@@ -168,8 +169,9 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             input_outputs.append(output)
 
         concatenated_inputs = tf.keras.layers.concatenate(input_outputs, axis=-1)
-        #concatenated_inputs = self.Total_embedding(concatenated_inputs, training = training)
-        lstm_out = self.lstm_layer(concatenated_inputs, training=training)
+        #concatenated_input_to_lstm = self.Total_embedding(concatenated_inputs, training = training)
+        concatenated_input_to_lstm = concatenated_inputs
+        lstm_out = self.lstm_layer(concatenated_input_to_lstm, training=training)
 
         output_List = []
 

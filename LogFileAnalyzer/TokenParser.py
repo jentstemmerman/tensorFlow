@@ -43,7 +43,7 @@ def GetItemsInLine(line, itemList, dataTreatment):
 
 
 def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, PrintfList=None): 
-    numberOfFoundItems = 0
+    numberOfLines = 0
     
     if (tokenList is None):
         tokenList  = []
@@ -54,7 +54,7 @@ def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, Pr
 
     dataTreatment = DataTreatment.DataTreatment(len(itemList))
 
-    while ((numberOfTokens == -1) or (numberOfFoundItems < numberOfTokens)):
+    while ((numberOfTokens == -1) or (numberOfLines < numberOfTokens)):
         line = reading_file.readline()
         lineBackup = line
 
@@ -64,11 +64,11 @@ def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, Pr
         items = GetItemsInLine(line, itemList, dataTreatment)
 
         if (len(items) > 0):
-            numberOfFoundItems += len(items)
+            numberOfLines += 1
             tokenList.append(items)
             PrintfList.append(lineBackup)
 
-    return tokenList, PrintfList, numberOfFoundItems
+    return tokenList, PrintfList, numberOfLines
 
 def process_files(input_file, output_file, itemList):
     

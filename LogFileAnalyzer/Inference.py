@@ -65,7 +65,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         manager          = None
 
         print("Retrieving tokens from files")
-        TokenList, origPrintfList, numberOfFoundTokens = TokenParser.getLinesAndTokens(itemList, -1, LogfileToAnalyze)
+        TokenList, origPrintfList, numberOfLines = TokenParser.getLinesAndTokens(itemList, -1, LogfileToAnalyze)
     
         # Create a shared memory manager
         manager = multiprocessing.Manager()
@@ -74,16 +74,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         sharedTokenList = manager.list()
         sharedTokenList.extend(TokenList) # bug
 
-        # Create shared memory object for id_from_token
-        #shm = shared_memory.SharedMemory(create=True, size=sys.getsizeof(id_from_tokenNumpy))
-        #shared_id_from_token = np.ndarray(id_from_tokenNumpy.shape, dtype=id_from_tokenNumpy.dtype, buffer=shm.buf)
-        # Copy the data to shared memory
-        #np.copyto(shared_id_from_token, id_from_tokenNumpy)
-    
         TokenList  = None
 
         indexOfFirstPrediction  = window_size + 1
-        remainingNumberOfLines  = (numberOfFoundTokens - numberOfAnalyzedLines) - (window_size + 1)
+        remainingNumberOfLines  = (numberOfLines - numberOfAnalyzedLines) - (window_size + 1)
         reducedParameters, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads)
         
         generationStartTime        = 0
@@ -202,7 +196,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 nexttokenIds = []
                 
                 Endtime = time.time()
-                remainingNumberOfLines           = (numberOfFoundTokens - indexOfFirstPrediction) - (window_size + 1)
+                remainingNumberOfLines           = (numberOfLines - indexOfFirstPrediction) - (window_size + 1)
                 averageNextTokenProbabilities    = accumulatedNextTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
                 
                 averageNextTokenProbabilities = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
@@ -213,7 +207,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 
                 reducedParameters, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads)
                 
-                print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfFoundTokens) +
+                print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfLines) +
                     ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
                     "  Nr Of Identicals: " + str(numberOfIdenticals) + 
                     ".".join("  Av next token probab = {:2.3f}.".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +
@@ -232,8 +226,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         if(reducedParameters):
             print("\n\nEnded inference almost at end of file")
         averageNextTokenProbabilities = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
-        Result = "Total number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) +                \
-                    " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfFoundTokens) + ".\n Number Of Identicals: " +      \
+        Result = "Total number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) +                \
+                    " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) + ".\n Number Of Identicals: " +      \
                     str(numberOfIdenticals) + ", ({:2.3f})".format(IdenticalsToNumberOfLinesRatio) +                                \
                     ".\n".join("Average next token probability = {:2.3f}".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +                            \
                     ".\n Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n"
@@ -244,8 +238,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileToAnalyze.close()
         LogfileAnalyzed.close()   
 
-        shm.close()
-        shm.unlink()
+      
 
 
 

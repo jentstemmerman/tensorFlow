@@ -167,7 +167,7 @@ CreateNewOutDirectory = True
 AnalyzeFiles          = True
 loadCheckPoint        = 2
 
-#tf.config.run_functions_eagerly(True)  
+tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()    
 
 TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
@@ -177,7 +177,7 @@ TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
 embedding_layer_used = (TrainingsParameter["Model"]["embedding_dim"] != -1)
 
 ValidationsParameter = {"temperature": 1 }
-Force_dataset_creation = True
+Force_dataset_creation = False
 trainingSet = 3                
 
 if ( TrainingsParameter["SampleDataSet"]):

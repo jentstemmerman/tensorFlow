@@ -4,5 +4,30 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {},
+
+	"launch": {
+		"version": "0.2.0",
+		
+		"configurations": [
+			{
+				"name": "Python Debugger: Create dataset",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CreateTrainingDataSet.py",
+				"args": ["TestDataSet", "/home/jents/AI/TrainingSet3/Training", "/home/jents/AI/TrainingSet3/out/Training", "Itemfile.txt", "/home/jents/AI/TrainingSet3/"], 
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "Python Debugger: Model",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/Model.py",
+				"console": "integratedTerminal",
+				"cwd": "${workspaceFolder}",
+			}
+			
+		]
+	}
 }

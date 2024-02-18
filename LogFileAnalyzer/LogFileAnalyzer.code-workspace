@@ -14,8 +14,15 @@
 				"name": "Python Debugger: Create dataset from dir",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/CreateTrainingDataSet.py",
-				"args": ["TestDataSet", "/home/jents/AI/TrainingSet3/Training", "Itemfile.txt", "/home/jents/AI/TrainingSet3/out/Training", "/home/jents/AI/TrainingSet3/", "1"], 
+				"program": "${workspaceFolder}/CreateTrainingDataSetFromDir.py",
+
+				"args": ["/home/jents/AI/TrainingSet3/Training", 
+				         "Itemfile.txt", 
+						 "/home/jents/AI/TrainingSet3/out/Training", 
+						 "/home/jents/AI/TrainingSet3/",
+						 "1", 
+						 "/home/jents/AI/TrainingSet3/out/dataset_dir"], 
+
 				"cwd": "${workspaceFolder}",
 				"console": "integratedTerminal"
 			},
@@ -24,7 +31,10 @@
 				"type": "debugpy",
 				"request": "launch",
 				"program": "${workspaceFolder}/CreateTrainingDataSetFromFile.py",
-				"args": ["TestDataSet", "/home/jents/AI/TrainingSet3/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.log", "Itemfile.txt", "/home/jents/AI/TrainingSet3/", "/home/jents/AI/TrainingSet3/out/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.dataset", "1"], 
+				"args": ["/home/jents/AI/TrainingSet3/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.log", 
+				         "Itemfile.txt", "/home/jents/AI/TrainingSet3/", 
+						 "1", 
+						 "/home/jents/AI/TrainingSet3/out/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.dataset"], 
 				"cwd": "${workspaceFolder}",
 				"console": "integratedTerminal"
 			},

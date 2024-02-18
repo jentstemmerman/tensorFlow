@@ -29,20 +29,20 @@ def CreateTrainingDatasetFromFile(InputFile, itemFile, OriginalTokenFileDirector
 if __name__ == "__main__":
     import sys
 
-    parameters = sys.argv[2:]
+    parameters = sys.argv[1:]
 
     if (len(parameters)==5):
         InputFile                     = parameters[0]
         itemFile                      = parameters[1]
         OriginalTokenFileDirectory    = parameters[2]
-        DatasetFile                   = parameters[3]
-        Stride                        = parameters[4]
+        Stride                        = parameters[3]
+        DatasetFile                   = parameters[4]
     else:
         print("Did not receive 5 parameters. Parameters received: " + str(sys.argv-1))
 
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
     
-    if (Stride is None):
+    if (Stride is not None):
         TrainingsParameter["stride_dataset"] = Stride
 
     dataset = CreateTrainingDatasetFromFile(InputFile, itemFile, OriginalTokenFileDirectory, TrainingsParameter)

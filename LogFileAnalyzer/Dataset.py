@@ -13,7 +13,7 @@ def GetDataSetInformation(dataSet):
     return num_batches_dataset
 
 # This function will not create an intermediate tokenfile
-def CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
 
     fileHandler = open(InputFile, "r", errors='ignore')
                                         

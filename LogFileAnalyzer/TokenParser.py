@@ -42,7 +42,7 @@ def GetItemsInLine(line, itemList, dataTreatment):
 
 
 
-def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, PrintfList=None): 
+def getLinesAndTokens(itemList, numberOfTokens, reading_file=None, tokenList=None, PrintfList=None): 
     numberOfLines = 0
     
     if (tokenList is None):
@@ -70,45 +70,47 @@ def getLinesAndTokens(itemList, numberOfTokens, reading_file, tokenList=None, Pr
 
     return tokenList, PrintfList, numberOfLines
 
-def process_files(input_file, output_file, itemList):
+def process_file_to_tokenFile(input_file, output_file, itemList):
     
     tokenListList = None
-
-    #if (not os.path.exists(output_file)):
     reading_file = open(input_file,  "r", errors='ignore')
+                                            
+    tokenListList, _, _ = getLinesAndTokens(itemList, -1, reading_file, tokenList=None, PrintfList=None)
+
+    if (output_file is not None):
+        file = Path(output_file)
+        file.parent.mkdir(parents=True, exist_ok=True)
+        LogfileOnlyTokens = open(output_file, "w")
     
-    file = Path(output_file)
-    file.parent.mkdir(parents=True, exist_ok=True)
-    LogfileOnlyTokens = open(output_file, "w")
-                                        
-    tokenListList, PrintfList, numberOfFoundTokens = getLinesAndTokens(itemList, -1, reading_file, tokenList=None, PrintfList=None)
-    lineNumber = 0
-    stopLine = False
-    for tokenList in tokenListList:
-        line = ""
-        for index, token in enumerate(tokenList):
-            if index < len(tokenList) - 1:
-                line = line + str(token) + ","
-            else:
-                line = line + str(token) 
+        lineNumber = 0
+        stopLine = False
+        for tokenList in tokenListList:
+            line = ""
+            for index, token in enumerate(tokenList):
+                if index < len(tokenList) - 1:
+                    line = line + str(token) + ","
+                else:
+                    line = line + str(token) 
 
-       #     if (index == 1):  # vuile hack
-       #         value = int()
-       #         if(int(token) > 100000):
-       #             print("stop at " + str(token) + " at line ", str(lineNumber))
-       #             stopLine = True
-       #             break
+        #     if (index == 1):  # vuile hack
+        #         value = int()
+        #         if(int(token) > 100000):
+        #             print("stop at " + str(token) + " at line ", str(lineNumber))
+        #             stopLine = True
+        #             break
 
-        if (stopLine):
-            stopLine = False
-            continue
-        lineNumber += 1
+            if (stopLine):
+                stopLine = False
+                continue
+            lineNumber += 1
 
-        line = line + '\n'
-        LogfileOnlyTokens.write(line)
+            line = line + '\n'
+            LogfileOnlyTokens.write(line)
+        LogfileOnlyTokens.close()
+
 
     reading_file.close()
-    LogfileOnlyTokens.close()
+
     return tokenListList
 
 
@@ -147,6 +149,9 @@ def split_input_target_multidim(sequence):
 def returnValue(sequence):
     return sequence
 
+
+
+
 def process_log_files_to_tokens_recursive(directory, outputDirectory, itemList):
     tokenListListList = []
     for root, dirs, files in os.walk(directory):
@@ -156,7 +161,7 @@ def process_log_files_to_tokens_recursive(directory, outputDirectory, itemList):
                 # Do something with the content of the log file
                 outputFile = outputDirectory + "/" + filename.replace(".log", "") + "_onlyTokens.log" 
                 #if (not os.path.exists(outputFile)):
-                tokenListList = process_files(full_path, outputFile, itemList)
+                tokenListList = process_file_to_tokenFile(full_path, outputFile, itemList)
                 tokenListListList.append(tokenListList)
     return tokenListListList
 

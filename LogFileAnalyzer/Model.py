@@ -206,7 +206,7 @@ OutputDirectoryTraining     = OutputDirectory + os.path.sep + "Training"
 OutputDirectoryVerification = OutputDirectory + os.path.sep + "Verification"
 
 itemList         = TokenParser.GetItemListToSearchFor(itemFile)
-id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, VocabularyFile, itemList)  
+id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, VocabularyFile)  
 modelFeatureList = CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
 
 

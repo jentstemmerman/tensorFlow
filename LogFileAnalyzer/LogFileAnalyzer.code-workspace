@@ -11,11 +11,20 @@
 		
 		"configurations": [
 			{
-				"name": "Python Debugger: Create dataset",
+				"name": "Python Debugger: Create dataset from dir",
 				"type": "debugpy",
 				"request": "launch",
 				"program": "${workspaceFolder}/CreateTrainingDataSet.py",
-				"args": ["TestDataSet", "/home/jents/AI/TrainingSet3/Training", "/home/jents/AI/TrainingSet3/out/Training", "Itemfile.txt", "/home/jents/AI/TrainingSet3/"], 
+				"args": ["TestDataSet", "/home/jents/AI/TrainingSet3/Training", "Itemfile.txt", "/home/jents/AI/TrainingSet3/out/Training", "/home/jents/AI/TrainingSet3/", "1"], 
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "Python Debugger: Create dataset from file",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CreateTrainingDataSetFromFile.py",
+				"args": ["TestDataSet", "/home/jents/AI/TrainingSet3/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.log", "Itemfile.txt", "/home/jents/AI/TrainingSet3/", "/home/jents/AI/TrainingSet3/out/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.dataset", "1"], 
 				"cwd": "${workspaceFolder}",
 				"console": "integratedTerminal"
 			},

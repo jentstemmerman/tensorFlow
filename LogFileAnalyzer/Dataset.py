@@ -12,6 +12,47 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
+# This function will not create an intermediate tokenfile
+def CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+
+    fileHandler = open(InputFile, "r", errors='ignore')
+                                        
+    tokenListList, _, numberOfLines = TokenParser.getLinesAndTokens(itemList, -1, fileHandler, tokenList=None, PrintfList=None)
+    
+    print("Creating a dataset from  " + InputFile + ". Number Of Lines in the file: " + str(numberOfLines))
+    
+    TensorOfThisFile = []
+    
+    for index, id_from_token in enumerate(id_from_tokenList):
+        
+        column = [inner_list[index] for inner_list in tokenListList]
+        column = np.array(column)
+        
+        if (id_from_token is not None):
+            TransformedItemTensor = id_from_token(column)  # next todo
+        else:
+            TransformedItemTensor = tf.convert_to_tensor(column)
+        
+        TensorOfThisFile.append(TransformedItemTensor)
+    
+    TensorOfThisFile = tf.stack(TensorOfThisFile, axis=-1)
+    
+    datasetfast = tf.data.Dataset.from_tensor_slices(TensorOfThisFile)
+    datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
+    datasetfast = datasetfast.flat_map(lambda window2: window2)
+    datasetfast = datasetfast.batch(seq_length + 1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
+    
+    if (removeDuplicates):
+        datasetfast = datasetfast.unique()
+
+    if (verbose):
+        PrintDataset(datasetfast, 10)
+
+    datasetfast = datasetfast.map(lambda x: tf.cast(x, DataTypeForTensors))
+    datasetfast = datasetfast.map(TokenParser.split_input_target) 
+       
+    return datasetfast
+
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
     print("Creating Item list:\n")
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
@@ -141,7 +182,7 @@ def MergeDatasets(dataSet1, dataSet2):
     datasetMerged = dataSet1.concatenate(dataSet2)
     return datasetMerged
 
-def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, OutputVocabularyDirectory, itemList):
+def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, OutputVocabularyDirectory=None):
 
     id_from_tokenList   = []
     token_from_idList   = []
@@ -158,8 +199,14 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, OutputVocabula
                     OriginalTokenFileName = OriginalTokenFileDirectory + os.path.sep + OriginalTokenFile
                     
                     # only do one item process at a time
-                    OutputVocabularyFile = OutputVocabularyDirectory + os.path.sep + "VocabularyFileItem_" + str(itemIndex)
-                    tokenListList = TokenParser.process_files(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
+                    if (OutputVocabularyDirectory is not None):
+                        OutputVocabularyFile = OutputVocabularyDirectory + os.path.sep + "VocabularyFileItem_" + str(itemIndex)
+
+                        tokenListList = TokenParser.process_file_to_tokenFile(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
+                    else:
+                        tokenListList = TokenParser.process_file_to_tokenFile(OriginalTokenFileName, None, [itemsInLine])
+
+
                     VocabularyNumpy = [inner_list[0] for inner_list in tokenListList]
                     VocabularyNumpy = np.array(VocabularyNumpy)
                 else:

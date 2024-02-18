@@ -12,6 +12,26 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
+def SetMarkerAtDataSetEdge(dataset, markervalue, DataTypeForTensors):
+    sample1 = next(iter(dataset))
+    print(sample1)
+    newSample = []
+    
+    for column in sample1:
+        mask   = tf.fill(tf.shape(column), markervalue)
+        mask   = tf.cast(mask, DataTypeForTensors)
+        newSample.append(mask)
+    
+    newSample = tf.stack(newSample, axis=0)
+    #newSample2 = [newSample]
+    datasetFromNewSample = tf.data.Dataset.from_tensor_slices(newSample)
+    sample2 = next(iter(datasetFromNewSample))
+    print(sample2)
+
+    combined_dataset = dataset.concatenate(datasetFromNewSample)
+    print(newSample)
+
+
 # This function will not create an intermediate tokenfile
 def CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
 

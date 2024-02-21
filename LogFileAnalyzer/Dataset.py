@@ -12,24 +12,30 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
-def SetMarkerAtDataSetEdge(dataset, markervalue, DataTypeForTensors):
-    sample1 = next(iter(dataset))
-    print(sample1)
-    newSample = []
-    
-    for column in sample1:
-        mask   = tf.fill(tf.shape(column), markervalue)
-        mask   = tf.cast(mask, DataTypeForTensors)
-        newSample.append(mask)
-    
-    newSample = tf.stack(newSample, axis=0)
-    #newSample2 = [newSample]
-    datasetFromNewSample = tf.data.Dataset.from_tensor_slices(newSample)
-    sample2 = next(iter(datasetFromNewSample))
-    print(sample2)
 
-    combined_dataset = dataset.concatenate(datasetFromNewSample)
-    print(newSample)
+def CreateDataSetOfMarker(sample, markervalue, DataTypeForTensors):
+    input_shape = sample[0].shape
+    
+    new_shape = tf.concat([[input_shape[0] + 1], input_shape[1:]], axis=0) # maak een shape die 1 meer is in de eerste dimensie
+    mask   = tf.fill(new_shape, markervalue)
+    mask   = tf.cast(mask, DataTypeForTensors)
+    print(mask)
+    datasetfast = tf.data.Dataset.from_tensor_slices(mask)
+    datasetfast = datasetfast.window(input_shape[0] + 1, shift=1, drop_remainder=True)
+    datasetfast = datasetfast.flat_map(lambda window2: window2)
+    datasetfast = datasetfast.batch(input_shape[0] + 1, drop_remainder = True)
+    datasetfast = datasetfast.map(TokenParser.split_input_target) 
+    new_sample = next(iter(datasetfast))
+    print(new_sample)
+    return datasetfast
+
+def SetMarkerAtDataSetEdge(dataset, markervalue, DataTypeForTensors):
+
+    sample1 = next(iter(dataset))
+    datasetOfMarker = CreateDataSetOfMarker(sample1, markervalue, DataTypeForTensors)
+
+    combined_dataset = dataset.concatenate(datasetOfMarker)
+    print(next(iter(combined_dataset)))
 
 
 # This function will not create an intermediate tokenfile

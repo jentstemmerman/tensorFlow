@@ -42,6 +42,8 @@ if __name__ == "__main__":
     if (Stride is not None):
         TrainingsParameter["stride_dataset"] = Stride
 
-    dataset = CreateTrainingDatasetFromFile(InputFile, itemFile, OriginalTokenFileDirectory, TrainingsParameter)
+    datasetFromFile = CreateTrainingDatasetFromFile(InputFile, itemFile, OriginalTokenFileDirectory, TrainingsParameter)
 
-    Dataset.SaveDataset(dataset, DatasetFile.strip())
+    Dataset.SetMarkerAtDataSetEdge(datasetFromFile, 1, TrainingsParameter["DataTypeForTensors"])
+
+    Dataset.SaveDataset(datasetFromFile, DatasetFile.strip())

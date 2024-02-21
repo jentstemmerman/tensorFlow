@@ -135,7 +135,7 @@ def CrossReferenceTokens(directory, TokenFile):
 
 
 def split_input_target(sequence):
-    # Tensorflow -> input_text: Tensorflo, target_text = ensorfloW
+    # sequence: Tensorflow -> input_text: Tensorflo, target_text = ensorfloW
     input_text = sequence[:-1]
     target_text = sequence[1:]
     return input_text, target_text

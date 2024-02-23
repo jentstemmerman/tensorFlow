@@ -10,14 +10,14 @@ def CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, itemFile
     itemList         = TokenParser.GetItemListToSearchFor(itemFile)
     id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList, OutputVocabularyDirectory=OutputVocabularyDirectory)  
  
-    dataset, verificationFileList = Dataset.CreateDatasetFromDirectory(  InputDirectory=InputDirectory, 
+    dataset, verificationFileList = Dataset.CreateDatasetFromDirectoryNew( InputDirectory=InputDirectory, 
                                                                                         OutputDirectory=IntermediateDirectory, 
-                                                                                        itemFile=itemFile,
+                                                                                        itemList=itemList,
                                                                                         id_from_tokenList=id_from_tokenList,
-                                                                                        batch_size=TrainingsParameter["BatchSize"], 
+                                                                   
                                                                                         stride=256, #TrainingsParameter["stride_dataset"], 
-                                                                                        shuffle=TrainingsParameter["shuffleTraining"], 
-                                                                                        BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
+                                                                                        #shuffle=TrainingsParameter["shuffleTraining"], 
+                                                                                        #BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
                                                                                         seq_length=TrainingsParameter["Model"]["seq_length"],
                                                                                         DataTypeForTensors = TrainingsParameter["DataTypeForTensors"], 
                                                                                         removeDuplicates=TrainingsParameter["removeDuplicates"], 

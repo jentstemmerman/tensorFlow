@@ -3,6 +3,7 @@ from tensorflow import keras
 import numpy as np
 import TokenParser
 import LogFileIterator
+import Dataset
 import os
 
 def GetDataSetInformation(dataSet):
@@ -29,13 +30,26 @@ def CreateDataSetOfMarker(sample, markervalue, DataTypeForTensors):
     print(new_sample)
     return datasetfast
 
-def SetMarkerAtDataSetEdge(dataset, markervalue, DataTypeForTensors):
+def SetMarkerAtDataSetEdge(dataset, maskvalue, DataTypeForTensors):
 
     sample1 = next(iter(dataset))
-    datasetOfMarker = CreateDataSetOfMarker(sample1, markervalue, DataTypeForTensors)
+    datasetOfMarker = CreateDataSetOfMarker(sample1, maskvalue, DataTypeForTensors)
 
     combined_dataset = dataset.concatenate(datasetOfMarker)
-    print(next(iter(combined_dataset)))
+
+    return combined_dataset
+
+def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+    FileIterator = LogFileIterator.LogfileIterator(InputDirectory)
+    InputFile   = FileIterator.get_first_tokenlogfile()
+    outPutFIle = OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".dataset"
+    maskvalue = 1000000
+    while (InputFile is not None):
+        dataset = CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False)
+        dataset = SetMarkerAtDataSetEdge(dataset, maskvalue, DataTypeForTensors)
+        Dataset.SaveDataset(dataset, outPutFIle.strip())
+        InputFile = FileIterator.get_next_tokenlogfile()
+        
 
 
 # This function will not create an intermediate tokenfile

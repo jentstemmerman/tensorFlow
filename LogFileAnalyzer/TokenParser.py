@@ -92,12 +92,12 @@ def process_file_to_tokenFile(input_file, output_file, itemList):
                 else:
                     line = line + str(token) 
 
-        #     if (index == 1):  # vuile hack
-        #         value = int()
-        #         if(int(token) > 100000):
-        #             print("stop at " + str(token) + " at line ", str(lineNumber))
-        #             stopLine = True
-        #             break
+            if (index == 1):  # vuile hack
+                value = int()
+                if(int(token) > 100000):
+                    print("stop at " + str(token) + " at line ", str(lineNumber))
+                    stopLine = True
+                    break
 
             if (stopLine):
                 stopLine = False

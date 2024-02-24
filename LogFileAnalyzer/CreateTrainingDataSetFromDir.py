@@ -8,24 +8,19 @@ def CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, itemFile
     OutputVocabularyDirectory = IntermediateDirectory + os.path.sep + "Vocabularies"
     
     itemList         = TokenParser.GetItemListToSearchFor(itemFile)
-    id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList, OutputVocabularyDirectory=OutputVocabularyDirectory)  
+    id_from_tokenList, _ = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList, OutputVocabularyDirectory=OutputVocabularyDirectory)  
  
-    dataset, verificationFileList = Dataset.CreateDatasetFromDirectoryNew( InputDirectory=InputDirectory, 
-                                                                                        OutputDirectory=IntermediateDirectory, 
-                                                                                        itemList=itemList,
-                                                                                        id_from_tokenList=id_from_tokenList,
-                                                                   
-                                                                                        stride=256, #TrainingsParameter["stride_dataset"], 
-                                                                                        #shuffle=TrainingsParameter["shuffleTraining"], 
-                                                                                        #BUFFER_SIZE=TrainingsParameter["BUFFER_SIZE"],
-                                                                                        seq_length=TrainingsParameter["Model"]["seq_length"],
-                                                                                        DataTypeForTensors = TrainingsParameter["DataTypeForTensors"], 
-                                                                                        removeDuplicates=TrainingsParameter["removeDuplicates"], 
-                                                                                        num_parallel_calls = TrainingsParameter["num_parallel_calls"],
-                                                                                        verbose = False)   
+    Dataset.CreateDatasetFromDirectoryNew( InputDirectory=InputDirectory, 
+                                           OutputDirectory=IntermediateDirectory, 
+                                           itemList=itemList,
+                                           id_from_tokenList=id_from_tokenList,
+                                           stride=TrainingsParameter["stride_dataset"], 
+                                           seq_length=TrainingsParameter["Model"]["seq_length"],
+                                           DataTypeForTensors = TrainingsParameter["DataTypeForTensors"], 
+                                           removeDuplicates=TrainingsParameter["removeDuplicates"], 
+                                           num_parallel_calls = TrainingsParameter["num_parallel_calls"],
+                                           verbose = False)   
     
-    return dataset
-
 
 
 if __name__ == "__main__":
@@ -49,7 +44,5 @@ if __name__ == "__main__":
     if (Stride is not None):
         TrainingsParameter["stride_dataset"] = Stride
 
-    dataset = CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, itemFile, OriginalTokenFileDirectory, TrainingsParameter=TrainingsParameter)
-    
-    Dataset.SaveDataset(dataset, outputFile.strip())
-    print("Dataset saved to " + outputFile)
+    CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, itemFile, OriginalTokenFileDirectory, TrainingsParameter=TrainingsParameter)
+  

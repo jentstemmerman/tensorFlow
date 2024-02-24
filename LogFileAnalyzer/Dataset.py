@@ -44,12 +44,37 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
     InputFile   = FileIterator.get_first_tokenlogfile()
     outPutFIle = OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".dataset"
     maskvalue = 1000000
-    while (InputFile is not None):
-        dataset = CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False)
-        dataset = SetMarkerAtDataSetEdge(dataset, maskvalue, DataTypeForTensors)
-        Dataset.SaveDataset(dataset, outPutFIle.strip())
-        InputFile = FileIterator.get_next_tokenlogfile()
+
+    import concurrent.futures
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        InputFile = FileIterator.get_first_tokenlogfile()
+        futureList = []
+        while True:
+            
+            if InputFile is None:
+                break
+            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, maskvalue)
+            futureList.append(future)
+            InputFile = FileIterator.get_next_tokenlogfile()
         
+        concurrent.futures.wait(futureList, return_when=concurrent.futures.ALL_COMPLETED)
+        
+        for completed_future in concurrent.futures.as_completed(futureList):
+            # Optional: Retrieve the result of each completed future
+            result = completed_future.result()
+
+        
+def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, maskvalue):
+    print("process_file " + InputFile + "\n")
+    outPutFIle = OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".dataset"
+    dataset = CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False)
+    dataset = SetMarkerAtDataSetEdge(dataset, maskvalue, DataTypeForTensors)
+    Dataset.SaveDataset(dataset, outPutFIle.strip())
+
+
+
 
 
 # This function will not create an intermediate tokenfile
@@ -78,7 +103,12 @@ def CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, stride, seq_le
     TensorOfThisFile = tf.stack(TensorOfThisFile, axis=-1)
     
     datasetfast = tf.data.Dataset.from_tensor_slices(TensorOfThisFile)
-    datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
+    
+    try:
+        datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
+    except OSError as e:
+        print(f"Error: {e}")
+    
     datasetfast = datasetfast.flat_map(lambda window2: window2)
     datasetfast = datasetfast.batch(seq_length + 1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
     

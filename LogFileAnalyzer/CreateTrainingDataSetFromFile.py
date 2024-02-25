@@ -10,6 +10,7 @@ def CreateTrainingDatasetFromFile(InputFile, itemFile, OriginalTokenFileDirector
  
 
     dataSetOfFile = Dataset.CreateDatasetFromFile(  InputFile, 
+                                                    None,
                                                     itemList=itemList,
                                                     id_from_tokenList=id_from_tokenList,
                                                     stride=int(TrainingsParameter["stride_dataset"]), 

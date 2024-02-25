@@ -33,7 +33,7 @@ if __name__ == "__main__":
         itemFile                           = parameters[1]
         IntermediateDirectory              = parameters[2]
         OriginalTokenFileDirectory         = parameters[3]
-        Stride                             = parameters[4]
+        Stride                             = int(parameters[4])
         outputFile                         = parameters[5]
     else:
         print("Did not receive 5 parameters. Parameters received: ", len(parameters))

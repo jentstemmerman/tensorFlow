@@ -42,7 +42,7 @@ def GetItemsInLine(line, itemList, dataTreatment):
 
 
 
-def getLinesAndTokens(itemList, numberOfTokens, reading_file=None, tokenList=None, PrintfList=None): 
+def getLinesAndTokens(itemList, reading_file=None, tokenList=None, PrintfList=None): 
     numberOfLines = 0
     
     if (tokenList is None):
@@ -54,7 +54,7 @@ def getLinesAndTokens(itemList, numberOfTokens, reading_file=None, tokenList=Non
 
     dataTreatment = DataTreatment.DataTreatment(len(itemList))
 
-    while ((numberOfTokens == -1) or (numberOfLines < numberOfTokens)):
+    while True:
         line = reading_file.readline()
         lineBackup = line
 
@@ -70,12 +70,12 @@ def getLinesAndTokens(itemList, numberOfTokens, reading_file=None, tokenList=Non
 
     return tokenList, PrintfList, numberOfLines
 
-def process_file_to_tokenFile(input_file, output_file, itemList):
+def process_file_to_tokenFile(itemList, input_file, output_file):
     
     tokenListList = None
     reading_file = open(input_file,  "r", errors='ignore')
-                                            
-    tokenListList, _, _ = getLinesAndTokens(itemList, -1, reading_file, tokenList=None, PrintfList=None)
+                     
+    tokenListList, PrintfList, numberOfLines = getLinesAndTokens(itemList, reading_file, tokenList=None, PrintfList=None)
 
     if (output_file is not None):
         file = Path(output_file)
@@ -92,16 +92,16 @@ def process_file_to_tokenFile(input_file, output_file, itemList):
                 else:
                     line = line + str(token) 
 
-            if (index == 1):  # vuile hack
-                value = int()
-                if(int(token) > 100000):
-                    print("stop at " + str(token) + " at line ", str(lineNumber))
-                    stopLine = True
-                    break
+         #   if (index == 1):  # vuile hack
+         #       value = int()
+         #       if(int(token) > 100000):
+         #           print("stop at " + str(token) + " at line ", str(lineNumber))
+         #           stopLine = True
+         #           break
 
-            if (stopLine):
-                stopLine = False
-                continue
+        #    if (stopLine):
+        #        stopLine = False
+        #        continue
             lineNumber += 1
 
             line = line + '\n'
@@ -111,7 +111,7 @@ def process_file_to_tokenFile(input_file, output_file, itemList):
 
     reading_file.close()
 
-    return tokenListList
+    return tokenListList, PrintfList, numberOfLines
 
 
 def CrossReferenceTokens(directory, TokenFile):
@@ -161,7 +161,7 @@ def process_log_files_to_tokens_recursive(directory, outputDirectory, itemList):
                 # Do something with the content of the log file
                 outputFile = outputDirectory + "/" + filename.replace(".log", "") + "_onlyTokens.log" 
                 #if (not os.path.exists(outputFile)):
-                tokenListList = process_file_to_tokenFile(full_path, outputFile, itemList)
+                tokenListList, _, _ = process_file_to_tokenFile(itemList, full_path, outputFile)
                 tokenListListList.append(tokenListList)
     return tokenListListList
 

@@ -42,8 +42,7 @@ def SetMarkerAtDataSetEdge(dataset, maskvalue, DataTypeForTensors):
 def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
     FileIterator = LogFileIterator.LogfileIterator(InputDirectory)
     InputFile   = FileIterator.get_first_tokenlogfile()
-    outPutFIle = OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".dataset"
-    maskvalue = 1000000
+    ignoreSampleValue = 1000000
 
     import concurrent.futures
     from concurrent.futures import ThreadPoolExecutor
@@ -55,7 +54,7 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             
             if InputFile is None:
                 break
-            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, maskvalue)
+            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ignoreSampleValue)
             futureList.append(future)
             InputFile = FileIterator.get_next_tokenlogfile()
         
@@ -66,25 +65,40 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             result = completed_future.result()
 
         
-def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, maskvalue):
+def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ignoreSampleValue):
     print("process_file " + InputFile + "\n")
-    outPutFIle = OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".dataset"
-    dataset = CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False)
-    dataset = SetMarkerAtDataSetEdge(dataset, maskvalue, DataTypeForTensors)
-    Dataset.SaveDataset(dataset, outPutFIle.strip())
+    IntermediateFile = None #OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".intermediate"
+    outputDatasetFile = OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".dataset"
+
+    dataset = CreateDatasetFromFile(InputFile, 
+                                    IntermediateFile, 
+                                    itemList, 
+                                    id_from_tokenList, 
+                                    stride, 
+                                    seq_length, 
+                                    DataTypeForTensors, 
+                                    ReductionInSamples=None, 
+                                    removeDuplicates=False, 
+                                    num_parallel_calls=10, 
+                                    verbose=False)
+    
+    dataset = SetMarkerAtDataSetEdge(dataset, ignoreSampleValue, DataTypeForTensors)
+    Dataset.SaveDataset(dataset, outputDatasetFile.strip())
 
 
 
 
 
 # This function will not create an intermediate tokenfile
-def CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
 
-    fileHandler = open(InputFile, "r", errors='ignore')
-                                        
-    tokenListList, _, numberOfLines = TokenParser.getLinesAndTokens(itemList, -1, fileHandler, tokenList=None, PrintfList=None)
+    print("Creating a dataset from  " + InputFile + ".\n")
     
-    print("Creating a dataset from  " + InputFile + ". Number Of Lines in the file: " + str(numberOfLines))
+    if(IntermediateFile is not None):
+        print(" Intermediate file: " + IntermediateFile + ".\n")
+
+    tokenListList, _, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, InputFile, IntermediateFile)
+    print(" Number Of Lines in the file: " + str(numberOfLines) + "\n" )
     
     TensorOfThisFile = []
     
@@ -106,8 +120,21 @@ def CreateDatasetFromFile(InputFile, itemList, id_from_tokenList, stride, seq_le
     
     try:
         datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
-    except OSError as e:
-        print(f"Error: {e}")
+    except TypeError as e:
+        print("Error: {e}")
+        DebugIterator = iter(datasetfast)
+        sample = next(DebugIterator)
+        while (sample is not None):
+            contains_minus_one1 = tf.strings.regex_full_match(sample[0], '.*1.*')
+            contains_minus_one2 = tf.strings.regex_full_match(sample[1], '.*1.*')
+            if (contains_minus_one1):
+                print(sample)
+            if (contains_minus_one2):
+                print(sample)
+            sample = next(DebugIterator)
+            
+        print(InputFile  + "\n")
+        print("Error: {e}")
     
     datasetfast = datasetfast.flat_map(lambda window2: window2)
     datasetfast = datasetfast.batch(seq_length + 1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
@@ -272,9 +299,9 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, Outp
                     if (OutputVocabularyDirectory is not None):
                         OutputVocabularyFile = OutputVocabularyDirectory + os.path.sep + "VocabularyFileItem_" + str(itemIndex)
 
-                        tokenListList = TokenParser.process_file_to_tokenFile(OriginalTokenFileName, OutputVocabularyFile, [itemsInLine])
+                        tokenListList, _, _ = TokenParser.process_file_to_tokenFile([itemsInLine], OriginalTokenFileName, OutputVocabularyFile)
                     else:
-                        tokenListList = TokenParser.process_file_to_tokenFile(OriginalTokenFileName, None, [itemsInLine])
+                        tokenListList, _, _ = TokenParser.process_file_to_tokenFile([itemsInLine], OriginalTokenFileName, None)
 
 
                     VocabularyNumpy = [inner_list[0] for inner_list in tokenListList]
@@ -306,12 +333,17 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, Outp
             
             VocabularyTensor  = tf.convert_to_tensor(VocabularyNumpy)
 
+            if ("MaskValue" in itemsInLine):
+                mask_token = str(itemsInLine["MaskValue"])
+            else:
+                mask_token = None
+
             # encoder
-            id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None)
+            id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=mask_token)
             id_from_tokenList.append(id_from_token)
             
             # decoder
-            token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=None, invert=True)
+            token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=mask_token, invert=True)
             token_from_idList.append(token_from_id)
         else:
             id_from_tokenList.append(None)

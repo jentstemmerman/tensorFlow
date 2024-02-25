@@ -65,7 +65,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         manager          = None
 
         print("Retrieving tokens from files")
-        TokenList, origPrintfList, numberOfLines = TokenParser.getLinesAndTokens(itemList, -1, LogfileToAnalyze)
+        TokenList, origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileToAnalyze, None)
     
         # Create a shared memory manager
         manager = multiprocessing.Manager()

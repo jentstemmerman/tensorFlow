@@ -3,7 +3,7 @@ import DefaultTrainingSettings
 import Dataset
 import os
 
-def CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, itemFile, OriginalTokenFileDirectory, TrainingsParameter=None):
+def CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, mergeDatasets, itemFile, OriginalTokenFileDirectory, TrainingsParameter=None):
 
     OutputVocabularyDirectory = IntermediateDirectory + os.path.sep + "Vocabularies"
     
@@ -14,6 +14,7 @@ def CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, itemFile
                                            OutputDirectory=IntermediateDirectory, 
                                            itemList=itemList,
                                            id_from_tokenList=id_from_tokenList,
+                                           mergeDatasets=mergeDatasets,
                                            stride=TrainingsParameter["stride_dataset"], 
                                            seq_length=TrainingsParameter["Model"]["seq_length"],
                                            DataTypeForTensors = TrainingsParameter["DataTypeForTensors"], 
@@ -44,5 +45,5 @@ if __name__ == "__main__":
     if (Stride is not None):
         TrainingsParameter["stride_dataset"] = Stride
 
-    CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, itemFile, OriginalTokenFileDirectory, TrainingsParameter=TrainingsParameter)
+    CreateTrainingDatasetFromDir(InputDirectory=InputDirectory, IntermediateDirectory=IntermediateDirectory, mergeDatasets=True, itemFile=itemFile, OriginalTokenFileDirectory=OriginalTokenFileDirectory, TrainingsParameter=TrainingsParameter)
   

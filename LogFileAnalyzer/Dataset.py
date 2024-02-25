@@ -39,7 +39,7 @@ def SetMarkerAtDataSetEdge(dataset, maskvalue, DataTypeForTensors):
 
     return combined_dataset
 
-def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
     FileIterator = LogFileIterator.LogfileIterator(InputDirectory)
     InputFile   = FileIterator.get_first_tokenlogfile()
     ignoreSampleValue = 1000000
@@ -59,7 +59,29 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             InputFile = FileIterator.get_next_tokenlogfile()
         
         concurrent.futures.wait(futureList, return_when=concurrent.futures.ALL_COMPLETED)
-        
+        data_dir = OutputDirectory
+
+        if (mergeDatasets):
+            # File pattern to match dataset files
+            file_pattern = '*.dataset'  # Adjust the pattern according to your file format
+            
+            import glob
+            # Get a list of dataset files
+            file_list = glob.glob(f'{data_dir}/{file_pattern}')
+
+            # Create a list of datasets from the files
+            datasets = [tf.data.TFRecordDataset(file) for file in file_list]
+
+            concatenated_dataset = None
+
+            for dataset in datasets:
+                if (concatenated_dataset is None):
+                    concatenated_dataset = dataset
+                else:
+                    concatenated_dataset = MergeDatasets(concatenated_dataset, dataset)
+
+            Dataset.SaveDataset(concatenated_dataset, OutputDirectory + os.path.sep + "DataSetOfDirectory.dataset")
+
         for completed_future in concurrent.futures.as_completed(futureList):
             # Optional: Retrieve the result of each completed future
             result = completed_future.result()
@@ -122,20 +144,12 @@ def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenLi
         datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
     except TypeError as e:
         print("Error: {e}")
-        DebugIterator = iter(datasetfast)
-        sample = next(DebugIterator)
-        while (sample is not None):
-            contains_minus_one1 = tf.strings.regex_full_match(sample[0], '.*1.*')
-            contains_minus_one2 = tf.strings.regex_full_match(sample[1], '.*1.*')
-            if (contains_minus_one1):
-                print(sample)
-            if (contains_minus_one2):
-                print(sample)
-            sample = next(DebugIterator)
-            
         print(InputFile  + "\n")
-        print("Error: {e}")
-    
+
+    except OSError as e:
+        print(f"Error: {e}")
+        print(InputFile  + "\n")
+
     datasetfast = datasetfast.flat_map(lambda window2: window2)
     datasetfast = datasetfast.batch(seq_length + 1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
     

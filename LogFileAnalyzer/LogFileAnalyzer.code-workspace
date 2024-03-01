@@ -14,7 +14,7 @@
 				"name": "Python Debugger: Create dataset from dir",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/CreateTrainingDataSetFromDir.py",
+				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromDir.py",
 
 				"args": ["/home/jents/AI/TrainingSet3/Training", 
 				         "Itemfile.txt", 
@@ -30,7 +30,7 @@
 				"name": "Python Debugger: Create dataset from file",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/CreateTrainingDataSetFromFile.py",
+				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromFile.py",
 				"args": ["/home/jents/AI/TrainingSet3/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.log", 
 				         "Itemfile.txt",
 						 "/home/jents/AI/TrainingSet3/", 

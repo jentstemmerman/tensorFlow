@@ -68,19 +68,17 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             import glob
             # Get a list of dataset files
             file_list = glob.glob(f'{data_dir}/{file_pattern}')
-
-            # Create a list of datasets from the files
-            datasets = [tf.data.TFRecordDataset(file) for file in file_list]
-
             concatenated_dataset = None
 
-            for dataset in datasets:
+            for fileName in file_list:
+                dataset = LoadDataset(fileName)
+
                 if (concatenated_dataset is None):
                     concatenated_dataset = dataset
                 else:
                     concatenated_dataset = MergeDatasets(concatenated_dataset, dataset)
 
-            Dataset.SaveDataset(concatenated_dataset, OutputDirectory + os.path.sep + "DataSetOfDirectory.dataset")
+            Dataset.SaveDataset(concatenated_dataset, OutputDirectory + os.path.sep + 'DirectoryDataSet' + os.path.sep+ 'DataSetOfDirectory.dataset')
 
         for completed_future in concurrent.futures.as_completed(futureList):
             # Optional: Retrieve the result of each completed future
@@ -106,7 +104,7 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
     
     dataset = SetMarkerAtDataSetEdge(dataset, ignoreSampleValue, DataTypeForTensors)
     Dataset.SaveDataset(dataset, outputDatasetFile.strip())
-
+    print("Dataset " + os.path.basename(InputFile) + " saved.\n")
 
 
 
@@ -282,8 +280,8 @@ def CompareDatasets(dataSet1, dataSet2):
     print ("number of elements ", i, "\n")
 
 
-def SaveDataset(dataSet, fileName):
-    dataSet.save(fileName, compression="GZIP")
+def SaveDataset(dataset, fileName):
+    dataset.save(fileName, compression="GZIP")
     
 def LoadDataset(fileName):
     dataset = tf.data.Dataset.load(fileName)

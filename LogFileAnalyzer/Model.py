@@ -156,6 +156,50 @@ def GetModel(modelSource, modelFeatureList, TrainingsParameter):
 
     return model
 
+def TrainModel(model, datasetForTraining, outputDirectory, TrainingsParameter, checkpoint_prefix):
+    TrainingLogFile       = outputDirectory + os.path.sep + "TrainingLogFile.txt"
+    TrainingCheckpointDir = outputDirectory + os.path.sep + "Checkpoints"
+
+    sys.stdout = Logger.Logger(TrainingLogFile)
+    
+    # Name of the checkpoint files
+    checkpoint_prefix = os.path.join(TrainingCheckpointDir, "ckpt_{epoch}")
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
+  
+    print("\nSettings used: ")
+
+    ModelSummary = "EPOCHS: " + str(TrainingsParameter["EPOCHS"]) + "\n"
+    ModelSummary = ModelSummary + "BATCH_SIZE:       " + str(TrainingsParameter["BatchSize"]) + "\n"
+    ModelSummary = ModelSummary + "removeDuplicates: " + str(TrainingsParameter["removeDuplicates"]) + "\n"
+    ModelSummary = ModelSummary + "stride:           " + str(TrainingsParameter["stride_dataset"]) + "\n"
+    ModelSummary = ModelSummary + "seq_length:       " + str(TrainingsParameter["Model"]["seq_length"]) + "\n"
+    ModelSummary = ModelSummary + "trainingSet:      " + str(trainingSet) + "\n"
+    ModelSummary = ModelSummary + "embedding_dim:    " + str(TrainingsParameter["Model"]["embedding_dim"]) + "\n"
+    ModelSummary = ModelSummary + "rnn_units:        " + str(TrainingsParameter["Model"]["rnn_units"]) + "\n"
+
+    if ( TrainingsParameter["SampleDataSet"]):
+        ModelSummary = ModelSummary + "numberOfBatchesToTrainPerEpoch: " + str(numberOfBatchesToTrainPerEpoch) + "\n"
+        ModelSummary = ModelSummary + "numberOfBatchesToValidatePerEpoch: " + str(numberOfBatchesToValidatePerEpoch) + "\n"
+
+    print(ModelSummary + "\n")
+
+    TrainBatchEnd_callback = ModelCallbacks.DebugCallback()
+    EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True)
+    
+    Epoch_End_callback = None
+
+    run = neptune.init_run(project='Log/TensorFlowLogger', api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5NDRiM2JmMC1kNGI4LTQ4NDEtYjc5NS0wYmY2YTdhZjg1YTUifQ==')
+
+    neptune_callback = NeptuneCallback(run=run) 
+
+    history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, neptune_callback,TrainBatchEnd_callback ])
+    
+    sys.stdout = sys.__stdout__
+
+    return model
+
+    
+
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 #tf.config.threading.set_inter_op_parallelism_threads(4)
 #tf.config.threading.set_intra_op_parallelism_threads(4)

@@ -47,7 +47,7 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
     import concurrent.futures
     from concurrent.futures import ThreadPoolExecutor
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=7) as executor:
         InputFile = FileIterator.get_first_tokenlogfile()
         futureList = []
         while True:
@@ -284,7 +284,7 @@ def SaveDataset(dataset, fileName):
     dataset.save(fileName, compression="GZIP")
     
 def LoadDataset(fileName):
-    dataset = tf.data.Dataset.load(fileName)
+    dataset = tf.data.Dataset.load(fileName, compression="GZIP")
     return dataset
 
 def MergeDatasets(dataSet1, dataSet2):

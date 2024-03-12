@@ -7,7 +7,7 @@ def CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, mergeDat
 
     OutputVocabularyDirectory = IntermediateDirectory + os.path.sep + "Vocabularies"
     
-    itemList         = TokenParser.GetItemListToSearchFor(itemFile)
+    itemList             = TokenParser.GetItemListToSearchFor(itemFile)
     id_from_tokenList, _ = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList, OutputVocabularyDirectory=OutputVocabularyDirectory)  
  
     Dataset.CreateDatasetFromDirectoryNew( InputDirectory=InputDirectory, 

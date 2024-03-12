@@ -2,17 +2,17 @@ import tensorflow as tf
 import numpy as np
 from tensorflow import keras
 import TokenParser
-def Custom_loss_function(parameter, DataTypeForTensors):
+import Dataset
+
+def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
     verbose = False
     counter = 0
     counterBadStuff = 0
     featureIndex = 0
     numberOfFeatures = len(parameter)
     modelFeatureList = parameter
-    DataTypeForTensors = DataTypeForTensors
-    maskValueList = np.array([modelFeatureList[featureIndex].get("MaskValue", None) for featureIndex in range(numberOfFeatures)])
-    maskValueList = tf.convert_to_tensor(maskValueList, dtype=tf.float32)
-  #  print(maskValueList)
+
+    maskValueList = tf.convert_to_tensor(maskValueList, dtype=DataTypeForTensors)
     embeddedList  = np.array([modelFeatureList[featureIndex]["embedded"] for featureIndex in range(numberOfFeatures)])
     embeddedList = tf.convert_to_tensor(embeddedList, dtype=tf.bool)
     print(embeddedList)

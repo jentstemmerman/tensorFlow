@@ -1,4 +1,4 @@
-
+import Dataset
 
 class DataTreatment:
     
@@ -16,13 +16,8 @@ class DataTreatment:
         result = value
 
         if ("Numerical" in item):
-            MaskValue = item["MaskValue"]
-
-            if ("Categorical" in item):
-                MaskValue = str(MaskValue)
-
             if (value == ""):
-                result = MaskValue
+                result = Dataset.Universal_Mask_Token
             else:    
                 if ("Categorical" in item):
                     result = str(result)
@@ -39,6 +34,6 @@ class DataTreatment:
                             result                       -= previousValue
                         else:
                             self.state[index]["Previous"] = result
-                            result = MaskValue
+                            result =  Dataset.Universal_Mask_Token
         return result
             

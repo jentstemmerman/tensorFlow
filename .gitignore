@@ -187,3 +187,4 @@ LogFileAnalyzer/*.deb
 LogFileAnalyzer/cuda-keyring_1.1-1_all.deb.1
 LogFileAnalyzer/debug.txt
 LogFileAnalyzer/LogFileAnalyzerOld.code-workspace
+TrainingSet2/Tokens.dat

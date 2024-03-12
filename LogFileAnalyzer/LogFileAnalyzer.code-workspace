@@ -11,6 +11,21 @@
 		
 		"configurations": [
 			{
+				"name": "Python Debugger: Train dataset",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CommandTrainOnDataSet.py",
+
+				"args": ["/home/jents/AI/TrainingSet3/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset", 
+				         "Itemfile.txt", 
+						 "/home/jents/AI/TrainingSet3/",
+						 "32", 
+						 "/home/jents/AI/TrainingSet3/out/TrainedModel"], 
+
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
 				"name": "Python Debugger: Create dataset from dir",
 				"type": "debugpy",
 				"request": "launch",
@@ -40,7 +55,7 @@
 				"console": "integratedTerminal"
 			},
 			{
-				"name": "Python Debugger: Model",
+				"name": "Python Debugger: Old Model",
 				"type": "debugpy",
 				"request": "launch",
 				"program": "${workspaceFolder}/Model.py",

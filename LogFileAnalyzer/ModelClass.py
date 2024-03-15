@@ -193,9 +193,7 @@ class OneStep(tf.keras.Model):
           predicted_logits = predicted_logits_list[index]
           predicted_logits = predicted_logits[:, -1, :]
           predicted_logits = predicted_logits / self.temperature
-
-            
-
+ 
           if (Tokens_from_ids is not None):
               predicted_id = tf.argmax(predicted_logits, axis=1)
               prediction = (self.Tokens_from_idList[index])(predicted_id).numpy()

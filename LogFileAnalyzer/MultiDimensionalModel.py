@@ -46,33 +46,6 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
             feature_output_predicted_masked = feature_output_predicted * mask
 
             feature_output_loss = tf.keras.losses.mean_squared_error(feature_output_true_masked, feature_output_predicted_masked)
-            
-#            scalar_loss = tf.reduce_mean(feature_output_loss)
-#            with open('output_log.txt', 'a') as file:
-##                file.write("\n*********************************")
-#                file.write("\ncounterBadStuff = {}\n".format(counterBadStuff))
-#                file.write("scalar_loss = {}\n".format(scalar_loss))
-#                #file.write("feature_output_loss = {}\n".format(np.array2string(feature_output_loss.numpy(), threshold=np.inf)   ))
-#                file.write("featureIndex = {}\n".format(featureIndex))
-#                #file.write("output_true = {}\n".format(np.array2string(output_true.numpy(), threshold=np.inf)   ))
-#                file.write("nfeature_output_predicted_masked = {}\n".format(np.array2string(feature_output_predicted_masked.numpy(), threshold=np.inf)   ))
-#                file.write("feature_output_true_masked = {}\n".format(np.array2string(feature_output_true_masked.numpy(), threshold=np.inf)   ))
-#                #file.write("mask = {}\n".format(np.array2string(mask.numpy(), threshold=np.inf)   ))
-#            
-#                file.write("End scalar loss.\n")
-#            
-#            if (scalar_loss > 1000000):
-#                counterBadStuff +=1
-#                print("\ncounterBadStuff = ", counterBadStuff)
-#                print("\nscalar_loss = ", scalar_loss)
-#                print("\nfeature_output_loss = ", feature_output_loss.numpy())
-#                print("\nfeatureIndex = ", featureIndex)
-##                print("\nmask = ", mask.numpy())
-#                print("\noutput_true = ", output_true.numpy())
-#                print("\nfeature_output_predicted = ", feature_output_predicted.numpy())
-#                print("\nfeature_output_true_masked = ", feature_output_true_masked.numpy())
-#                print("\nfeature_output_predicted_masked = ", feature_output_predicted_masked.numpy())
-#                print("\nEnd scalar loss.\n")
                 
 
 

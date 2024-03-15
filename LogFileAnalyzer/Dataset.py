@@ -203,7 +203,6 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
     print("Processing log files to tokens:\n")
     tokenListListList = TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
     
-    ################# Create a dataset for training and throw all files that are in the training output dir in it
     TraininglogFileIterator = LogFileIterator.LogfileIterator(OutputDirectory)
     dataset                 = None
     filesUsed               = []
@@ -326,7 +325,7 @@ def MergeDatasets(dataSet1, dataSet2):
     datasetMerged = dataSet1.concatenate(dataSet2)
     return datasetMerged
 
-def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, OutputVocabularyDirectory=None):
+def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, OutputVocabularyDirectory=None, TokenFileDirectory = "TokenFiles"):
 
     id_from_tokenList   = []
     token_from_idList   = []
@@ -342,6 +341,14 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, Outp
 
                     OriginalTokenFileName = OriginalTokenFileDirectory + os.path.sep + OriginalTokenFile
                     
+                    if (OutputVocabularyDirectory is not None):
+                        import shutil
+                        
+                        destinationDir = OutputVocabularyDirectory + os.path.sep + TokenFileDirectory
+                        os.makedirs(destinationDir, exist_ok=True)
+                        destinationFile = destinationDir + os.path.sep + os.path.basename(OriginalTokenFile) 
+                                            
+                        shutil.copy(OriginalTokenFileName, destinationFile)
                     # only do one item process at a time
                     if (OutputVocabularyDirectory is not None):
                         OutputVocabularyFile = OutputVocabularyDirectory + os.path.sep + "VocabularyFileItem_" + str(itemIndex)

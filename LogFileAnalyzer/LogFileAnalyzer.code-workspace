@@ -16,11 +16,11 @@
 				"request": "launch",
 				"program": "${workspaceFolder}/CommandTrainOnDataSet.py",
 
-				"args": ["/home/jents/AI/TrainingSet3/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset", 
+				"args": ["/home/jents/AI/TrainingSet4/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset", 
 				         "Itemfile.txt", 
-						 "/home/jents/AI/TrainingSet3/",
+						 "/home/jents/AI/TrainingSet4/",
 						 "32", 
-						 "/home/jents/AI/TrainingSet3/out/TrainedModel"], 
+						 "/home/jents/AI/TrainingSet4/out/TrainedModel"], 
 
 				"cwd": "${workspaceFolder}",
 				"console": "integratedTerminal"
@@ -31,12 +31,12 @@
 				"request": "launch",
 				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromDir.py",
 
-				"args": ["/home/jents/AI/TrainingSet3/Training", 
+				"args": ["/home/jents/AI/TrainingSet4/Training", 
 				         "Itemfile.txt", 
-						 "/home/jents/AI/TrainingSet3/out/Training", 
-						 "/home/jents/AI/TrainingSet3/",
+						 "/home/jents/AI/TrainingSet4/out/Training", 
+						 "/home/jents/AI/TrainingSet4/",
 						 "1", 
-						 "/home/jents/AI/TrainingSet3/out/dataset_dir"], 
+						 "/home/jents/AI/TrainingSet4/out/dataset_dir"], 
 
 				"cwd": "${workspaceFolder}",
 				"console": "integratedTerminal"

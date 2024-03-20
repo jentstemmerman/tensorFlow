@@ -11,16 +11,33 @@
 		
 		"configurations": [
 			{
+				"name": "Python Debugger: Analyze",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CommandAnalyzeDirectory.py",
+
+				"args": ["/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel", 
+				         "Itemfile.txt", 
+						 "/home/jents/AI/TrainingSet4/Verification",
+						 "/home/jents/AI/TrainingSet4/out/Verification",
+						 "/home/jents/AI/TrainingSet4/",
+						 "1"], 
+
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
 				"name": "Python Debugger: Train dataset",
 				"type": "debugpy",
 				"request": "launch",
 				"program": "${workspaceFolder}/CommandTrainOnDataSet.py",
 
-				"args": ["/home/jents/AI/TrainingSet4/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset", 
+				"args": ["/home/jents/AI/TrainingSet4/out/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.log.dataset",  
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/",
 						 "32", 
-						 "/home/jents/AI/TrainingSet4/out/TrainedModel"], 
+						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainingCheckPoints",
+						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel"], 
 
 				"cwd": "${workspaceFolder}",
 				"console": "integratedTerminal"

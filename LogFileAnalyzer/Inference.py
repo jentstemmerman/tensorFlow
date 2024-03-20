@@ -45,6 +45,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         window_size = seq_length
         
         LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
+        
+        from pathlib import Path
+        file = Path(FileNameAnalyzed)
+        file.parent.mkdir(parents=True, exist_ok=True)
         LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
 
         LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
@@ -65,7 +69,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         manager          = None
 
         print("Retrieving tokens from files")
-        TokenList, origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileToAnalyze, None)
+        TokenList, origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, None)
     
         # Create a shared memory manager
         manager = multiprocessing.Manager()

@@ -325,6 +325,8 @@ def MergeDatasets(dataSet1, dataSet2):
     datasetMerged = dataSet1.concatenate(dataSet2)
     return datasetMerged
 
+#def CopyTokenfilesToOutputDirectory(itemList, OutputVo)
+
 def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, OutputVocabularyDirectory=None, TokenFileDirectory = "TokenFiles"):
 
     id_from_tokenList   = []
@@ -349,6 +351,7 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, Outp
                         destinationFile = destinationDir + os.path.sep + os.path.basename(OriginalTokenFile) 
                                             
                         shutil.copy(OriginalTokenFileName, destinationFile)
+                    
                     # only do one item process at a time
                     if (OutputVocabularyDirectory is not None):
                         OutputVocabularyFile = OutputVocabularyDirectory + os.path.sep + "VocabularyFileItem_" + str(itemIndex)

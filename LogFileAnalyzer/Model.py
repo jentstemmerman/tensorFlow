@@ -158,19 +158,17 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
         model.load_weights(checkpointPath)
 
     elif (modelSource["Source"]  == "FromFile"):
+        ModelDirectory = modelSource["ModelDirectory"]
         model = tf.keras.models.load_model(ModelDirectory, compile=False )
         loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
         model.compile(optimizer='adam', loss=loss_function)
 
     return model
 
-def TrainModel(model, datasetForTraining, outputDirectory, TrainingsParameter, checkpoint_prefix):
-    TrainingLogFile       = outputDirectory + os.path.sep + "TrainingLogFile.txt"
-    TrainingCheckpointDir = outputDirectory + os.path.sep + "Checkpoints"
+def TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpointDir, TrainingLogFile=None):
 
-
-
-    sys.stdout = Logger.Logger(TrainingLogFile)
+    if (TrainingLogFile is not None): 
+        sys.stdout = Logger.Logger(TrainingLogFile)
     
     # Name of the checkpoint files
     checkpoint_prefix = os.path.join(TrainingCheckpointDir, "ckpt_{epoch}")
@@ -231,7 +229,7 @@ if __name__ == "__main__":
 
     ValidationsParameter = {"temperature": 1 }
     Force_dataset_creation = False
-    trainingSet = 3                
+    trainingSet = 4                
 
     if ( TrainingsParameter["SampleDataSet"]):
         # dit werkt niet goed. 

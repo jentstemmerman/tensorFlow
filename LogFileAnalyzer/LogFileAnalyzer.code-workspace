@@ -32,7 +32,7 @@
 				"request": "launch",
 				"program": "${workspaceFolder}/CommandTrainOnDataSet.py",
 
-				"args": ["/home/jents/AI/TrainingSet4/out/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.log.dataset",  
+				"args": ["/home/jents/AI/TrainingSet4/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset",  
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/",
 						 "32", 

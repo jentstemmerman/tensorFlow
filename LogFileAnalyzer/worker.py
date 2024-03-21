@@ -4,10 +4,9 @@ import time
 import tensorflow as tf
 import os
 
-
-def Worker(cpu, inputQueue, outputQueue):
+def Worker(cpu, inputQueue, outputQueue, parameters):
     print("Starting worker ", cpu)
-
+    
     with tf.device('/CPU:0'):
         while True:
             try:
@@ -17,7 +16,7 @@ def Worker(cpu, inputQueue, outputQueue):
                     print("End worker ", cpu, "")
                     break
 
-                result = func(*args)
+                result = func(parameters, *args)
 
                 outputQueue.put(result)
 
@@ -29,10 +28,8 @@ def KillWorkers(Workers):
     for threadId in range(len(Workers)):
         inputQueue  = Workers[threadId]["inputQueue"]
         inputQueue.put(("exit", ()))
-        #inputQueue.put("exit", ())
 
-
-def CreateWorkers(numberOfWorkers):
+def CreateWorkers(numberOfWorkers, parameters):
 
     with tf.device('/CPU:0'):
         workers = None
@@ -43,7 +40,7 @@ def CreateWorkers(numberOfWorkers):
         workers = []
 
         for i in range(numberOfWorkers):
-            process = multiprocessing.Process(target=Worker, args=(i, inputQueues[i], outputQueues[i]))
+            process = multiprocessing.Process(target=Worker, args=(i, inputQueues[i], outputQueues[i], parameters))
 
             process.start()
             worker_dict = {"process":process, "inputQueue":inputQueues[i],"outputQueue":outputQueues[i]}
@@ -51,8 +48,3 @@ def CreateWorkers(numberOfWorkers):
 
         return workers
     
-
-
-
-
-

@@ -4,5 +4,82 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {},
+
+	"launch": {
+		"version": "0.2.0",
+		
+		"configurations": [
+			{
+				"name": "Python Debugger: Analyze",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CommandAnalyzeDirectory.py",
+
+				"args": ["/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel", 
+				         "Itemfile.txt", 
+						 "/home/jents/AI/TrainingSet4/Verification",
+						 "/home/jents/AI/TrainingSet4/out/Verification",
+						 "/home/jents/AI/TrainingSet4/",
+						 "1"], 
+
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "Python Debugger: Train dataset",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CommandTrainOnDataSet.py",
+
+				"args": ["/home/jents/AI/TrainingSet4/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset",  
+				         "Itemfile.txt", 
+						 "/home/jents/AI/TrainingSet4/",
+						 "32", 
+						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainingCheckPoints",
+						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel"], 
+
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "Python Debugger: Create dataset from dir",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromDir.py",
+
+				"args": ["/home/jents/AI/TrainingSet4/Training", 
+				         "Itemfile.txt", 
+						 "/home/jents/AI/TrainingSet4/out/Training", 
+						 "/home/jents/AI/TrainingSet4/",
+						 "1", 
+						 "/home/jents/AI/TrainingSet4/out/dataset_dir"], 
+
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "Python Debugger: Create dataset from file",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromFile.py",
+				"args": ["/home/jents/AI/TrainingSet3/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.log", 
+				         "Itemfile.txt",
+						 "/home/jents/AI/TrainingSet3/", 
+						 "1", 
+						 "/home/jents/AI/TrainingSet3/out/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.dataset"], 
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "Python Debugger: Old Model",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/Model.py",
+				"console": "integratedTerminal",
+				"cwd": "${workspaceFolder}",
+			}
+			
+		]
+	}
 }

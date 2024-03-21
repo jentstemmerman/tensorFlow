@@ -1,9 +1,9 @@
 import tensorflow as tf
-
+import numpy as np
 from tensorflow import keras
 
 class GruPrintfLogModel(tf.keras.Model):
-  def __init__(self, vocab_size, embedding_dim, rnn_units, return_state):
+  def __init__(self, vocab_size, embedding_dim, rnn_units, return_state, numberOfInputs):
     super().__init__(self)
     self.return_state = return_state
    # self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
@@ -31,7 +31,7 @@ class GruPrintfLogModel(tf.keras.Model):
       return x
     
 class SimpleRnnPrintfLogModel(tf.keras.Model):
-  def __init__(self, vocab_size, embedding_dim, rnn_units):
+  def __init__(self, vocab_size, embedding_dim, rnn_units, numberOfInputs):
     super().__init__(self)
     self.embedding = tf.keras.layers.Embedding(vocab_size, embedding_dim)
     self.simple_rnn1 = tf.keras.layers.SimpleRNN(rnn_units, return_sequences=True, return_state=True)
@@ -54,12 +54,40 @@ class SimpleRnnPrintfLogModel(tf.keras.Model):
     else:
       return x
 
+class CustomSplitLayer(tf.keras.layers.Layer):
+    def __init__(self):
+        super().__init__()
+        self.factor = 0
+
+
+
+    def get_config(self):
+        return {"factor": self.factor}
+     
+    
+    def call(self, inputs, training=False):
+        number_of_splits = inputs.shape[inputs.ndim - 1]
+        
+        if number_of_splits > 2:
+            if number_of_splits > 1:
+                split_tensors = tf.split(inputs, num_or_size_splits=number_of_splits, axis=-1)
+                splitted_inputs = split_tensors[0]  # Remove this for multiple inputs
+            else:
+                splitted_inputs = inputs
+
+            splitted_inputs = tf.squeeze(splitted_inputs, axis=-1)
+        else:
+            splitted_inputs = tf.squeeze(inputs, axis=-1)
+
+        return splitted_inputs
 
 class LSTMPrintfLogModel(tf.keras.Model):
 
-    def __init__(self, vocab_size, embedding_dim, rnn_units):
+    def __init__(self, vocab_size, embedding_dim, rnn_units, numberOfInputs):
         super().__init__(self)
-        
+
+        self.customSplitLayer = CustomSplitLayer()
+
         if (embedding_dim != -1):
           self.use_embedding_layer = True
           inputDimensionLstm = embedding_dim
@@ -67,20 +95,49 @@ class LSTMPrintfLogModel(tf.keras.Model):
         else:
           self.use_embedding_layer = False
           inputDimensionLstm = vocab_size
+        
+        self.lstmLayer = tf.keras.layers.LSTM(rnn_units, return_sequences=True, input_shape=(None, inputDimensionLstm))
 
-        self.lstm = tf.keras.layers.LSTM(rnn_units, return_sequences=True, input_shape=(None, inputDimensionLstm))
         self.dense = tf.keras.layers.Dense(vocab_size)
 
+    
     def call(self, inputs, states=None, return_state=False, training=False):
-        # Embedding layer
+        #if (training):
+        input_shape = tf.shape(inputs)
+        
+        if (input_shape is None ) :
+          print("input_shape is None ")
+          exit()
+        
+        indexable_input_shape = tf.get_static_value(input_shape)
+        
+        if (indexable_input_shape is None ) :
+          print("indexable_input_shape is None. input_shape: ", input_shape, ".  inputs:  ", inputs)
+          print("training: ", training)
+          
+        inputs = self.customSplitLayer(inputs, training=training)
 
+        if (inputs is None):
+          print("inputs is none")
+          exit()
+
+        input_shape2 = tf.shape(inputs)
+        indexable_input_shape2 = tf.get_static_value(input_shape2)
+
+        if (indexable_input_shape2 is None ) :
+          print("indexable_input_shape2 is None. inputs: ", inputs, " input_shape2: ", input_shape2)
+          
+        #if (indexable_input_shape2[1] != 16) or (inputs.ndim != 2):
+        #  print("inputs wrong shape ", type(inputs) , "   ", inputs.shape, " training:", training, " inputs.ndim = ", inputs.ndim)
+          
+     
         if (self.use_embedding_layer):
           inputs = self.embedding(inputs, training=training)
-        else:
-          inputs = tf.expand_dims(inputs, axis=2)
+        #else:
+        # inputs = tf.expand_dims(inputs, axis=2)
           
         # LSTM layer
-        lstm_output = self.lstm(inputs, training=training)
+        lstm_output = self.lstmLayer(inputs, training=training)
 
         # Fully connected layer to produce logits
         logits = self.dense(lstm_output, training=training)
@@ -92,15 +149,15 @@ class LSTMPrintfLogModel(tf.keras.Model):
     
 class OneStep(tf.keras.Model):
  
-  def __init__(self, model, Tokens_from_ids, ids_from_tokens, temperature=1.0):
+  def __init__(self, model, Tokens_from_idList, ids_from_tokensList, temperature=1.0):
     super().__init__()
     self.temperature = temperature
     self.model = model
-    self.Tokens_from_ids = Tokens_from_ids
-    self.ids_from_tokens = ids_from_tokens
+    self.Tokens_from_idList = Tokens_from_idList
+    ids_from_tokens = ids_from_tokensList[0]
 
     # Create a mask to prevent "[UNK]" from being generated.
-    skip_ids = self.ids_from_tokens(['[UNK]'])[:, None]
+    skip_ids = ids_from_tokens(['[UNK]'])[:, None]
     sparse_mask = tf.SparseTensor(
         # Put a -inf at each bad index.
         values=[-float('inf')]*len(skip_ids),
@@ -122,35 +179,54 @@ class OneStep(tf.keras.Model):
     #probabilities = tf.gather(params, indices)
     return probabilities
   
-  def generate_steps(self, inputTensor, nexttokenIds, states=None):
-      predicted_tokens, probabilityPredictedToken, probabilityNextToken = self.generate_steps_optimized(inputTensor, nexttokenIds, states=None)
-      
-      return predicted_tokens.numpy(), probabilityPredictedToken, probabilityNextToken
-  
   #@tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
-
       # Run the model.
-      predicted_logits = self.model(inputs=inputTensor, states=states, return_state=False)
-      # Only use the last prediction.
-      predicted_logits = predicted_logits[:, -1, :]
-      predicted_logits = predicted_logits/self.temperature
-      # Apply the prediction mask: prevent "[UNK]" from being generated.
-      #predicted_logits = predicted_logits + self.prediction_mask
-      #predicted_id = tf.argmax(predicted_logits, axis=1)
-      # Sample the output logits to generate token IDs.
-      #predicted_id = tf.random.categorical(predicted_logits, num_samples=1)
-      #predicted_id = tf.squeeze(predicted_id, axis=-1).numpy()[0]
-      softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
-      predicted_id = tf.argmax(predicted_logits, axis=1)
-      # Convert from token ids to characters
-      predicted_tokens = (self.Tokens_from_ids(predicted_id))
+      predicted_logits_list = self.model(inputs=inputTensor)
+    
+      predictions            = []
+      probabilityOfPredictions = None
+      probabilityOfActuals  = None
 
-      probabilityPredictedToken = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id)
-      
-      nexttokenIds = tf.cast(nexttokenIds, dtype=tf.int32)
-      probabilityNextToken = self.GetProbabilitiesFromLogits(softmaxLogits, nexttokenIds)
-      # Return the characters and model state.
-      return predicted_tokens, probabilityPredictedToken, probabilityNextToken
+      for index, Tokens_from_ids in enumerate(self.Tokens_from_idList):
+          predicted_logits = predicted_logits_list[index]
+          predicted_logits = predicted_logits[:, -1, :]
+          predicted_logits = predicted_logits / self.temperature
+ 
+          if (Tokens_from_ids is not None):
+              predicted_id = tf.argmax(predicted_logits, axis=1)
+              prediction = (self.Tokens_from_idList[index])(predicted_id).numpy()
+
+              for i, pred in enumerate(prediction):
+                 prediction[i] = pred.decode('utf-8') 
+
+              softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
+              probabilityOfPrediction = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id).numpy()
+
+          else:
+              predicted_id = predicted_logits
+              predicted_id = tf.reshape(predicted_id, [-1])
+              prediction = predicted_id.numpy()
+              tensor_shape = (inputTensor.shape[0],)
+              probabilityOfPrediction = tf.zeros(shape=tensor_shape) # did heeft geen zin voor non-cathegorical, maar er moet iets ingevuld zijn
+
+          
+          predictions.append(prediction)
+          
+          
+          if (probabilityOfPredictions is None):
+              probabilityOfPredictions = probabilityOfPrediction
+          else:
+              probabilityOfPredictions  = np.stack((probabilityOfPredictions, probabilityOfPrediction))
+
+
+          probabilityOfActual = self.GetProbabilitiesFromLogits(softmaxLogits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
+
+          if (probabilityOfActuals is None):
+              probabilityOfActuals = probabilityOfActual
+          else:
+              probabilityOfActuals  = np.stack((probabilityOfActuals, probabilityOfActual))
+
+      return predictions, probabilityOfPredictions, probabilityOfActuals
       

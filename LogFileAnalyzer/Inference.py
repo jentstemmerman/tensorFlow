@@ -9,30 +9,7 @@ import multiprocessing
 from multiprocessing import shared_memory
 import InferenceAssembly
 import InferenceOutput
-
-
-def AssembleInputs(DataTypeForTensors, numberOfParallelExecutions, newTokenList, newPrintfList, id_from_token, window, tokenIdWindow, nextToken, nexttokenId):
-    
-    inputTensor  = []
-    nexttokenIds = []
-    nextTokens   = []
-    Windows      = []
-    PrintfList   = []
-
-    for executionIndex in range(numberOfParallelExecutions):
-        
-        window, nextToken, nexttokenId, tokenIdWindow, printf = InferenceAssembly.GetNextSequenceData(newTokenList[executionIndex], newPrintfList[executionIndex], id_from_token, window, tokenIdWindow, nextToken, nexttokenId, DataTypeForTensors)
-        
-        if (window is None):
-            break
-        else:
-            Windows.append(window) 
-            PrintfList.append(printf)
-            inputTensor.append(tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors))
-            nexttokenIds.append(tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors))  
-            nextTokens.append(nextToken)
-    
-    return Windows, nextTokens, PrintfList, inputTensor, nexttokenIds, window, tokenIdWindow, nextToken, nexttokenId
+import sys
 
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     numberOfParallelExecutions  = maxNumberOfParallelExecutions
@@ -53,19 +30,25 @@ def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions
     else:
         numberOfParallelExecutions = maxNumberOfParallelExecutions
 
+    if (reducedParameters):
+        print("reduced Parameters numberOfParallelExecutions = ", numberOfParallelExecutions, " numberOfThreads = ", numberOfThreads)
+
     return reducedParameters, numberOfParallelExecutions, numberOfThreads
 
-def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, token_from_id, id_from_token, PrintfFromToken, temperature, seq_length, id_from_tokenNumpy):
+def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, id_from_tokenList, token_from_idList, temperature, seq_length):
     with tf.device('/CPU:0'):
         numberOfIdenticals = 0
-        averageNextTokenProbability = 0
         averagePredictedTokenProbability = 0
         accumulatedNextTokenProbability = 0.0
         accumulatedPredictedTokenProbability = 0.0
-
+        numberOfFeatures = len(id_from_tokenList)
         window_size = seq_length
         
         LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
+        
+        from pathlib import Path
+        file = Path(FileNameAnalyzed)
+        file.parent.mkdir(parents=True, exist_ok=True)
         LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
 
         LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
@@ -75,47 +58,30 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
         nextTokens   = []
 
         queueTimeout                         = 50
-        maxNumberOfParallelExecutions        = 500
+        maxNumberOfParallelExecutions        = 500  # dit is het aantal samples dat de GPU inferes in 1 keer
         numberOfAnalyzedLines                = 0
         accumulatedNextTokenProbability      = 0
         accumulatedPredictedTokenProbability = 0
 
-        one_step_model = ModelClass.OneStep(model, token_from_id, id_from_token, temperature=temperature)
-        use_manager = False
+        one_step_model = ModelClass.OneStep(model, token_from_idList, id_from_tokenList, temperature=temperature)
+
         sharedTokenList  = []
         manager          = None
-        TokenList, origPrintfList, numberOfFoundTokens = TokenParser.getLinesAndTokens(TokenParser.ReForTokens, -1, LogfileToAnalyze)
-        
-        use_manager = True
-        
-        if (use_manager):
-            # Create a shared memory manager
-            manager = multiprocessing.Manager()
-            
-            # Create a shared list
-            sharedTokenList = manager.list()
-            sharedTokenList.extend(TokenList)
-        else:
-            # this is slower :-(
-            manager = multiprocessing.Manager()
 
-            TokenListbufferSize = len(TokenList) * len(TokenList[1])*8  ## 
-            shmForTokens      = shared_memory.SharedMemory(create=True, size=TokenListbufferSize)
-            sharedTokenList   = np.ndarray(len(TokenList), dtype='U{}'.format(len(TokenList[1])), buffer=shmForTokens.buf)
-
-            for i in range(len(TokenList)):
-                sharedTokenList[i] = TokenList[i]
-
-        # Create shared memory object for id_from_token
-        shm = shared_memory.SharedMemory(create=True, size=id_from_tokenNumpy.nbytes)
-        shared_id_from_token = np.ndarray(id_from_tokenNumpy.shape, dtype=id_from_tokenNumpy.dtype, buffer=shm.buf)
-        # Copy the data to shared memory
-        np.copyto(shared_id_from_token, id_from_tokenNumpy)
+        print("Retrieving tokens from files")
+        TokenList, origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, None)
     
+        # Create a shared memory manager
+        manager = multiprocessing.Manager()
+        
+        # Create a shared token list
+        sharedTokenList = manager.list()
+        sharedTokenList.extend(TokenList) # bug
+
         TokenList  = None
 
         indexOfFirstPrediction  = window_size + 1
-        remainingNumberOfLines  = (numberOfFoundTokens - numberOfAnalyzedLines) - (window_size + 1)
+        remainingNumberOfLines  = (numberOfLines - numberOfAnalyzedLines) - (window_size + 1)
         reducedParameters, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads)
         
         generationStartTime        = 0
@@ -130,7 +96,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
 
             for threadId in range(0,numberOfThreads):
                 inputQueue  = Workers[threadId]["inputQueue"]
-                inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, shared_id_from_token, window_size,)))
+                inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, window_size,)))
                 newPrint = origPrintfList[indexOfFirstPrediction - 1:indexOfFirstPrediction + numberOfParallelExecutions - 1]
                 printfList.append(newPrint)
                 if (threadId == 0):
@@ -139,7 +105,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
 
             for threadId in range(0,numberOfThreads):
                 outputQueue = Workers[threadId]["outputQueue"]
-                nextTokens, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout)
+                nextTokens, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                 nexttokenIdsList.append(nexttokenIds)
                 nextTokensList.append(nextTokens)
                 inputTensorList.append(inputTensor)
@@ -153,9 +119,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                     break
 
                 numberOfAnalyzedLinesThisCycle = 0
-                nextPredictedTokensList        = []
-                probabilityPredictionsList     = []
-                probabilityOfNextTokensList    = []
+                nextPredictionsList        = []
+                probabilityOfPredictionsList     = []
+                probabilityOfActualsList    = []
                 indexOfFirstPredictionTemp     = indexOfFirstPrediction
 
                 assemblySubmissionStartTime    = time.time()
@@ -163,16 +129,23 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                 if (not reducedParameters):
                     for threadId in range(0,numberOfThreads):
                         inputQueue  = Workers[threadId]["inputQueue"]
-                        inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPredictionTemp, numberOfParallelExecutions, sharedTokenList, shared_id_from_token, window_size,)))
+                        inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPredictionTemp, numberOfParallelExecutions, sharedTokenList, window_size,)))
                         indexOfFirstPredictionTemp  += numberOfParallelExecutions
                 
                 generationStartTime = time.time()
-                for threadId in range(0,numberOfThreads):
-                    nextPredictedTokens, probabilityPredictions, probabilityOfNextTokens = one_step_model.generate_steps(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
+                
+                for threadId in range(0, numberOfThreads):
+
+                    predictions, probabilityOfPredictions, probabilityOfActuals = one_step_model.generate_steps_optimized(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
                     
-                    nextPredictedTokensList.append(nextPredictedTokens)
-                    probabilityPredictionsList.append(probabilityPredictions)
-                    probabilityOfNextTokensList.append(probabilityOfNextTokens)
+                    # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
+                    nextPredictionsList.append(predictions)
+
+                    # probabilityPredictionsList is a tensor of shape (numberOfParallelExecutions, number of features)
+                    probabilityOfPredictionsList.append(probabilityOfPredictions)
+
+                    # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                    probabilityOfActualsList.append(probabilityOfActuals)
 
                 generationTime = time.time() - generationStartTime
                 print("   Generation Time = {:2.3f}.".format(generationTime))
@@ -181,7 +154,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                     inputQueue  = Workers[threadId]["inputQueue"]
                     if (threadId == 0):
                         outputStartTime = time.time()
-                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictedTokensList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfNextTokensList[threadId], probabilityPredictionsList[threadId], )))
+                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfActualsList[threadId], probabilityOfPredictionsList[threadId], )))
                 
                 nexttokenIdsList            = []
                 nextTokensList              = []
@@ -196,11 +169,12 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                         inputTensorList.append(inputTensor)
                     
                 print("   assembly Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime - generationTime))
-                printfList   = []
+                printfList = []
+
                 for threadId in range(0, numberOfThreads):
 
                     outputQueue = Workers[threadId]["outputQueue"]
-                    linesToWrite, numberOfIdenticalsInThisCycle, accumulatedNextTokenProbabilityTemp, accumulatedPredictedTokenProbabilityTemp = outputQueue.get(timeout=queueTimeout)
+                    linesToWrite, numberOfIdenticalsInThisCycle, accumulatedActualProbability, accumulatedPredictedProbability = outputQueue.get(timeout=queueTimeout)
                     
                     if (threadId == (numberOfThreads-1)):
                         print("   Output thread Time = {:2.3f}.".format(time.time() - outputStartTime))
@@ -208,8 +182,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                     newPrint = origPrintfList[indexOfFirstPrediction - 1:indexOfFirstPrediction + numberOfParallelExecutions - 1]
                     printfList.append(newPrint)
 
-                    accumulatedNextTokenProbability      += accumulatedNextTokenProbabilityTemp
-                    accumulatedPredictedTokenProbability += accumulatedPredictedTokenProbabilityTemp
+                    accumulatedNextTokenProbability      += accumulatedActualProbability
+                    accumulatedPredictedTokenProbability += accumulatedPredictedProbability
                     numberOfIdenticals                   += numberOfIdenticalsInThisCycle
                     numberOfAnalyzedLines                += numberOfParallelExecutions
                     numberOfAnalyzedLinesThisCycle       += numberOfParallelExecutions
@@ -226,43 +200,49 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, DataType
                 nexttokenIds = []
                 
                 Endtime = time.time()
-                remainingNumberOfLines           = (numberOfFoundTokens - numberOfAnalyzedLines) - (window_size + 1)
-                averageNextTokenProbability      = accumulatedNextTokenProbability / numberOfAnalyzedLines
-                averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
+                remainingNumberOfLines           = (numberOfLines - indexOfFirstPrediction) - (window_size + 1)
+                averageNextTokenProbabilities    = accumulatedNextTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
+                
+                averageNextTokenProbabilities = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
+
+                averagePredictedTokenProbability = accumulatedPredictedTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
                 analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
                 remainingTimeInMinutes           = remainingNumberOfLines/(numberOfAnalyzedLines/(time.time() - analyzeStartTime)) / 60
                 
                 reducedParameters, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads)
                 
-                print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfFoundTokens) +
+                print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfLines) +
                     ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
-                    "  Nr Of Identicals: " + str(numberOfIdenticals) + "."
-                    "  Av next token probab = {:2.3f}.".format(averageNextTokenProbability) + 
-                    "  Av pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
+                    "  Nr Of Identicals: " + str(numberOfIdenticals) + 
+                    ".".join("  Av next token probab = {:2.3f}.".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +
+                     "  Av pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
                     "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
-                if (analysedLinesPerSecond < 2000):
-                    print("Too long")        
+                #if (analysedLinesPerSecond < 2000):
+                #    print("Too long")        
                     
                 if(reducedParameters):
                     break
 
-        averageNextTokenProbability      = accumulatedNextTokenProbability      / numberOfAnalyzedLines
+        averageNextTokenProbabilities    = accumulatedNextTokenProbability      / numberOfAnalyzedLines
         averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
         IdenticalsToNumberOfLinesRatio   = numberOfIdenticals                   / numberOfAnalyzedLines
 
         if(reducedParameters):
             print("\n\nEnded inference almost at end of file")
-
-        Result =  "Total number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfFoundTokens) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfFoundTokens) + ".\n Number Of Identicals: " + str(numberOfIdenticals) + ", ({:2.3f})".format(IdenticalsToNumberOfLinesRatio) + ".\n Average next token probability = {:2.3f}".format(averageNextTokenProbability) + ".\n Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n"
+        averageNextTokenProbabilities = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
+        Result = "Total number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) +                \
+                    " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) + ".\n Number Of Identicals: " +      \
+                    str(numberOfIdenticals) + ", ({:2.3f})".format(IdenticalsToNumberOfLinesRatio) +                                \
+                    ".\n".join("Average next token probability = {:2.3f}".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +                            \
+                    ".\n Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n"
+        
         print(Result)
         LogfileAnalyzed.write(Result)
         
         LogfileToAnalyze.close()
         LogfileAnalyzed.close()   
 
-        shm.close()
-        shm.unlink()
-
+      
 
 
 

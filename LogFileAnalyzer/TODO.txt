@@ -1,0 +1,11 @@
+
+
+Add marker in the datafiles that shows the transition in from one file to the next   DONE
+Also do this for bad data ( can be a item in the itemfile)
+Make sure any samples with this marker anywhere is not used in the training!
+
+group the cathegoricals together and feed them into one embedding layer    NOT GOING TO DO THAT 
+
+Make the dataset generation and the training work from disk instead of memory
+
+Move to transformer instead of LSTM.

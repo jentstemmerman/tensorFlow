@@ -16,7 +16,7 @@
 				"request": "launch",
 				"program": "${workspaceFolder}/CommandAnalyzeDirectory.py",
 
-				"args": ["/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel", 
+				"args": ["/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel.keras", 
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/Verification",
 						 "/home/jents/AI/TrainingSet4/out/Verification",
@@ -27,7 +27,27 @@
 				"console": "integratedTerminal"
 			},
 			{
+<<<<<<< Updated upstream
 				"name": "Python Debugger: Train dataset",
+=======
+				"name": "Python: Train dataset without debugger",
+				"type": "python",
+				"request": "launch",
+				"program": "${workspaceFolder}/CommandTrainOnDataSet.py",
+				"args": [
+					"/home/jents/AI/TrainingSet4/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset",
+					"Itemfile.txt",
+					"/home/jents/AI/TrainingSet4/",
+					"/home/jents/AI/TrainingSet4/out/TrainedModel/TrainingCheckPoints",
+					"/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel.keras"
+				],
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			
+			{
+				"name": "Python: Debug Train dataset",
+>>>>>>> Stashed changes
 				"type": "debugpy",
 				"request": "launch",
 				"program": "${workspaceFolder}/CommandTrainOnDataSet.py",
@@ -35,9 +55,8 @@
 				"args": ["/home/jents/AI/TrainingSet4/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset",  
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/",
-						 "32", 
 						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainingCheckPoints",
-						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel"], 
+						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel.keras"], 
 
 				"cwd": "${workspaceFolder}",
 				"console": "integratedTerminal"
@@ -52,7 +71,6 @@
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/out/Training", 
 						 "/home/jents/AI/TrainingSet4/",
-						 "1", 
 						 "/home/jents/AI/TrainingSet4/out/dataset_dir"], 
 
 				"cwd": "${workspaceFolder}",
@@ -76,6 +94,14 @@
 				"type": "debugpy",
 				"request": "launch",
 				"program": "${workspaceFolder}/Model.py",
+				"console": "integratedTerminal",
+				"cwd": "${workspaceFolder}",
+			},
+			{
+				"name": "Python Debugger: TransformerTest",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/TransformerModel.py",
 				"console": "integratedTerminal",
 				"cwd": "${workspaceFolder}",
 			}

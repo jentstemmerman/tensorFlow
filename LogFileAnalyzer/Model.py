@@ -171,7 +171,7 @@ def TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpoint
         sys.stdout = Logger.Logger(TrainingLogFile)
     
     # Name of the checkpoint files
-    checkpoint_prefix = os.path.join(TrainingCheckpointDir, "ckpt_{epoch}")
+    checkpoint_prefix = os.path.join(TrainingCheckpointDir, "ckpt_{epoch}.keras")
     checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
   
     print("\nSettings used: ")
@@ -195,11 +195,11 @@ def TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpoint
     
     Epoch_End_callback = None
 
-    run = neptune.init_run(project='Log/TensorFlowLogger', api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5NDRiM2JmMC1kNGI4LTQ4NDEtYjc5NS0wYmY2YTdhZjg1YTUifQ==')
+    #run = neptune.init_run(project='Log/TensorFlowLogger', api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5NDRiM2JmMC1kNGI4LTQ4NDEtYjc5NS0wYmY2YTdhZjg1YTUifQ==')
 
-    neptune_callback = NeptuneCallback(run=run) 
+    #neptune_callback = NeptuneCallback(run=run) 
 
-    history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, neptune_callback,TrainBatchEnd_callback ])
+    model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, TrainBatchEnd_callback ])
     
     sys.stdout = sys.__stdout__
 

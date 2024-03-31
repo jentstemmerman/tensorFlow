@@ -20,20 +20,27 @@ def TranslateToString(value):
         value = value
     return value
 
+import Dataset
+
 def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, probabilityOfPredictions):
     with tf.device('/CPU:0'):
-        string_length = 13
+        string_length = 17
         number_string_length = 6
         numberOfFeatures = len(id_from_tokenList)
         linesToWrite = []
         numberOfIdenticals = 0
         accumulatedActualProbability = 0
         accumulatedPredictedProbability = 0
+<<<<<<< Updated upstream
         
+=======
+        IdenticalString =  " (ID)"
+
+>>>>>>> Stashed changes
         for executionIndex in range(numberOfParallelExecutions):
             
             ProbabilityOfActualsString = "Prob of actual: "
-            ProbabilityOfPredictionsString= "Prob of pred: "
+            ProbabilityOfPredictionsString = "Prob of pred: "
             predictionsString = ". Predicted: " 
             actualsString = "Actual: " 
             
@@ -42,6 +49,7 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
                 prediction = TranslateToString(predictions[featureIndex][executionIndex])  
                 actual     = TranslateToString(actuals[executionIndex][featureIndex])
                 
+<<<<<<< Updated upstream
                 actualsString += (actual + ", ")
                 actualsString  = extend_string_with_spaces(actualsString, string_length)
 
@@ -52,6 +60,29 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
                     predictionsString += (prediction + ", ")
                 
                 predictionsString  = extend_string_with_spaces(predictionsString, string_length)
+=======
+               # if (prediction == "[UNK]"):
+               #     print("[UNK]")
+                #prediction = extend_string_with_spaces(prediction, string_length)
+                #
+
+                if (actual == prediction) and (actual != Dataset.Universal_Mask_Token):
+                    prediction = prediction + IdenticalString
+                    prediction = extend_string_with_spaces(prediction, string_length)
+                    predictionsString  += prediction
+                    numberOfIdenticals += 1
+                else:
+                    prediction = extend_string_with_spaces(prediction, string_length)
+                    predictionsString  += prediction
+
+                actual = extend_string_with_spaces(actual, string_length)                    
+
+                
+                actualsString += actual
+                if (featureIndex < (numberOfFeatures-1)):
+                    actualsString     += ", "
+                    predictionsString += ", "
+>>>>>>> Stashed changes
                     
                 probabilityOfActual         = probabilityOfActuals[featureIndex][executionIndex]
                 ProbabilityOfActualsString += "{:2.3f} ".format(probabilityOfActual)

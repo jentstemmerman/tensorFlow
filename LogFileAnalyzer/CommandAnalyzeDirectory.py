@@ -60,4 +60,7 @@ if __name__ == "__main__":
        
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
     
+ #   tf.data.experimental.enable_debug_mode() 
+ #   tf.config.run_functions_eagerly(True)  
+
     AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter["Model"]["seq_length"] , TrainingsParameter["DataTypeForTensors"], temperature)  

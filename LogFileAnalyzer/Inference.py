@@ -58,7 +58,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         nextTokens   = []
 
         queueTimeout                         = 50
-        maxNumberOfParallelExecutions        = 500  # dit is het aantal samples dat de GPU inferes in 1 keer
+        maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
         numberOfAnalyzedLines                = 0
         accumulatedNextTokenProbability      = 0
         accumulatedPredictedTokenProbability = 0
@@ -68,16 +68,18 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         sharedTokenList  = []
         manager          = None
 
-        print("Retrieving tokens from files")
+        print("Retrieving tokens from files... ", LogfileVerification)
         TokenList, origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, None)
-    
+        print("Retrieving tokens from files Done")
+
+        print("Creating shared memory manager...")
         # Create a shared memory manager
         manager = multiprocessing.Manager()
         
         # Create a shared token list
         sharedTokenList = manager.list()
         sharedTokenList.extend(TokenList) # bug
-
+        print("Creating shared memory manager Done")
         TokenList  = None
 
         indexOfFirstPrediction  = window_size + 1

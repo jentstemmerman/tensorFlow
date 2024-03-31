@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow import keras
 import numpy as np
 import TokenParser
 import LogFileIterator
@@ -388,13 +387,11 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, Outp
             else:
                 raise ValueError("VocabularyFile " + OutputVocabularyFile + " or range not found")
             
-            VocabularyTensor  = tf.convert_to_tensor(VocabularyNumpy)
-
-            id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=Universal_Mask_Token)
+            id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyNumpy, mask_token=Universal_Mask_Token)
             id_from_tokenList.append(id_from_token)
             
             # decoder
-            token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyTensor, mask_token=Universal_Mask_Token, invert=True)
+            token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyNumpy, mask_token=Universal_Mask_Token, invert=True)
             token_from_idList.append(token_from_id)
         else:
             id_from_tokenList.append(None)

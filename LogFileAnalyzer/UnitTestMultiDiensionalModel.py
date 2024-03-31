@@ -16,8 +16,9 @@ class UnitTestMultiDimensionalModel(unittest.TestCase):
     def test_Model(self):
         print("TestModel test")
         self.featureList = []
-        self.featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
-        self.featureList.append({"embedded": False})
+        self.featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100, "layer_name": "kwkwak"})
+        self.featureList.append({"embedded": False, "layer_name": "kwkwak"})
+
         embedded_input_data    = np.random.randint(1000, 1000 + self.featureList[0]["vocab_size"], size=(self.num_samples, self.sequence_length))
         direct_lstm_input_data = np.random.randint(100, 105,                                       size=(self.num_samples, self.sequence_length ))
         regression_labels      = np.random.randint(0, 3,                                           size=(self.num_samples))

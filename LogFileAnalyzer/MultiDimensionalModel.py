@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from tensorflow import keras
 import TokenParser
-import Dataset
+
 
 def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
     verbose = False
@@ -27,7 +27,9 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
         nonlocal counter
         nonlocal maskValueList
         counter += 1
+
         
+
         feature_output_true_masked      = None
         feature_output_predicted_masked = None
 
@@ -46,11 +48,9 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
             feature_output_predicted_masked = feature_output_predicted * mask
 
             feature_output_loss = tf.keras.losses.mean_squared_error(feature_output_true_masked, feature_output_predicted_masked)
-                
-
 
         featureIndex = (featureIndex + 1) % numberOfFeatures
-
+        
         return feature_output_loss
     return custom_multi_output_loss_jents
 
@@ -62,8 +62,7 @@ class CustomIdentityLayer(tf.keras.layers.Layer):
         self.normalisationLayer = tf.keras.layers.BatchNormalization()
     def get_config(self):
         return {"factor": self.factor}
-     
-    
+       
     def call(self, input, training=False):
         input = tf.cast(input, dtype=self.datatype)
         input = self.normalisationLayer(input, training=training)
@@ -78,7 +77,17 @@ class CustomDenseLayer(tf.keras.layers.Layer):
         self.dense_output_layer2 = tf.keras.layers.Dense(units=1, input_shape=(numberOfOutputs,))
     def get_config(self):
         return {"layer1": self.dense_output_layer1, "layer2": self.dense_output_layer2}
-         
+    
+    @classmethod
+    def from_config(cls, config):
+        sublayer_config = config.pop("layer1")
+        dense_output_layer1 = keras.saving.deserialize_keras_object(sublayer_config)
+
+        sublayer_config = config.pop("layer2")
+        dense_output_layer2 = keras.saving.deserialize_keras_object(sublayer_config)
+
+        return cls(dense_output_layer1, dense_output_layer2, **config)
+    
     def call(self, input, training=False):
         input = self.dense_output_layer1(input, training=training)
         input = self.dense_output_layer2(input, training=training)

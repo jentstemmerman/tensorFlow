@@ -183,8 +183,8 @@ class OneStep(tf.keras.Model):
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
       # Run the model.
-      predicted_logits_list = self.model(inputs=inputTensor)
-    
+      predicted_logits_list  = self.model(inputs=inputTensor)
+      numberOfFeatures       = len(self.Tokens_from_idList)
       predictions            = []
       probabilityOfPredictions = None
       probabilityOfActuals  = None
@@ -214,19 +214,24 @@ class OneStep(tf.keras.Model):
           
           predictions.append(prediction)
           
+          #probabilityOfPrediction = tf.reshape(probabilityOfPrediction, [1,1])
           
           if (probabilityOfPredictions is None):
-              probabilityOfPredictions = probabilityOfPrediction
+              probabilityOfPredictions  = probabilityOfPrediction   
           else:
-              probabilityOfPredictions  = np.stack((probabilityOfPredictions, probabilityOfPrediction))
-
+              #probabilityOfPredictions2  = np.stack((probabilityOfPredictions, probabilityOfPrediction))
+              probabilityOfPredictions   = np.append(probabilityOfPredictions, probabilityOfPrediction)
 
           probabilityOfActual = self.GetProbabilitiesFromLogits(softmaxLogits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
 
           if (probabilityOfActuals is None):
               probabilityOfActuals = probabilityOfActual
           else:
-              probabilityOfActuals  = np.stack((probabilityOfActuals, probabilityOfActual))
-
+              #probabilityOfActuals2  = np.stack((probabilityOfActuals, probabilityOfActual))
+              probabilityOfActuals   = np.append(probabilityOfActuals, probabilityOfActual)
+      
+      probabilityOfPredictions = np.reshape(probabilityOfPredictions, [numberOfFeatures, int(len(probabilityOfPredictions) / numberOfFeatures)])
+      probabilityOfActuals     = np.reshape(probabilityOfActuals,     [numberOfFeatures, int(len(probabilityOfActuals)     / numberOfFeatures)])
+      
       return predictions, probabilityOfPredictions, probabilityOfActuals
       

@@ -11,9 +11,10 @@ with tf.device('/CPU:0'):
         #newWindow.append(newToken)
         return newWindow
 
-    def GetNextTokenIdWindow(oldTokenIdWindow, newTokenId):
+    def GetNextTokenIdWindow(oldTokenIdWindow, newTokenId, numberOfFeatures):
+        
         nextTokenIdWindow = oldTokenIdWindow[1:]
-        newTokenId = tf.reshape(newTokenId, [1, 2])  # maak compatibel met concat van nextTokenIdWindow
+        newTokenId = tf.reshape(newTokenId, [1, numberOfFeatures])  # maak compatibel met concat van nextTokenIdWindow
         nextTokenIdWindow = tf.concat([nextTokenIdWindow, newTokenId], axis=0)
 
         return nextTokenIdWindow
@@ -65,7 +66,7 @@ with tf.device('/CPU:0'):
             column += 1
 
         newTokenId          = tf.convert_to_tensor(newTokenId, dtype=DataTypeForTensors)
-        nextTokenIdWindow   = GetNextTokenIdWindow(prevInputTokens, prevOutputTokenId)
+        nextTokenIdWindow   = GetNextTokenIdWindow(prevInputTokens, prevOutputTokenId, column)
 
         return newWindow, newToken, newTokenId, nextTokenIdWindow
 

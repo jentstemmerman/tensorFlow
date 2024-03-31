@@ -6,7 +6,7 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "dense_layer": True,
                                 "return_states": True
                                 },
-                      "EPOCHS":3,
+                      "EPOCHS":1,
                       "Use_Validation":False,
                       "BatchSize":64,
                       "removeDuplicates":False,

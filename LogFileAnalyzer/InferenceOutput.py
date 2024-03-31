@@ -20,9 +20,11 @@ def TranslateToString(value):
         value = value
     return value
 
+import Dataset
+
 def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, probabilityOfPredictions):
     with tf.device('/CPU:0'):
-        string_length = 13
+        string_length = 17
         number_string_length = 6
         numberOfFeatures = len(id_from_tokenList)
         linesToWrite = []
@@ -30,6 +32,7 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
         accumulatedActualProbability = 0
         accumulatedPredictedProbability = 0
         
+        IdenticalString =  " (ID)"
         for executionIndex in range(numberOfParallelExecutions):
             
             ProbabilityOfActualsString = "Prob of actual: "
@@ -42,16 +45,22 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
                 prediction = TranslateToString(predictions[featureIndex][executionIndex])  
                 actual     = TranslateToString(actuals[executionIndex][featureIndex])
                 
-                actualsString += (actual + ", ")
-                actualsString  = extend_string_with_spaces(actualsString, string_length)
-
-                if (actual == prediction):
-                    predictionsString += " Identical "
+                if (actual == prediction) and (actual != Dataset.Universal_Mask_Token):
+                    prediction = prediction + IdenticalString
+                    prediction = extend_string_with_spaces(prediction, string_length)
+                    predictionsString  += prediction
                     numberOfIdenticals += 1
                 else:
-                    predictionsString += (prediction + ", ")
+                    prediction = extend_string_with_spaces(prediction, string_length)
+                    predictionsString  += prediction
+
+                actual = extend_string_with_spaces(actual, string_length)                    
+
                 
-                predictionsString  = extend_string_with_spaces(predictionsString, string_length)
+                actualsString += actual
+                if (featureIndex < (numberOfFeatures-1)):
+                    actualsString     += ", "
+                    predictionsString += ", "
                     
                 probabilityOfActual         = probabilityOfActuals[featureIndex][executionIndex]
                 ProbabilityOfActualsString += "{:2.3f} ".format(probabilityOfActual)

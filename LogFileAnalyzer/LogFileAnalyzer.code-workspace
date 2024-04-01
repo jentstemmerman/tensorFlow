@@ -78,6 +78,14 @@
 				"program": "${workspaceFolder}/Model.py",
 				"console": "integratedTerminal",
 				"cwd": "${workspaceFolder}",
+			},
+			{
+				"name": "Python Debugger: TransformerTest2",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/TransformerModel2.py",
+				"console": "integratedTerminal",
+				"cwd": "${workspaceFolder}",
 			}
 			
 		]

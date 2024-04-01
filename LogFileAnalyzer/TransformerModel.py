@@ -5,9 +5,9 @@ from tensorflow.keras.layers import Input, LayerNormalization, MultiHeadAttentio
 class TransformerEncoderBlock(tf.keras.layers.Layer):
     def __init__(self, num_attention_heads, inner_dim, dropout_rate=0.1, attention_dropout_rate=0.1, **kwargs):
         super().__init__(**kwargs)
-        self.attention = tf.keras.layers.MultiHeadAttention(num_heads =num_attention_heads,
-                                                            key_dim=inner_dim // num_attention_heads,
-                                                            dropout=attention_dropout_rate)
+        self.attention = tf.keras.layers.MultiHeadAttention(num_heads = num_attention_heads,
+                                                            key_dim   = inner_dim // num_attention_heads,
+                                                            dropout   = attention_dropout_rate)
         self.dropout1 = tf.keras.layers.Dropout(dropout_rate)
         self.norm1    = tf.keras.layers.LayerNormalization(epsilon=1e-6)
 

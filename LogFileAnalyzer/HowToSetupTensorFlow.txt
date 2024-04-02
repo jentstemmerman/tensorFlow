@@ -26,3 +26,7 @@ Build cuda_11.5.r11.5/compiler.30672275_0
 
 dit maakte het verschil denk ik
 pip install tensorflow[and-cuda]
+
+
+Make sure to install the same version!!! The new version of tensorflow has many problems
+See SystemSpecs.txt

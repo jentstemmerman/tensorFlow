@@ -71,9 +71,7 @@ The projection layers are implemented through `keras.layers.Conv1D`.
 
 def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
     # Attention and Normalization
-    x = layers.MultiHeadAttention(
-        key_dim=head_size, num_heads=num_heads, dropout=dropout
-    )(inputs, inputs)
+    x = layers.MultiHeadAttention(key_dim=head_size, num_heads=num_heads, dropout=dropout)(inputs, inputs)
     x = layers.Dropout(dropout)(x)
     x = layers.LayerNormalization(epsilon=1e-6)(x)
     res = x + inputs
@@ -112,9 +110,9 @@ def build_model(
     for _ in range(num_transformer_blocks):
         x = transformer_encoder(x, head_size, num_heads, ff_dim, dropout)
 
-    x = layers.GlobalAveragePooling1D(data_format="channels_last")(x)
+    x = layers.GlobalAveragePooling1D(data_format="channels_first", name="TooSmallOutput")(x)
     for dim in mlp_units:
-        x = layers.Dense(dim, activation="relu", name="TheWeirdDense")(x)
+        x = layers.Dense(dim, activation="relu", name="TooFewWeights")(x)   # deze is veel te klein
         x = layers.Dropout(mlp_dropout)(x)
     outputs = layers.Dense(n_classes, activation="softmax")(x)
     return keras.Model(inputs, outputs)

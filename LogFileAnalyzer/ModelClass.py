@@ -154,17 +154,6 @@ class OneStep(tf.keras.Model):
     self.temperature = temperature
     self.model = model
     self.Tokens_from_idList = Tokens_from_idList
-    ids_from_tokens = ids_from_tokensList[0]
-
-    # Create a mask to prevent "[UNK]" from being generated.
-    skip_ids = ids_from_tokens(['[UNK]'])[:, None]
-    sparse_mask = tf.SparseTensor(
-        # Put a -inf at each bad index.
-        values=[-float('inf')]*len(skip_ids),
-        indices=skip_ids,
-        # Match the shape to the vocabulary
-        dense_shape=[len(ids_from_tokens.get_vocabulary())])
-    self.prediction_mask = tf.sparse.to_dense(sparse_mask)
 
   def GetProbabilityFromLogits(self, logits, id):
     probability = logits[id].numpy()
@@ -173,10 +162,7 @@ class OneStep(tf.keras.Model):
   def GetProbabilitiesFromLogits(self, logits, id):
 
     probabilities = tf.gather(logits, id, axis=1, batch_dims=1)
-    #indices = tf.argmax(logits, axis=1)
 
-    # Gather values from params using indices
-    #probabilities = tf.gather(params, indices)
     return probabilities
   
   #@tf.function
@@ -209,7 +195,7 @@ class OneStep(tf.keras.Model):
               predicted_id = tf.reshape(predicted_id, [-1])
               prediction = predicted_id.numpy()
               tensor_shape = (inputTensor.shape[0],)
-              probabilityOfPrediction = tf.zeros(shape=tensor_shape) # did heeft geen zin voor non-cathegorical, maar er moet iets ingevuld zijn
+              probabilityOfPrediction = tf.zeros(shape=tensor_shape) # dit heeft geen zin voor non-cathegorical, maar er moet iets ingevuld zijn
 
           
           predictions.append(prediction)

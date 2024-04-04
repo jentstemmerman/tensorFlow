@@ -86,6 +86,14 @@
 				"program": "${workspaceFolder}/TransformerModel2.py",
 				"console": "integratedTerminal",
 				"cwd": "${workspaceFolder}",
+			},
+			{
+				"name": "Python Debugger: UnitTestMultiDimensionalModel",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/UnitTestMultiDimensionalModel.py",
+				"console": "integratedTerminal",
+				"cwd": "${workspaceFolder}",
 			}
 			
 		]

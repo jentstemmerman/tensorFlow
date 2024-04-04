@@ -3,6 +3,7 @@ import numpy as np
 from tensorflow import keras
 import TokenParser
 import Dataset
+import math 
 
 def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
     verbose = False
@@ -84,30 +85,58 @@ class CustomDenseLayer(tf.keras.layers.Layer):
         input = self.dense_output_layer2(input, training=training)
         return input
 
+def round_up_to_power_of_two(num):
+    # If the number is already a power of two, return it
+    if num & (num - 1) == 0:
+        return num
+    
+    # Otherwise, find the next power of two
+    return 2 ** math.ceil(math.log2(num))
+
+def CalculateEmbeddingDimensions(featureList):
+    embeddingDimension = []
+    total_output_dimensions = 0
+
+    for i, feature in enumerate(featureList):
+        if (feature["embedded"] == True):
+            output_dimension = math.ceil(feature["vocab_size"]**0.25)
+        else:
+            output_dimension = 1
+
+        embeddingDimension.append(output_dimension)
+        total_output_dimensions += output_dimension
+    print("Embedding dimensions:")
+    print(embeddingDimension)
+    return embeddingDimension
+
 class LSTMPrintfLogMultiModel(tf.keras.Model):
 
+    
     def __init__(self, featureList, rnn_units, sequence_length, dense_layer, return_sequences, datatype):
         super().__init__()
         self.numberOfFeatures = len(featureList)
-
+        self.numberOfInputsToLstm = 0
         self.numberOfInputsToTotalEmbedding = 0
         self.return_states    = return_sequences
         self.featureList      = featureList
         self.datatype         = datatype
-        
+        embeddingDimensionList = CalculateEmbeddingDimensions(featureList)
+
         self.input_layerList  = []
         inputList             = []
 
-        for feature in featureList:
+        for i, feature in enumerate(featureList):
+
+            output_dimension = embeddingDimensionList[i]
+
             if (feature["embedded"] == True):
-                input_layer = tf.keras.layers.Embedding(input_dim=feature["vocab_size"], output_dim=feature["embedding_dim"], dtype=datatype)
+                input_layer = tf.keras.layers.Embedding(input_dim=feature["vocab_size"], output_dim=output_dimension, dtype=datatype)
                 lstm_input  = tf.keras.layers.Input(shape=(sequence_length, feature["vocab_size"]))
-                self.numberOfInputsToTotalEmbedding += feature["vocab_size"]
             else:
                 input_layer = CustomIdentityLayer(datatype=datatype) 
-                
                 lstm_input  = tf.keras.layers.Input(shape=(sequence_length, 1))
-                self.numberOfInputsToTotalEmbedding += 1
+            
+            self.numberOfInputsToLstm += output_dimension
             
             self.input_layerList.append(input_layer)    
             inputList.append(lstm_input)
@@ -116,7 +145,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
         self.concatenated     = tf.keras.layers.concatenate(inputList)
         
         #self.Total_embedding  = tf.keras.layers.Embedding(input_dim=self.numberOfInputsToTotalEmbedding, output_dim=int(self.numberOfInputsToTotalEmbedding / 2), dtype=datatype)
-        self.lstm_layer       = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfFeatures), return_sequences=return_sequences, dropout=0.1)
+        self.lstm_layer       = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfInputsToLstm), return_sequences=return_sequences, dropout=0.1)
         
         self.output_layerList  = []
 

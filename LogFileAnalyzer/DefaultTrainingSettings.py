@@ -1,12 +1,11 @@
 TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "returnState":True,
-                                "embedding_dim":128,   # set to -1 for no embedding layer. but you need to use float for DataTypeForTensors then
                                 "rnn_units":1024,
                                 "seq_length":32 ,
                                 "dense_layer": True,
                                 "return_states": True
                                 },
-                      "EPOCHS":1,
+                      "EPOCHS":3,
                       "Use_Validation":False,
                       "BatchSize":64,
                       "removeDuplicates":False,

@@ -16,13 +16,16 @@ class UnitTestMultiDimensionalModel(unittest.TestCase):
     def test_Model(self):
         print("TestModel test")
         self.featureList = []
-        self.featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
-        self.featureList.append({"embedded": False})
+
+        self.featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100, "layer_name": "Categorical_layer"})
+        self.featureList.append({"embedded": False, "layer_name": "Non embedding"})
         embedded_input_data    = np.random.randint(1000, 1000 + self.featureList[0]["vocab_size"], size=(self.num_samples, self.sequence_length))
         direct_lstm_input_data = np.random.randint(100, 105,                                       size=(self.num_samples, self.sequence_length ))
         regression_labels      = np.random.randint(0, 3,                                           size=(self.num_samples))
         return_sequences = False
         dense_layer      = False
+
+
         model = MultiDimensionalModel.LSTMPrintfLogMultiModel(self.featureList, self.rnn_units, self.sequence_length, dense_layer = dense_layer, return_sequences = return_sequences, datatype = self.datatype)
         model.compile(optimizer='adam', loss='mse') 
         inputTuple = (embedded_input_data, direct_lstm_input_data)
@@ -35,8 +38,10 @@ class UnitTestMultiDimensionalModel(unittest.TestCase):
     def test_ModelOutputSequences(self):
         print("TestModelOutputSequences test")
         self.featureList = []
-        self.featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
-        self.featureList.append({"embedded": False})
+        
+
+        self.featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100, "layer_name":  "Categorical_layer"})
+        self.featureList.append({"embedded": False, "layer_name": "Non embedding"})
         embedded_input_data    = np.random.randint(1000, 1000 + self.featureList[0]["vocab_size"], size=(self.num_samples, self.sequence_length))
         direct_lstm_input_data = np.random.randint(100, 105,                                       size=(self.num_samples, self.sequence_length ))
         regression_labels      = np.random.randint(0, 3,                                           size=(self.num_samples, self.sequence_length, self.rnn_units))
@@ -55,7 +60,7 @@ class UnitTestMultiDimensionalModel(unittest.TestCase):
         print("TestModelDense test")
         self.featureList = []
         self.featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
-        self.featureList.append({"embedded": False})
+        self.featureList.append({"embedded": False, "layer_name": "Non embedding"})
         embedded_input_data    = np.random.randint(1000, 1000 + self.featureList[0]["vocab_size"], size=(self.num_samples, self.sequence_length))
         direct_lstm_input_data = np.random.randint(100, 105,                                       size=(self.num_samples, self.sequence_length ))
         regression_labels      = np.random.randint(0, 3,                                           size=(self.num_samples, self.featureList[0]["vocab_size"] ))
@@ -74,7 +79,7 @@ class UnitTestMultiDimensionalModel(unittest.TestCase):
         print("TestModelDenseAndSequences test")
         self.featureList = []
         self.featureList.append({"embedded": True, "vocab_size" : 1000, "embedding_dim": 100})
-        self.featureList.append({"embedded": False})
+        self.featureList.append({"embedded": False, "layer_name": "Non embedding"})
         embedded_input_data    = np.random.randint(1000, 1000 + self.featureList[0]["vocab_size"], size=(self.num_samples, self.sequence_length))
         direct_lstm_input_data = np.random.randint(100, 105,                                       size=(self.num_samples, self.sequence_length ))
         regression_labels      = np.random.randint(0, 3,                                           size=(self.num_samples, self.sequence_length, self.featureList[0]["vocab_size"] ))
@@ -93,7 +98,8 @@ class UnitTestMultiDimensionalModel(unittest.TestCase):
     def Inference(self, model, numberOfInterences):
         embedded_input = tf.ones((numberOfInterences, self.sequence_length))
         direct_lstm_input = tf.ones((numberOfInterences, self.sequence_length))
-        datasetInputData_tensor = tf.stack((embedded_input, direct_lstm_input), axis = 1)
+        datasetInputData_tensor = tf.stack((embedded_input, direct_lstm_input), axis = -1)
+        datasetInputData_tensor = tf.cast(datasetInputData_tensor, 'float32')
         modelPrediction = model(datasetInputData_tensor, self.numberOfInferences)
         return modelPrediction
 

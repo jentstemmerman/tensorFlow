@@ -96,15 +96,15 @@ this example, a `GlobalAveragePooling1D` layer is sufficient.
 
 
 def build_model(
-    input_shape,
-    head_size,
-    num_heads,
-    ff_dim,
-    num_transformer_blocks,
-    mlp_units,
-    dropout=0,
-    mlp_dropout=0,
-):
+                    input_shape,
+                    head_size,
+                    num_heads,
+                    ff_dim,
+                    num_transformer_blocks,
+                    mlp_units,
+                    dropout=0,
+                    mlp_dropout=0,
+                ):
     inputs = keras.Input(shape=input_shape)
     x = inputs
     for _ in range(num_transformer_blocks):
@@ -123,6 +123,9 @@ def build_model(
 """
 
 input_shape = x_train.shape[1:]
+
+print("x_Train shape:     ", x_train.shape)
+print("input_shape shape: ", input_shape)
 
 model = build_model(
     input_shape,

@@ -110,8 +110,6 @@ def CalculateEmbeddingDimensions(featureList):
     return embeddingDimension
 
 class LSTMPrintfLogMultiModel(tf.keras.Model):
-
-    
     def __init__(self, featureList, rnn_units, sequence_length, dense_layer, return_sequences, datatype):
         super().__init__()
         self.numberOfFeatures = len(featureList)
@@ -154,7 +152,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             layer_name = feature["layer_name"]
 
             if (feature["embedded"] == True):
-                dense_output_layer = tf.keras.layers.Dense(units=feature["vocab_size"], name=layer_name)
+                dense_output_layer = tf.keras.layers.Dense(units=feature["vocab_size"], name=layer_name, activation='relu')
             else:
                 dense_output_layer = CustomDenseLayer(rnn_units, 1) 
 

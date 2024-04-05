@@ -129,7 +129,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
             if (feature["embedded"] == True):
                 input_layer = tf.keras.layers.Embedding(input_dim=feature["vocab_size"], output_dim=output_dimension, dtype=datatype)
-                lstm_input  = tf.keras.layers.Input(shape=(sequence_length, feature["vocab_size"]))
+                lstm_input  = tf.keras.layers.Input(shape=(sequence_length, output_dimension))
             else:
                 input_layer = CustomIdentityLayer(datatype=datatype) 
                 lstm_input  = tf.keras.layers.Input(shape=(sequence_length, 1))

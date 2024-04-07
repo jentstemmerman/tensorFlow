@@ -112,6 +112,8 @@ def CalculateEmbeddingDimensions(featureList):
 class LSTMPrintfLogMultiModel(tf.keras.Model):
     def __init__(self, featureList, rnn_units, sequence_length, dense_layer, return_sequences, datatype):
         super().__init__()
+
+        activationFunctionForDenseLayerAfterLstm = None #"elu"  ## half as slow as None
         self.numberOfFeatures = len(featureList)
         self.numberOfInputsToLstm = 0
         self.numberOfInputsToTotalEmbedding = 0
@@ -121,7 +123,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
         embeddingDimensionList = CalculateEmbeddingDimensions(featureList)
 
         self.input_layerList  = []
-        inputList             = []
+
 
         for i, feature in enumerate(featureList):
 
@@ -129,20 +131,14 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
             if (feature["embedded"] == True):
                 input_layer = tf.keras.layers.Embedding(input_dim=feature["vocab_size"], output_dim=output_dimension, dtype=datatype)
-                lstm_input  = tf.keras.layers.Input(shape=(sequence_length, output_dimension))
             else:
                 input_layer = CustomIdentityLayer(datatype=datatype) 
-                lstm_input  = tf.keras.layers.Input(shape=(sequence_length, 1))
             
             self.numberOfInputsToLstm += output_dimension
             
             self.input_layerList.append(input_layer)    
-            inputList.append(lstm_input)
-        
-        
-        self.concatenated     = tf.keras.layers.concatenate(inputList)
-        
-        #self.Total_embedding  = tf.keras.layers.Embedding(input_dim=self.numberOfInputsToTotalEmbedding, output_dim=int(self.numberOfInputsToTotalEmbedding / 2), dtype=datatype)
+
+
         self.lstm_layer       = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfInputsToLstm), return_sequences=return_sequences, dropout=0.1)
         
         self.output_layerList  = []
@@ -152,7 +148,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             layer_name = feature["layer_name"]
 
             if (feature["embedded"] == True):
-                dense_output_layer = tf.keras.layers.Dense(units=feature["vocab_size"], name=layer_name, activation='relu')
+                dense_output_layer = tf.keras.layers.Dense(units=feature["vocab_size"], name=layer_name, activation=activationFunctionForDenseLayerAfterLstm)
             else:
                 dense_output_layer = CustomDenseLayer(rnn_units, 1) 
 

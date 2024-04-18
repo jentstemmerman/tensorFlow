@@ -10,7 +10,7 @@ def TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, batch_
     modelFeatureList = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
     maskValueList    = Model.GetMaskValueList(id_from_tokenList)
 
-    modelSource = {"Source": "NewModel", "ModelDirectory": TrainedModelDir}
+    modelSource = {"Source": "NewModel", "ModelDirectory": TrainedModelDir, "ModelType": "LSTM"}
 
     model = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
     assert(model is not None)

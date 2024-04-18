@@ -140,14 +140,15 @@ def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
 
 def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
 
-    model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
-                                                            TrainingsParameter["Model"]["rnn_units"],
-                                                            TrainingsParameter["Model"]["seq_length"], 
-                                                            dense_layer = TrainingsParameter["Model"]["dense_layer"], 
-                                                            return_sequences = TrainingsParameter["Model"]["return_states"] , 
-                                                            datatype = TrainingsParameter["DataTypeForTensors"])
-    
-    loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
+    if (modelSource["ModelType"] == "LSTM"):
+        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
+                                                                TrainingsParameter["Model"]["rnn_units"],
+                                                                TrainingsParameter["Model"]["seq_length"], 
+                                                                dense_layer = TrainingsParameter["Model"]["dense_layer"], 
+                                                                return_sequences = TrainingsParameter["Model"]["return_states"] , 
+                                                                datatype = TrainingsParameter["DataTypeForTensors"])
+        
+        loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
 
     if (modelSource["Source"] == "NewModel"):
         model.compile(optimizer='adam', loss=loss_function)

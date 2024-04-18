@@ -18,7 +18,7 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
         maskValueList                         = Model.GetMaskValueList(id_from_tokenList)
 
 
-        modelSource = {"Source": "FromFile", "ModelDirectory": modelFile}
+        modelSource = {"Source": "FromFile", "ModelDirectory": modelFile, "ModelType": "LSTM"}
         model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
 
             

@@ -6,7 +6,7 @@ import worker
 import TokenParser
 import Dataset
 
-def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, seq_length, DataTypeForTensors, temperature):
+def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature):
     with tf.device('/CPU:0'):
         numberOfThreads = 7  # 1 for the main process
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
@@ -15,10 +15,10 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
         id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList) 
         modelFeatureList                     = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
 
-        maskValueList                         = Model.GetMaskValueList(id_from_tokenList)
+        maskValueList                        = Model.GetMaskValueList(id_from_tokenList)
 
 
-        modelSource = {"Source": "FromFile", "ModelDirectory": modelFile, "ModelType": "LSTM"}
+        modelSource = {"Source": "FromFile", "ModelDirectory": modelFile, "Network": TrainingsParameter["Model"]["Network"]}
         model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
 
             
@@ -32,12 +32,12 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
                                         outputDirectory=outputDirectory, 
                                         itemFile=itemFile, 
                                         temperature=temperature, 
-                                        seq_length=seq_length, 
+                                        seq_length=TrainingsParameter["Model"]["seq_length"], 
                                         id_from_tokenList = id_from_tokenList,
                                         token_from_idList=token_from_idList,
                                         numberOfThreads=numberOfThreads, 
                                         Workers=Workers,
-                                        DataTypeForTensors=DataTypeForTensors )
+                                        DataTypeForTensors=TrainingsParameter["Model"]["DataTypeForTensors"] )
             
             worker.KillWorkers(Workers)
     
@@ -60,4 +60,4 @@ if __name__ == "__main__":
        
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
     
-    AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter["Model"]["seq_length"] , TrainingsParameter["DataTypeForTensors"], temperature)  
+    AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature)  

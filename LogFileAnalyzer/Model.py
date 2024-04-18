@@ -140,7 +140,7 @@ def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
 
 def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
 
-    if (modelSource["ModelType"] == "LSTM"):
+    if (modelSource["Network"] == "LSTMMultiModel"):
         model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
                                                                 TrainingsParameter["Model"]["rnn_units"],
                                                                 TrainingsParameter["Model"]["seq_length"], 

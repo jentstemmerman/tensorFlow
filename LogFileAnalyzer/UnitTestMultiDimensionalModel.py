@@ -26,7 +26,7 @@ class UnitTestMultiDimensionalModel(unittest.TestCase):
         dense_layer      = False
 
 
-        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(self.featureList, self.rnn_units, self.sequence_length, dense_layer = dense_layer, return_sequences = return_sequences, datatype = self.datatype)
+        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(self.featureList, self.rnn_units, self.sequence_length, return_sequences = return_sequences, datatype = self.datatype)
         model.compile(optimizer='adam', loss='mse') 
         inputTuple = (embedded_input_data, direct_lstm_input_data)
         dataset = self.CreateDataSet(inputTuple=inputTuple, output=regression_labels)
@@ -47,7 +47,7 @@ class UnitTestMultiDimensionalModel(unittest.TestCase):
         regression_labels      = np.random.randint(0, 3,                                           size=(self.num_samples, self.sequence_length, self.rnn_units))
         return_sequences = True
         dense_layer      = False
-        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(self.featureList, self.rnn_units, self.sequence_length, dense_layer = dense_layer, return_sequences = return_sequences, datatype = self.datatype)
+        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(self.featureList, self.rnn_units, self.sequence_length, return_sequences = return_sequences, datatype = self.datatype)
         model.compile(optimizer='adam', loss='mse') 
         inputTuple = (embedded_input_data, direct_lstm_input_data)
         dataset = self.CreateDataSet(inputTuple=inputTuple, output=regression_labels)
@@ -66,7 +66,7 @@ class UnitTestMultiDimensionalModel(unittest.TestCase):
         regression_labels      = np.random.randint(0, 3,                                           size=(self.num_samples, self.featureList[0]["vocab_size"] ))
         return_sequences = False
         dense_layer      = True
-        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(self.featureList, self.rnn_units, self.sequence_length, dense_layer = dense_layer, return_sequences = return_sequences, datatype = self.datatype)
+        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(self.featureList, self.rnn_units, self.sequence_length, return_sequences = return_sequences, datatype = self.datatype)
         model.compile(optimizer='adam', loss='mse') 
         inputTuple = (embedded_input_data, direct_lstm_input_data)
         dataset = self.CreateDataSet(inputTuple=inputTuple, output=regression_labels)
@@ -85,7 +85,7 @@ class UnitTestMultiDimensionalModel(unittest.TestCase):
         regression_labels      = np.random.randint(0, 3,                                           size=(self.num_samples, self.sequence_length, self.featureList[0]["vocab_size"] ))
         return_sequences = True
         dense_layer      = True
-        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(self.featureList, self.rnn_units, self.sequence_length, dense_layer = dense_layer, return_sequences = return_sequences, datatype = self.datatype)
+        model = MultiDimensionalModel.LSTMPrintfLogMultiModel(self.featureList, self.rnn_units, self.sequence_length, return_sequences = return_sequences, datatype = self.datatype)
         model.compile(optimizer='adam', loss='mse') 
         inputTuple = (embedded_input_data, direct_lstm_input_data)
         dataset = self.CreateDataSet(inputTuple=inputTuple, output=regression_labels)

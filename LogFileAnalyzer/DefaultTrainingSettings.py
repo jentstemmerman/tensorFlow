@@ -2,7 +2,6 @@ TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
                                 "returnState":True,
                                 "rnn_units":1024,
                                 "seq_length":32 ,
-                                "dense_layer": True,
                                 "return_states": True
                                 },
                       "EPOCHS":5,

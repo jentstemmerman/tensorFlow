@@ -1,104 +1,49 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Input, LayerNormalization, MultiHeadAttention, Dense, Dropout
+import numpy as np
+import keras
+import math
+from keras import layers
 
 
-class TransformerEncoderBlock(tf.keras.layers.Layer):
-    def __init__(self, num_attention_heads, inner_dim, dropout_rate=0.1, attention_dropout_rate=0.1, **kwargs):
-        super().__init__(**kwargs)
-        self.attention = tf.keras.layers.MultiHeadAttention(num_heads = num_attention_heads,
-                                                            key_dim   = inner_dim // num_attention_heads,
-                                                            dropout   = attention_dropout_rate)
-        self.dropout1 = tf.keras.layers.Dropout(dropout_rate)
-        self.norm1    = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+class TransformerModel(tf.keras.Model):
+    def __init__(self, featureList, sequence_length, return_sequences, datatype):
+        super().__init__()
+        self.numberOfFeatures = len(featureList)
+        self.embeddingDimension = 0
+        self.return_states    = return_sequences
+        self.featureList      = featureList
+        self.datatype         = datatype
+        self.embeddingDimensionList = self.CalculateEmbeddingDimensions(featureList)
 
-        self.dense1   = tf.keras.layers.Dense(inner_dim, activation='relu')
-        self.dense2   = tf.keras.layers.Dense(inner_dim)
-        self.dropout2 = tf.keras.layers.Dropout(dropout_rate)
-        self.norm2    = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+        self.input_layerList  = []
 
-    def call(self, inputs, training=False):
-        attention_output = self.attention(inputs, inputs)
-        attention_output = self.dropout1(attention_output, training=training)
-        attention_output = self.norm1(inputs + attention_output)
+    def CalculateEmbeddingDimensions(self, featureList):
+        embeddingDimension = []
+        total_output_dimensions = 0
 
-        dense_output = self.dense1(attention_output)
-        dense_output = self.dense2(dense_output)
-        dense_output = self.dropout2(dense_output, training=training)
-        encoded_output = self.norm2(attention_output + dense_output)
+        for i, feature in enumerate(featureList):
+            if (feature["embedded"] == True):
+                output_dimension = math.ceil(feature["vocab_size"]**0.25)
+            else:
+                output_dimension = 1
 
-        return encoded_output
+            embeddingDimension.append(output_dimension)
+            total_output_dimensions += output_dimension
+        print("Embedding dimensions:")
+        print(embeddingDimension)
+        return embeddingDimension
 
-class TransformerDecoderBlock(tf.keras.layers.Layer):
-    def __init__(self, num_attention_heads, inner_dim, dropout_rate=0.1, attention_dropout_rate=0.1, **kwargs):
-        super().__init__(**kwargs)
-        self.attention1 = MultiHeadAttention(num_heads=num_attention_heads,
-                                              key_dim=inner_dim // num_attention_heads,
-                                              dropout=attention_dropout_rate)
-        self.attention2 = MultiHeadAttention(num_heads=num_attention_heads,
-                                              key_dim=inner_dim // num_attention_heads,
-                                              dropout=attention_dropout_rate)
-        self.dropout1 = Dropout(dropout_rate)
-        self.norm1 = LayerNormalization(epsilon=1e-6)
-        self.dropout2 = Dropout(dropout_rate)
-        self.norm2 = LayerNormalization(epsilon=1e-6)
-        self.dropout3 = Dropout(dropout_rate)
-        self.norm3 = LayerNormalization(epsilon=1e-6)
-        self.dense1 = Dense(inner_dim, activation='relu')
-        self.dense2 = Dense(inner_dim)
-        self.dropout4 = Dropout(dropout_rate)
-        self.norm4 = LayerNormalization(epsilon=1e-6)
 
-    def call(self, inputs, encoder_outputs, training=False):
-        attention_output = self.attention1(inputs, inputs)
-        attention_output = self.dropout1(attention_output, training=training)
-        attention_output = self.norm1(inputs + attention_output)
+    def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
+        # Attention and Normalization
+        x = layers.MultiHeadAttention(key_dim=head_size, num_heads=num_heads, dropout=dropout)(inputs, inputs)
+        x = layers.Dropout(dropout)(x)
+        x = layers.LayerNormalization(epsilon=1e-6)(x)
+        res = x + inputs
 
-        attention2_output = self.attention2(attention_output, encoder_outputs)
-        attention2_output = self.dropout2(attention2_output, training=training)
-        attention2_output = self.norm2(attention_output + attention2_output)
-
-        dense_output = self.dense1(attention2_output)
-        dense_output = self.dense2(dense_output)
-        dense_output = self.dropout4(dense_output, training=training)
-        encoded_output = self.norm4(attention2_output + dense_output)
-
-        return encoded_output
-
-if __name__ == "__main__":    
-    # Define the input shapes
-    encoder_input_shape = (None, 512)  # (batch_size, sequence_length)
-    decoder_input_shape = (None, 64)   # (batch_size, sequence_length)
-
-    # Create input layers for encoder and decoder
-    encoder_inputs = Input(shape=encoder_input_shape)
-    decoder_inputs = Input(shape=decoder_input_shape)
-
-    # Create a TransformerEncoderBlock
-    encoder_block = TransformerEncoderBlock(
-        num_attention_heads=8,
-        inner_dim=512,
-        dropout_rate=0.1,
-        attention_dropout_rate=0.1,
-    )
-
-    # Pass encoder inputs through the encoder block
-    encoder_outputs = encoder_block(encoder_inputs)
-
-    # Create a TransformerDecoderBlock
-    decoder_block = TransformerDecoderBlock(
-        num_attention_heads=8,
-        inner_dim=512,
-        dropout_rate=0.1,
-        attention_dropout_rate=0.1,
-    )
-
-    # Pass decoder inputs and encoder outputs through the decoder block
-    decoder_outputs = decoder_block(decoder_inputs, encoder_outputs)
-
-    # Create encoder and decoder models
-    encoder_model = tf.keras.Model(inputs=encoder_inputs, outputs=encoder_outputs)
-    decoder_model = tf.keras.Model(inputs=[decoder_inputs, encoder_inputs], outputs=decoder_outputs)
-
-    # Display the models summaries
-    encoder_model.summary()
-    decoder_model.summary()
+        # Feed Forward Part
+        x = layers.Conv1D(filters=ff_dim, kernel_size=1, activation="relu")(res)
+        x = layers.Dropout(dropout)(x)
+        x = layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(x)
+        x = layers.LayerNormalization(epsilon=1e-6)(x)
+        return x + res

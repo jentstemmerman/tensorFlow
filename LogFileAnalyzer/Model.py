@@ -12,6 +12,7 @@ import worker
 import Logger
 import LogFileIterator
 import MultiDimensionalModel
+import TransformerModeTest1l
 import ModelCallbacks
 import neptune
 from neptune.integrations.tensorflow_keras import NeptuneCallback
@@ -65,8 +66,6 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
     mean_loss = tf.reduce_mean(batch_mean_losses)
 
     return mean_loss.numpy()
-
-
 
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
 
@@ -144,11 +143,16 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
         model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
                                                                 TrainingsParameter["Model"]["rnn_units"],
                                                                 TrainingsParameter["Model"]["seq_length"], 
-                                                                dense_layer = TrainingsParameter["Model"]["dense_layer"], 
                                                                 return_sequences = TrainingsParameter["Model"]["return_states"] , 
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
-        
-        loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
+    elif (modelSource["Network"] == "Transformer"):    
+        model = TransformerModeTest1l.TransformerMultiModel(     modelFeatureList, 
+                                                                TrainingsParameter["Model"]["rnn_units"],
+                                                                TrainingsParameter["Model"]["seq_length"], 
+                                                                return_sequences = TrainingsParameter["Model"]["return_states"] , 
+                                                                datatype = TrainingsParameter["DataTypeForTensors"])
+    
+    loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
 
     if (modelSource["Source"] == "NewModel"):
         model.compile(optimizer='adam', loss=loss_function)

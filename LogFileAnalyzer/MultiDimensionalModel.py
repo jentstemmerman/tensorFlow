@@ -110,7 +110,7 @@ def CalculateEmbeddingDimensions(featureList):
     return embeddingDimension
 
 class LSTMPrintfLogMultiModel(tf.keras.Model):
-    def __init__(self, featureList, rnn_units, sequence_length, dense_layer, return_sequences, datatype):
+    def __init__(self, featureList, rnn_units, sequence_length, return_sequences, datatype):
         super().__init__()
 
         activationFunctionForDenseLayerAfterLstm = None #"elu"  ## half as slow as None
@@ -193,7 +193,7 @@ if __name__ == '__main__':
     featureList.append({"embedded": False, "name": "output_2"})
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
     
-    model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, dense_layer = dense_layer, return_sequences = return_sequences, datatype = datatype)
+    model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, return_sequences = return_sequences, datatype = datatype)
 
     name0 = featureList[0]["name"]
     name1 = featureList[1]["name"]

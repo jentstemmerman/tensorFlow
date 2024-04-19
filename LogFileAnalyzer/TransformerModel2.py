@@ -54,17 +54,17 @@ y_test[y_test == -1] = 0
 
 
 class TransformerEncoder(keras.layers.Layer):
-    def __init__(self, head_size, num_heads, ff_dim, dropout=0):
+    def __init__(self, input_shape, head_size, num_heads, ff_dim, dropout=0):
         super(TransformerEncoder, self).__init__()
+        
         self.head_size = head_size
         self.num_heads = num_heads
-        self.ff_dim = ff_dim
-        self.dropout = dropout
+        self.ff_dim    = ff_dim
+        self.dropout   = dropout
 
-    def build(self, input_shape):
-        self.attention = layers.MultiHeadAttention(key_dim=self.head_size, num_heads=self.num_heads, dropout=self.dropout)
+        self.attention     = layers.MultiHeadAttention(key_dim=self.head_size, num_heads=self.num_heads, dropout=self.dropout)
         self.dropout_layer = layers.Dropout(self.dropout)
-        self.norm_layer = layers.LayerNormalization(epsilon=1e-6)
+        self.norm_layer    = layers.LayerNormalization(epsilon=1e-6)
         self.Conv1D_layer1 = layers.Conv1D(filters=self.ff_dim, kernel_size=1, activation="relu")
         self.Conv1D_layer2 = layers.Conv1D(filters=input_shape[-1], kernel_size=1)
     
@@ -92,13 +92,13 @@ class TransformerModel(keras.Model):
         self.mlp_units = mlp_units
         self.mlp_dropout = mlp_dropout
         self.dropout = dropout
-        self.instantiate()
+        self.instantiate(input_shape)
 
-    def instantiate(self):
+    def instantiate(self, input_shape):
         inputs = keras.Input(shape=self.input_dim)
         x = inputs
         for _ in range(self.num_transformer_blocks):
-            x = TransformerEncoder(head_size=self.head_size, num_heads=self.num_heads, ff_dim=self.ff_dim, dropout=self.dropout)(x)
+            x = TransformerEncoder(input_shape=input_shape, head_size=self.head_size, num_heads=self.num_heads, ff_dim=self.ff_dim, dropout=self.dropout)(x)
 
         x = layers.GlobalAveragePooling1D(data_format="channels_first", name="TooSmallOutput")(x)
         for dim in self.mlp_units:

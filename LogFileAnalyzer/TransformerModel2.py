@@ -65,7 +65,6 @@ class TransformerEncoder(keras.layers.Layer):
         self.attention = layers.MultiHeadAttention(key_dim=self.head_size, num_heads=self.num_heads, dropout=self.dropout)
         self.dropout_layer = layers.Dropout(self.dropout)
         self.norm_layer = layers.LayerNormalization(epsilon=1e-6)
-
         self.Conv1D_layer1 = layers.Conv1D(filters=self.ff_dim, kernel_size=1, activation="relu")
         self.Conv1D_layer2 = layers.Conv1D(filters=input_shape[-1], kernel_size=1)
     
@@ -93,9 +92,9 @@ class TransformerModel(keras.Model):
         self.mlp_units = mlp_units
         self.mlp_dropout = mlp_dropout
         self.dropout = dropout
-        self.build()
+        self.instantiate()
 
-    def build(self):
+    def instantiate(self):
         inputs = keras.Input(shape=self.input_dim)
         x = inputs
         for _ in range(self.num_transformer_blocks):
@@ -107,6 +106,20 @@ class TransformerModel(keras.Model):
             x = layers.Dropout(self.mlp_dropout)(x)
         outputs = layers.Dense(10, activation="softmax")(x)  # assuming 10 classes
         self.model = keras.Model(inputs, outputs)
+    
+    def call(self, inputs):
+        inputs = keras.Input(shape=self.input_dim)
+        x = inputs
+        for _ in range(self.num_transformer_blocks):
+            x = TransformerEncoder(head_size=self.head_size, num_heads=self.num_heads, ff_dim=self.ff_dim, dropout=self.dropout)(x)
+
+        x = layers.GlobalAveragePooling1D(data_format="channels_first", name="TooSmallOutput")(x)
+        for dim in self.mlp_units:
+            x = layers.Dense(dim, activation="relu", name="TooFewWeights")(x)
+            x = layers.Dropout(self.mlp_dropout)(x)
+        outputs = layers.Dense(10, activation="softmax")(x)  # assuming 10 classes
+        self.model = keras.Model(inputs, outputs)
+
 
     def compile(self, loss, optimizer, metrics):
         self.model.compile(loss=loss, optimizer=optimizer, metrics=metrics)

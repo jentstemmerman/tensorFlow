@@ -66,15 +66,18 @@ class TransformerEncoder(keras.layers.Layer):
         self.dropout_layer = layers.Dropout(self.dropout)
         self.norm_layer = layers.LayerNormalization(epsilon=1e-6)
 
+        self.Conv1D_layer1 = layers.Conv1D(filters=self.ff_dim, kernel_size=1, activation="relu")
+        self.Conv1D_layer2 = layers.Conv1D(filters=input_shape[-1], kernel_size=1)
+    
     def call(self, inputs):
         x = self.attention(inputs, inputs)
         x = self.dropout_layer(x)
         x = self.norm_layer(x)
         res = x + inputs
 
-        x = layers.Conv1D(filters=self.ff_dim, kernel_size=1, activation="relu")(res)
+        x = self.Conv1D_layer1(res)
         x = self.dropout_layer(x)
-        x = layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(x)
+        x = self.Conv1D_layer2(x)
         x = self.norm_layer(x)
         return x + res
 

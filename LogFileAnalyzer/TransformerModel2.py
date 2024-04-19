@@ -125,7 +125,7 @@ model = TransformerModel(
     dropout=0.25
 )
 
-#tf.config.run_functions_eagerly(True)  
+tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()
 model.compile(loss="sparse_categorical_crossentropy", optimizer=keras.optimizers.Adam(learning_rate=1e-4), metrics=["sparse_categorical_accuracy"])
 model.fit(x_train, y_train, validation_split=0.2, epochs=150, batch_size=64, callbacks=[keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)])

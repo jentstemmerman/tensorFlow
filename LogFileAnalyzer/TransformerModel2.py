@@ -52,70 +52,84 @@ y_train = y_train[idx]
 y_train[y_train == -1] = 0
 y_test[y_test == -1] = 0
 
-"""
-## Build the model
 
-Our model processes a tensor of shape `(batch size, sequence length, features)`,
-where `sequence length` is the number of time steps and `features` is each input
-timeseries.
+class TransformerEncoder(keras.layers.Layer):
+    def __init__(self, head_size, num_heads, ff_dim, dropout=0):
+        super(TransformerEncoder, self).__init__()
+        self.head_size = head_size
+        self.num_heads = num_heads
+        self.ff_dim = ff_dim
+        self.dropout = dropout
 
-You can replace your classification RNN layers with this one: the
-inputs are fully compatible!
+    def build(self, input_shape):
+        self.attention = layers.MultiHeadAttention(key_dim=self.head_size, num_heads=self.num_heads, dropout=self.dropout)
+        self.dropout_layer = layers.Dropout(self.dropout)
+        self.norm_layer = layers.LayerNormalization(epsilon=1e-6)
 
-We include residual connections, layer normalization, and dropout.
-The resulting layer can be stacked multiple times.
+    def call(self, inputs):
+        x = self.attention(inputs, inputs)
+        x = self.dropout_layer(x)
+        x = self.norm_layer(x)
+        res = x + inputs
 
-The projection layers are implemented through `keras.layers.Conv1D`.
-"""
-
-
-def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
-    # Attention and Normalization
-    x = layers.MultiHeadAttention(key_dim=head_size, num_heads=num_heads, dropout=dropout)(inputs, inputs)
-    x = layers.Dropout(dropout)(x)
-    x = layers.LayerNormalization(epsilon=1e-6)(x)
-    res = x + inputs
-
-    # Feed Forward Part
-    x = layers.Conv1D(filters=ff_dim, kernel_size=1, activation="relu")(res)
-    x = layers.Dropout(dropout)(x)
-    x = layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(x)
-    x = layers.LayerNormalization(epsilon=1e-6)(x)
-    return x + res
+        x = layers.Conv1D(filters=self.ff_dim, kernel_size=1, activation="relu")(res)
+        x = self.dropout_layer(x)
+        x = layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(x)
+        x = self.norm_layer(x)
+        return x + res
 
 
-"""
-The main part of our model is now complete. We can stack multiple of those
-`transformer_encoder` blocks and we can also proceed to add the final
-Multi-Layer Perceptron classification head. Apart from a stack of `Dense`
-layers, we need to reduce the output tensor of the `TransformerEncoder` part of
-our model down to a vector of features for each data point in the current
-batch. A common way to achieve this is to use a pooling layer. For
-this example, a `GlobalAveragePooling1D` layer is sufficient.
-"""
+class TransformerModel(keras.Model):
+    def __init__(self, input_shape, head_size, num_heads, ff_dim, num_transformer_blocks, mlp_units, mlp_dropout=0, dropout=0):
+        super(TransformerModel, self).__init__()
+        self.input_dim = input_shape
+        self.head_size = head_size
+        self.num_heads = num_heads
+        self.ff_dim = ff_dim
+        self.num_transformer_blocks = num_transformer_blocks
+        self.mlp_units = mlp_units
+        self.mlp_dropout = mlp_dropout
+        self.dropout = dropout
+        self.build()
 
+    def build(self):
+        inputs = keras.Input(shape=self.input_dim)
+        x = inputs
+        for _ in range(self.num_transformer_blocks):
+            x = TransformerEncoder(head_size=self.head_size, num_heads=self.num_heads, ff_dim=self.ff_dim, dropout=self.dropout)(x)
 
-def build_model(
-                    input_shape,
-                    head_size,
-                    num_heads,
-                    ff_dim,
-                    num_transformer_blocks,
-                    mlp_units,
-                    dropout=0,
-                    mlp_dropout=0,
-                ):
-    inputs = keras.Input(shape=input_shape)
-    x = inputs
-    for _ in range(num_transformer_blocks):
-        x = transformer_encoder(x, head_size, num_heads, ff_dim, dropout)
+        x = layers.GlobalAveragePooling1D(data_format="channels_first", name="TooSmallOutput")(x)
+        for dim in self.mlp_units:
+            x = layers.Dense(dim, activation="relu", name="TooFewWeights")(x)
+            x = layers.Dropout(self.mlp_dropout)(x)
+        outputs = layers.Dense(10, activation="softmax")(x)  # assuming 10 classes
+        self.model = keras.Model(inputs, outputs)
 
-    x = layers.GlobalAveragePooling1D(data_format="channels_first", name="TooSmallOutput")(x)
-    for dim in mlp_units:
-        x = layers.Dense(dim, activation="relu", name="TooFewWeights")(x)   # deze is veel te klein
-        x = layers.Dropout(mlp_dropout)(x)
-    outputs = layers.Dense(n_classes, activation="softmax")(x)
-    return keras.Model(inputs, outputs)
+    def compile(self, loss, optimizer, metrics):
+        self.model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
+
+    def fit(self, x_train, y_train, validation_split, epochs, batch_size, callbacks):
+        return self.model.fit(x_train, y_train, validation_split=validation_split, epochs=epochs, batch_size=batch_size, callbacks=callbacks)
+
+    def evaluate(self, x_test, y_test, verbose):
+        return self.model.evaluate(x_test, y_test, verbose=verbose)
+
+model = TransformerModel(
+    input_shape=x_train.shape[1:],
+    head_size=256,
+    num_heads=4,
+    ff_dim=4,
+    num_transformer_blocks=4,
+    mlp_units=[128],
+    mlp_dropout=0.4,
+    dropout=0.25
+)
+
+#tf.config.run_functions_eagerly(True)  
+#tf.data.experimental.enable_debug_mode()
+model.compile(loss="sparse_categorical_crossentropy", optimizer=keras.optimizers.Adam(learning_rate=1e-4), metrics=["sparse_categorical_accuracy"])
+model.fit(x_train, y_train, validation_split=0.2, epochs=150, batch_size=64, callbacks=[keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)])
+print(model.evaluate(x_test, y_test, verbose=1))
 
 
 """

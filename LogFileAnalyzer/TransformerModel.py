@@ -121,7 +121,7 @@ def build_model(
 """
 ## Train and evaluate
 """
-
+tf.config.run_functions_eagerly(True)  
 input_shape = x_train.shape[1:]
 
 print("x_Train shape:     ", x_train.shape)

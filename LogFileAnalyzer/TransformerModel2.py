@@ -68,16 +68,16 @@ class TransformerEncoder(keras.layers.Layer):
         self.Conv1D_layer1 = layers.Conv1D(filters=self.ff_dim, kernel_size=1, activation="relu")
         self.Conv1D_layer2 = layers.Conv1D(filters=input_shape[-1], kernel_size=1)
     
-    def call(self, inputs):
-        x = self.attention(inputs, inputs)
-        x = self.dropout_layer(x)
-        x = self.norm_layer(x)
+    def call(self, inputs, training=False):
+        x = self.attention(inputs, inputs, training=training)
+        x = self.dropout_layer(x, training=training)
+        x = self.norm_layer(x, training=training)
         res = x + inputs
 
-        x = self.Conv1D_layer1(res)
-        x = self.dropout_layer(x)
-        x = self.Conv1D_layer2(x)
-        x = self.norm_layer(x)
+        x = self.Conv1D_layer1(res, training=training)
+        x = self.dropout_layer(x, training=training)
+        x = self.Conv1D_layer2(x, training=training)
+        x = self.norm_layer(x, training=training)
         return x + res
 
 
@@ -92,43 +92,41 @@ class TransformerModel(keras.Model):
         self.mlp_units = mlp_units
         self.mlp_dropout = mlp_dropout
         self.dropout = dropout
-        self.instantiate(input_shape)
 
-    def instantiate(self, input_shape):
-        inputs = keras.Input(shape=self.input_dim)
-        x = inputs
-        for _ in range(self.num_transformer_blocks):
-            x = TransformerEncoder(input_shape=input_shape, head_size=self.head_size, num_heads=self.num_heads, ff_dim=self.ff_dim, dropout=self.dropout)(x)
+        #inputs = keras.Input(shape=self.input_dim)
+        #x = inputs
+        self.transformerEncoder = []
 
-        x = layers.GlobalAveragePooling1D(data_format="channels_first", name="TooSmallOutput")(x)
+        for i in range(self.num_transformer_blocks):
+            self.transformerEncoder.append(TransformerEncoder(input_shape=input_shape, head_size=self.head_size, num_heads=self.num_heads, ff_dim=self.ff_dim, dropout=self.dropout))
+
+        self.GlobalAveragePooling1DLayer = layers.GlobalAveragePooling1D(data_format="channels_first", name="TooSmallOutput")
+        
+        self.Dense = []
+        self.DropoutLayerList = []
         for dim in self.mlp_units:
-            x = layers.Dense(dim, activation="relu", name="TooFewWeights")(x)
-            x = layers.Dropout(self.mlp_dropout)(x)
-        outputs = layers.Dense(10, activation="softmax")(x)  # assuming 10 classes
-        self.model = keras.Model(inputs, outputs)
+            self.Dense.append(layers.Dense(dim, activation="relu", name="TooFewWeights"))
+            self.DropoutLayerList.append(layers.Dropout(self.mlp_dropout))
+        self.lastDenseLayer = layers.Dense(10, activation="softmax")  # assuming 10 classes
+        #self.model = keras.Model(inputs, outputs)
     
-    def call(self, inputs):
-        inputs = keras.Input(shape=self.input_dim)
+    def call(self, inputs, training=False):
+        #inputs = keras.Input(shape=self.input_dim)
         x = inputs
-        for _ in range(self.num_transformer_blocks):
-            x = TransformerEncoder(head_size=self.head_size, num_heads=self.num_heads, ff_dim=self.ff_dim, dropout=self.dropout)(x)
+        for i in range(self.num_transformer_blocks):
+            x = self.transformerEncoder[i](x, training=training)
 
-        x = layers.GlobalAveragePooling1D(data_format="channels_first", name="TooSmallOutput")(x)
-        for dim in self.mlp_units:
-            x = layers.Dense(dim, activation="relu", name="TooFewWeights")(x)
-            x = layers.Dropout(self.mlp_dropout)(x)
-        outputs = layers.Dense(10, activation="softmax")(x)  # assuming 10 classes
-        self.model = keras.Model(inputs, outputs)
+        x = self.GlobalAveragePooling1DLayer(x, training=training)
+        for index, dim in enumerate(self.mlp_units):
+            x = self.Dense[index](x)
+            x = self.DropoutLayerList[index](x)
+
+        outputs = self.lastDenseLayer(x)  # assuming 10 classes
+        return outputs
+        #self.model = keras.Model(inputs, outputs)
 
 
-    def compile(self, loss, optimizer, metrics):
-        self.model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
 
-    def fit(self, x_train, y_train, validation_split, epochs, batch_size, callbacks):
-        return self.model.fit(x_train, y_train, validation_split=validation_split, epochs=epochs, batch_size=batch_size, callbacks=callbacks)
-
-    def evaluate(self, x_test, y_test, verbose):
-        return self.model.evaluate(x_test, y_test, verbose=verbose)
 
 model = TransformerModel(
     input_shape=x_train.shape[1:],
@@ -141,7 +139,7 @@ model = TransformerModel(
     dropout=0.25
 )
 
-tf.config.run_functions_eagerly(True)  
+#tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()
 model.compile(loss="sparse_categorical_crossentropy", optimizer=keras.optimizers.Adam(learning_rate=1e-4), metrics=["sparse_categorical_accuracy"])
 model.fit(x_train, y_train, validation_split=0.2, epochs=150, batch_size=64, callbacks=[keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)])

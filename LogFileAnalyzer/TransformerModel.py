@@ -121,7 +121,7 @@ def build_model(
 """
 ## Train and evaluate
 """
-tf.config.run_functions_eagerly(True)  
+#tf.config.run_functions_eagerly(True)  
 input_shape = x_train.shape[1:]
 
 print("x_Train shape:     ", x_train.shape)
@@ -143,6 +143,7 @@ model.compile(
     optimizer=keras.optimizers.Adam(learning_rate=1e-4),
     metrics=["sparse_categorical_accuracy"],
 )
+
 model.summary()
 
 callbacks = [keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)]

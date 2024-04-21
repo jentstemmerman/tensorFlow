@@ -93,8 +93,6 @@ class TransformerModel(keras.Model):
         self.mlp_dropout = mlp_dropout
         self.dropout = dropout
 
-        #inputs = keras.Input(shape=self.input_dim)
-        #x = inputs
         self.transformerEncoder = []
 
         for i in range(self.num_transformer_blocks):
@@ -107,11 +105,11 @@ class TransformerModel(keras.Model):
         for dim in self.mlp_units:
             self.Dense.append(layers.Dense(dim, activation="relu", name="TooFewWeights"))
             self.DropoutLayerList.append(layers.Dropout(self.mlp_dropout))
+        
         self.lastDenseLayer = layers.Dense(10, activation="softmax")  # assuming 10 classes
-        #self.model = keras.Model(inputs, outputs)
+
     
     def call(self, inputs, training=False):
-        #inputs = keras.Input(shape=self.input_dim)
         x = inputs
         for i in range(self.num_transformer_blocks):
             x = self.transformerEncoder[i](x, training=training)
@@ -123,13 +121,12 @@ class TransformerModel(keras.Model):
 
         outputs = self.lastDenseLayer(x)  # assuming 10 classes
         return outputs
-        #self.model = keras.Model(inputs, outputs)
 
 
-
+input_shape = x_train.shape[1:],
 
 model = TransformerModel(
-    input_shape=x_train.shape[1:],
+    input_shape=input_shape,
     head_size=256,
     num_heads=4,
     ff_dim=4,
@@ -139,61 +136,12 @@ model = TransformerModel(
     dropout=0.25
 )
 
+callbacks = [keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)]
 #tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()
 model.compile(loss="sparse_categorical_crossentropy", optimizer=keras.optimizers.Adam(learning_rate=1e-4), metrics=["sparse_categorical_accuracy"])
+#model.build(input_shape=x_train.shape[1:])
+#model.summary()
 model.fit(x_train, y_train, validation_split=0.2, epochs=150, batch_size=64, callbacks=[keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)])
 print(model.evaluate(x_test, y_test, verbose=1))
-
-
-"""
-## Train and evaluate
-"""
-
-input_shape = x_train.shape[1:]
-
-print("x_Train shape:     ", x_train.shape)
-print("input_shape shape: ", input_shape)
-
-model = build_model(
-    input_shape,
-    head_size=256,
-    num_heads=4,
-    ff_dim=4,
-    num_transformer_blocks=4,
-    mlp_units=[128],
-    mlp_dropout=0.4,
-    dropout=0.25,
-)
-
-model.compile(
-    loss="sparse_categorical_crossentropy",
-    optimizer=keras.optimizers.Adam(learning_rate=1e-4),
-    metrics=["sparse_categorical_accuracy"],
-)
 model.summary()
-
-callbacks = [keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)]
-
-model.fit(
-    x_train,
-    y_train,
-    validation_split=0.2,
-    epochs=150,
-    batch_size=64,
-    callbacks=callbacks,
-)
-
-model.evaluate(x_test, y_test, verbose=1)
-
-"""
-## Conclusions
-
-In about 110-120 epochs (25s each on Colab), the model reaches a training
-accuracy of ~0.95, validation accuracy of ~84 and a testing
-accuracy of ~85, without hyperparameter tuning. And that is for a model
-with less than 100k parameters. Of course, parameter count and accuracy could be
-improved by a hyperparameter search and a more sophisticated learning rate
-schedule, or a different optimizer.
-
-"""

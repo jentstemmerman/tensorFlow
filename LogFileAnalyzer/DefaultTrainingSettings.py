@@ -1,4 +1,5 @@
-TrainingsParameter = {"Model": {"Network":"LSTMMultiModel",
+TrainingsParameter = {"Model": {#"Network":"LSTMMultiModel",
+                                "Network":"Transformer",
                                 "returnState":True,
                                 "rnn_units":1024,
                                 "seq_length":32 ,

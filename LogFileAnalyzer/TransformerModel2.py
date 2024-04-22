@@ -82,9 +82,10 @@ class TransformerEncoder(keras.layers.Layer):
 
 
 class TransformerModel(keras.Model):
-    def __init__(self, input_shape, head_size, num_heads, ff_dim, num_transformer_blocks, mlp_units, mlp_dropout=0, dropout=0):
+
+    def __init__(self, featureList, sequence_length, datatype, head_size, num_heads, ff_dim, num_transformer_blocks, mlp_units, mlp_dropout=0, dropout=0):
         super(TransformerModel, self).__init__()
-        self.input_dim = input_shape
+#        self.input_dim = input_shape
         self.head_size = head_size
         self.num_heads = num_heads
         self.ff_dim = ff_dim
@@ -92,56 +93,75 @@ class TransformerModel(keras.Model):
         self.mlp_units = mlp_units
         self.mlp_dropout = mlp_dropout
         self.dropout = dropout
+        self.numberOfFeatures = len(featureList)
+
+        import MultiDimensionalModel
+        embeddingDimensionList = MultiDimensionalModel.CalculateEmbeddingDimensions(featureList)
+
+        self.input_layerList  = []
+        self.numberOfInputsToLstm = 0
+
+        for i, feature in enumerate(featureList):
+
+            output_dimension = embeddingDimensionList[i]
+
+            if (feature["embedded"] == True):
+                input_layer = tf.keras.layers.Embedding(input_dim=feature["vocab_size"], output_dim=output_dimension, dtype=datatype)
+            else:
+                input_layer = MultiDimensionalModel.CustomIdentityLayer(datatype=datatype) 
+            
+            self.numberOfInputsToLstm += output_dimension
+            
+            self.input_layerList.append(input_layer)   
 
         self.transformerEncoder = []
 
         for i in range(self.num_transformer_blocks):
-            self.transformerEncoder.append(TransformerEncoder(input_shape=input_shape, head_size=self.head_size, num_heads=self.num_heads, ff_dim=self.ff_dim, dropout=self.dropout))
+            self.transformerEncoder.append(TransformerEncoder(input_shape=(None, sequence_length, self.numberOfInputsToLstm), head_size=self.head_size, num_heads=self.num_heads, ff_dim=self.ff_dim, dropout=self.dropout))
 
         self.GlobalAveragePooling1DLayer = layers.GlobalAveragePooling1D(data_format="channels_first", name="TooSmallOutput")
         
-        self.Dense = []
-        self.DropoutLayerList = []
-        for dim in self.mlp_units:
-            self.Dense.append(layers.Dense(dim, activation="relu", name="TooFewWeights"))
-            self.DropoutLayerList.append(layers.Dropout(self.mlp_dropout))
-        
-        self.lastDenseLayer = layers.Dense(10, activation="softmax")  # assuming 10 classes
+        self.output_layerList  = []
+        self.output_dropout_layerList  = []
+
+        for i, feature in enumerate(featureList):
+
+            layer_name = feature["layer_name"]
+
+            if (feature["embedded"] == True):
+                dense_output_layer = tf.keras.layers.Dense(units=feature["vocab_size"], name=layer_name, activation="relu")
+            else:
+                dense_output_layer = MultiDimensionalModel.CustomDenseLayer(100, 1) # TODO, fix the 100
+            output_dropout_layer = layers.Dropout(mlp_dropout)
+            self.output_dropout_layerList.append(output_dropout_layer)  
+            self.output_layerList.append(dense_output_layer)  
 
     
     def call(self, inputs, training=False):
+
         x = inputs
+        input_outputs = []
+        
+        for i, input_layer in enumerate(self.input_layerList):
+            input_to_layer = inputs[:, :, i]
+            output = input_layer(input_to_layer, training = training)
+            input_outputs.append(output)
+
+        concatenated_inputs = tf.keras.layers.concatenate(input_outputs, axis=-1)
+
+        x = concatenated_inputs
+
         for i in range(self.num_transformer_blocks):
             x = self.transformerEncoder[i](x, training=training)
 
         x = self.GlobalAveragePooling1DLayer(x, training=training)
-        for index, dim in enumerate(self.mlp_units):
-            x = self.Dense[index](x)
-            x = self.DropoutLayerList[index](x)
 
-        outputs = self.lastDenseLayer(x)  # assuming 10 classes
-        return outputs
+        output_List = []
+        for index in range(self.numberOfFeatures):
+            output = self.output_layerList[index](x)
+            output = self.output_dropout_layerList[index](output)
+            output_List.append(output)
 
+        return output_List
 
-input_shape = x_train.shape[1:],
-
-model = TransformerModel(
-    input_shape=input_shape,
-    head_size=256,
-    num_heads=4,
-    ff_dim=4,
-    num_transformer_blocks=4,
-    mlp_units=[128],
-    mlp_dropout=0.4,
-    dropout=0.25
-)
-
-callbacks = [keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)]
-#tf.config.run_functions_eagerly(True)  
-#tf.data.experimental.enable_debug_mode()
-model.compile(loss="sparse_categorical_crossentropy", optimizer=keras.optimizers.Adam(learning_rate=1e-4), metrics=["sparse_categorical_accuracy"])
-#model.build(input_shape=x_train.shape[1:])
-#model.summary()
-model.fit(x_train, y_train, validation_split=0.2, epochs=150, batch_size=64, callbacks=[keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)])
-print(model.evaluate(x_test, y_test, verbose=1))
-model.summary()
+#

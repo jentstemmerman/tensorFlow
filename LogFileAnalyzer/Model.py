@@ -12,7 +12,7 @@ import worker
 import Logger
 import LogFileIterator
 import MultiDimensionalModel
-import TransformerModeTest1l
+import TransformerModel2
 import ModelCallbacks
 import neptune
 from neptune.integrations.tensorflow_keras import NeptuneCallback
@@ -146,11 +146,19 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 return_sequences = TrainingsParameter["Model"]["return_states"] , 
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
     elif (modelSource["Network"] == "Transformer"):    
-        model = TransformerModeTest1l.TransformerMultiModel(     modelFeatureList, 
-                                                                TrainingsParameter["Model"]["rnn_units"],
+
+        model = TransformerModel2.TransformerModel(
+                                                                modelFeatureList, 
                                                                 TrainingsParameter["Model"]["seq_length"], 
-                                                                return_sequences = TrainingsParameter["Model"]["return_states"] , 
-                                                                datatype = TrainingsParameter["DataTypeForTensors"])
+                                                                datatype = TrainingsParameter["DataTypeForTensors"], 
+                                                                head_size=256,
+                                                                num_heads=4,
+                                                                ff_dim=4,
+                                                                num_transformer_blocks=4,
+                                                                mlp_units=[128],
+                                                                mlp_dropout=0.4,
+                                                                dropout=0.25
+                                                   )
     
     loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
 

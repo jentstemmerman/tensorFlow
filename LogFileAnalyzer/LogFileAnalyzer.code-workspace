@@ -88,6 +88,14 @@
 				"cwd": "${workspaceFolder}",
 			},
 			{
+				"name": "Python Debugger: TransformerPrediction",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/TransformerPredictionModel.py",
+				"console": "integratedTerminal",
+				"cwd": "${workspaceFolder}",
+			},
+			{
 				"name": "Python Debugger: UnitTestMultiDimensionalModel",
 				"type": "debugpy",
 				"request": "launch",

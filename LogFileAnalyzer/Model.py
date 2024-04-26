@@ -12,7 +12,7 @@ import worker
 import Logger
 import LogFileIterator
 import MultiDimensionalModel
-import TransformerModel2
+import TransformerClassificationModel
 import ModelCallbacks
 import neptune
 from neptune.integrations.tensorflow_keras import NeptuneCallback
@@ -147,7 +147,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
     elif (modelSource["Network"] == "Transformer"):    
 
-        model = TransformerModel2.TransformerModel(
+        model = TransformerClassificationModel.TransformerModel(
                                                                 modelFeatureList, 
                                                                 TrainingsParameter["Model"]["seq_length"], 
                                                                 datatype = TrainingsParameter["DataTypeForTensors"], 

@@ -1,27 +1,4 @@
-"""
-Title: Timeseries classification with a Transformer model
-Author: [Theodoros Ntakouris](https://github.com/ntakouris)
-Date created: 2021/06/25
-Last modified: 2021/08/05
-Description: This notebook demonstrates how to do timeseries classification using a Transformer model.
-Accelerator: GPU
-"""
 
-"""
-## Introduction
-
-This is the Transformer architecture from
-[Attention Is All You Need](https://arxiv.org/abs/1706.03762),
-applied to timeseries instead of natural language.
-
-This example requires TensorFlow 2.4 or higher.
-
-## Load the dataset
-
-We are going to use the same dataset and preprocessing as the
-[TimeSeries Classification from Scratch](https://keras.io/examples/timeseries/timeseries_classification_from_scratch)
-example.
-"""
 import tensorflow as tf
 import numpy as np
 import keras

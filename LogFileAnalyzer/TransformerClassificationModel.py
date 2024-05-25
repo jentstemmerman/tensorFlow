@@ -131,11 +131,11 @@ class TransformerModel(keras.Model):
         for i in range(self.num_transformer_blocks):
             x = self.transformerEncoder[i](x, training=training)
 
-        x = self.GlobalAveragePooling1DLayer(x, training=training)
+        pooling_output = self.GlobalAveragePooling1DLayer(x, training=training)   # dit gaat van (32,32,29) naar (32,32)  ??? Deze laag neemt gewoon het gemiddelde van alle features (np.average(x[1,1,:]) == pooling_output[1,1])
 
         output_List = []
         for index in range(self.numberOfFeatures):
-            output = self.output_layerList[index](x)
+            output = self.output_layerList[index](pooling_output)
             output = self.output_dropout_layerList[index](output)
             output_List.append(output)
 

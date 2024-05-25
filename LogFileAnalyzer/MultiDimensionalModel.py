@@ -18,7 +18,15 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
     embeddedList = tf.convert_to_tensor(embeddedList, dtype=tf.bool)
     print(embeddedList)
 
-    # we krijgen elke keer alle features van output true, maar maar 1 feature per call van output predicted. De totale loss wordt buiten deze functie berekend. 
+    # We krijgen elke keer alle features van output true, maar maar 1 feature per call van output predicted. De totale loss wordt buiten deze functie berekend. 
+    # Voor LSTM: 
+    # output_true.shape                = (32,32,4)
+    # feature_output_predicted.shape   = (32,32,12530)
+    #
+    # voor Transformer:
+    # output_true.shape                = (32,32,4)
+    # feature_output_predicted.shape   = (32, 12530)
+
     @tf.function
     def custom_multi_output_loss_jents(output_true, feature_output_predicted):
         nonlocal counterBadStuff

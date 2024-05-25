@@ -232,7 +232,7 @@ if __name__ == "__main__":
     loadCheckPoint        = 2
 
     tf.config.run_functions_eagerly(True)  
-    #tf.data.experimental.enable_debug_mode()    
+    tf.data.experimental.enable_debug_mode()    
 
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
 

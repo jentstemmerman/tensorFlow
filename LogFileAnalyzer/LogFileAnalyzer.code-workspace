@@ -80,10 +80,10 @@
 				"cwd": "${workspaceFolder}",
 			},
 			{
-				"name": "Python Debugger: TransformerTest2",
+				"name": "Python Debugger: Transformer",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/TransformerModel2.py",
+				"program": "${workspaceFolder}/Transformer.py",
 				"console": "integratedTerminal",
 				"cwd": "${workspaceFolder}",
 			},

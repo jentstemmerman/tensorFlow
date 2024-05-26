@@ -558,62 +558,62 @@ class Transformer(tf.keras.Model):
     # Return the final output and the attention weights.
     return logits
 
-tf.config.run_functions_eagerly(True)  
-tf.data.experimental.enable_debug_mode()    
+#tf.config.run_functions_eagerly(True)  
+#tf.data.experimental.enable_debug_mode()    
+if __name__ == "__main__":
+  num_layers = 4
+  d_model = 128
+  dff = 512
+  num_heads = 8
+  dropout_rate = 0.1
 
-num_layers = 4
-d_model = 128
-dff = 512
-num_heads = 8
-dropout_rate = 0.1
+  # Parameters
+  num_samples = 500
+  max_seq_length = 50
+  input_vocab_size = 1000
+  target_vocab_size = 1100
+  epochs = 10
 
-# Parameters
-num_samples = 500
-max_seq_length = 50
-input_vocab_size = 1000
-target_vocab_size = 1000
-epochs = 10
-
-transformer = Transformer(
-    num_layers=num_layers,
-    d_model=d_model,
-    num_heads=num_heads,
-    dff=dff,
-    input_vocab_size=input_vocab_size,       #tokenizers.pt.get_vocab_size().numpy(),
-    target_vocab_size=target_vocab_size,     #tokenizers.en.get_vocab_size().numpy(),
-    dropout_rate=dropout_rate)
-
-
-# Generate random sequences for input and target
-input_sequences = np.random.randint(0, input_vocab_size, (num_samples, max_seq_length))
-target_sequences = np.random.randint(0, target_vocab_size, (num_samples, max_seq_length))
-
-output_transformer = transformer((input_sequences, target_sequences))
+  transformer = Transformer(
+      num_layers=num_layers,
+      d_model=d_model,
+      num_heads=num_heads,
+      dff=dff,
+      input_vocab_size=input_vocab_size,       #tokenizers.pt.get_vocab_size().numpy(),
+      target_vocab_size=target_vocab_size,     #tokenizers.en.get_vocab_size().numpy(),
+      dropout_rate=dropout_rate)
 
 
-trainingData = ((input_sequences, target_sequences),(input_sequences, target_sequences))
-# Convert to TensorFlow datasets
-dataset = tf.data.Dataset.from_tensor_slices(trainingData)
+  # Generate random sequences for input and target
+  input_sequences = np.random.randint(0, input_vocab_size, (num_samples, max_seq_length))
+  target_sequences = np.random.randint(0, target_vocab_size, (num_samples, max_seq_length))
 
-# Print some samples to verify
-for input_example, target_example in dataset.take(1):
-    print("Input sequence: ", input_example)
-    print("Target sequence:", target_example)
+  output_transformer = transformer((input_sequences, target_sequences))
 
-# Prepare the dataset for training
-# (e.g., shuffling, batching)
-BATCH_SIZE = 64
-BUFFER_SIZE = 20000
 
-datasetForTraining = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True)
+  trainingData = ((input_sequences, target_sequences), (target_sequences))
+  # Convert to TensorFlow datasets
+  dataset = tf.data.Dataset.from_tensor_slices(trainingData)
 
-loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
-transformer.compile(optimizer='adam', loss=loss)
+  # Print some samples to verify
+  for input_example, target_example in dataset.take(1):
+      print("Input sequence: ", input_example)
+      print("Target sequence:", target_example)
 
-print(transformer.summary())
+  # Prepare the dataset for training
+  # (e.g., shuffling, batching)
+  BATCH_SIZE = 64
+  BUFFER_SIZE = 20000
 
-history = transformer.fit(datasetForTraining, epochs=epochs)
-print("Done")
+  datasetForTraining = dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True)
+
+  loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+  transformer.compile(optimizer='adam', loss=loss)
+
+  print(transformer.summary())
+
+  history = transformer.fit(datasetForTraining, epochs=epochs)
+  print("Done")
 
 
 

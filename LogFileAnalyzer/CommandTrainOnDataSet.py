@@ -48,7 +48,7 @@ if __name__ == "__main__":
     tf.config.run_functions_eagerly(True)  
     tf.data.experimental.enable_debug_mode()    
 
-    TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
+    TrainingsParameter   = DefaultTrainingSettings.TrainingsParameter
     itemList             = TokenParser.GetItemListToSearchFor(itemFile)
     id_from_tokenList, _ = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList, OutputVocabularyDirectory=None)  
 

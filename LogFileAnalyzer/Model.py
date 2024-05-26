@@ -12,7 +12,7 @@ import worker
 import Logger
 import LogFileIterator
 import MultiDimensionalModel
-import TransformerClassificationModel
+import Transformer
 import ModelCallbacks
 import neptune
 from neptune.integrations.tensorflow_keras import NeptuneCallback
@@ -146,19 +146,24 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 return_sequences = TrainingsParameter["Model"]["return_states"] , 
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
     elif (modelSource["Network"] == "Transformer"):    
+        num_layers = 4
+        d_model = 128
+        dff = 512
+        num_heads = 8
+        dropout_rate = 0.1
 
-        model = TransformerClassificationModel.TransformerModel(
-                                                                modelFeatureList, 
-                                                                TrainingsParameter["Model"]["seq_length"], 
-                                                                datatype = TrainingsParameter["DataTypeForTensors"], 
-                                                                head_size=256,
-                                                                num_heads=4,
-                                                                ff_dim=4,
-                                                                num_transformer_blocks=4,
-                                                                mlp_units=[128],
-                                                                mlp_dropout=0.4,
-                                                                dropout=0.25
-                                                   )
+        # Parameters, only one feature supported yet (don't know whether it will ever be possible)
+        input_vocab_size = modelFeatureList[0]["vocab_size"]
+        target_vocab_size = modelFeatureList[0]["vocab_size"]
+
+        model = Transformer.Transformer(
+            num_layers=num_layers,
+            d_model=d_model,
+            num_heads=num_heads,
+            dff=dff,
+            input_vocab_size=input_vocab_size,       
+            target_vocab_size=target_vocab_size,     
+            dropout_rate=dropout_rate)
     
     loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
 

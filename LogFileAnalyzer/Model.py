@@ -161,7 +161,6 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
     elif (modelSource["Source"]  == "FromFile"):
         ModelDirectory = modelSource["ModelDirectory"]
         model = tf.keras.models.load_model(ModelDirectory, compile=False )
-        loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
         model.compile(optimizer='adam', loss=loss_function)
 
    

@@ -19,6 +19,12 @@ def TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, batch_
     datasetForTraining = Dataset.PrepareDataSetForTraining(datasetForTraining, batch_size, shuffle=False, buffer_size=TrainingsParameter["BUFFER_SIZE"])
     model = Model.TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpointDir)
     
+    model.summary() 
+    
+    for var in model.trainable_variables:
+        print(var.name, var.shape)
+
+        
     try:
         model.save(TrainedModelDir)
     except:

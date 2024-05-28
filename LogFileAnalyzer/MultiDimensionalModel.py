@@ -48,8 +48,6 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
 
             feature_output_loss = tf.keras.losses.mean_squared_error(feature_output_true_masked, feature_output_predicted_masked)
                 
-
-
         featureIndex = (featureIndex + 1) % numberOfFeatures
 
         return feature_output_loss

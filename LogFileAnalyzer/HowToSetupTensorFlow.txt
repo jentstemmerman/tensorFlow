@@ -30,3 +30,10 @@ pip install tensorflow[and-cuda]
 
 Make sure to install the same version!!! The new version of tensorflow has many problems
 See SystemSpecs.txt
+
+How to start over: 
+
+pip freeze --user > requirements.txt
+pip uninstall -r requirements.txt -y
+pip install -U tensorflow[and-cuda]==2.14.0
+install other packages ( when they give an error )

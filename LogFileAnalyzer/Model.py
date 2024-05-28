@@ -164,11 +164,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
         loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
         model.compile(optimizer='adam', loss=loss_function)
 
-    model.summary() 
-    
-    for var in model.trainable_variables:
-        print(var.name, var.shape)
-    
+   
     return model
 
 def TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpointDir, TrainingLogFile=None):

@@ -28,16 +28,15 @@ def GetMaskValue(featureIndex, id_from_tokenList):
 
 
 def CreateDataSetOfMarker(sample, id_from_tokenList, DataTypeForTensors):
-    input_shape     = sample[0].shape
-    numberOfeatures = sample[0].shape[1]
+    input_shape     = sample[-1].shape
+    numberOfeatures = sample[-1].shape[1]
     
     new_shape = tf.concat([[input_shape[0] + 1], input_shape[1:]], axis=0) # maak een shape die 1 meer is in de eerste dimensie
     
-    numberOfeatures = sample[0].shape[1] 
 
     assert(numberOfeatures == len(id_from_tokenList))
 
-    sequenceLength  = [sample[0].shape[0] + 1]
+    sequenceLength  = [sample[-1].shape[0] + 1]
     maskList        = []
 
     for featureIndex, id_from_token in enumerate(id_from_tokenList):
@@ -137,8 +136,8 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
                                     removeDuplicates=False, 
                                     num_parallel_calls=10, 
                                     verbose=False)
-
-    dataset = SetMarkerAtDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
+    print("temporary disabled SetMarkerAtDataSetEdge because not compatible with transformer input, TODO: fix this Jents!")
+    #dataset = SetMarkerAtDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
     print("Saving dataset " + os.path.basename(InputFile) + "...\n")
     Dataset.SaveDataset(dataset, outputDatasetFile.strip())
     print("Dataset " + os.path.basename(InputFile) + " saved.\n")
@@ -193,7 +192,7 @@ def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenLi
         PrintDataset(datasetfast, 10)
 
     datasetfast = datasetfast.map(lambda x: tf.cast(x, DataTypeForTensors))
-    datasetfast = datasetfast.map(TokenParser.split_input_target) 
+    datasetfast = datasetfast.map(TokenParser.split_input_target_transformer) 
        
     return datasetfast
 

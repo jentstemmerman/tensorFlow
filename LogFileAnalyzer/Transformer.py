@@ -44,7 +44,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
       call(x): This method performs the computation for the layer.
 
   """
-  def __init__(self, vocab_size, d_model):
+  def __init__(self, vocab_size, d_model, seq_length):
     """
     Initializes the PositionalEmbedding layer.
 
@@ -55,7 +55,8 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     super().__init__()
     self.d_model = d_model
     self.embedding = tf.keras.layers.Embedding(vocab_size, d_model, mask_zero=True)
-    self.pos_encoding = positional_encoding(length=2048, depth=d_model)
+    self.pos_encoding = positional_encoding(length=seq_length, depth=d_model)
+    print(self.pos_encoding.shape)
 
   def compute_mask(self, *args, **kwargs):
     """
@@ -69,6 +70,8 @@ class PositionalEmbedding(tf.keras.layers.Layer):
         Mask to be applied to the embeddings.
     """
     return self.embedding.compute_mask(*args, **kwargs)
+  
+
 
   def call(self, x):
     """
@@ -321,14 +324,14 @@ class Encoder(tf.keras.layers.Layer):
     `(batch_size, seq_len, d_model)`.
   """
   def __init__(self, *, num_layers, d_model, num_heads,
-               dff, vocab_size, dropout_rate=0.1):
+               dff, vocab_size, seq_length, dropout_rate=0.1):
     super().__init__()
 
     self.d_model = d_model
     self.num_layers = num_layers
 
     self.pos_embedding = PositionalEmbedding(
-        vocab_size=vocab_size, d_model=d_model)
+        vocab_size=vocab_size, seq_length=seq_length, d_model=self.d_model)
 
     self.enc_layers = [
         EncoderLayer(d_model=d_model,
@@ -444,15 +447,15 @@ class Decoder(tf.keras.layers.Layer):
       Returns:
         ndarray: A tensor of shape (batch_size, target_seq_len, d_model), representing the output from the decoder layers.
   """
-  def __init__(self, *, num_layers, d_model, num_heads, dff, vocab_size,
+  def __init__(self, *, num_layers, d_model, num_heads, dff, vocab_size, seq_length,
                dropout_rate=0.1):
     super(Decoder, self).__init__()
 
     self.d_model = d_model
     self.num_layers = num_layers
 
-    self.pos_embedding = PositionalEmbedding(vocab_size=vocab_size,
-                                             d_model=d_model)
+    self.pos_embedding = PositionalEmbedding(vocab_size=vocab_size, 
+                                             d_model=d_model, seq_length=seq_length)
     self.dropout = tf.keras.layers.Dropout(dropout_rate)
     self.dec_layers = [
         DecoderLayer(d_model=d_model, num_heads=num_heads,
@@ -510,19 +513,43 @@ class Transformer(tf.keras.Model):
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
   def __init__(self, *, num_layers, d_model, num_heads, dff,
-               input_vocab_size, target_vocab_size, dropout_rate=0.1):
+               input_vocab_size, target_vocab_size, featureList, seq_length, dropout_rate=0.1):
     super().__init__()
+
+    d_model=self.CalculateEmbeddingDimensions(featureList)[0]                # to be fixed for multifeature
+    
     self.encoder = Encoder(num_layers=num_layers, d_model=d_model,
                            num_heads=num_heads, dff=dff,
-                           vocab_size=input_vocab_size,
+                           vocab_size=input_vocab_size,  seq_length=seq_length,
                            dropout_rate=dropout_rate)
 
     self.decoder = Decoder(num_layers=num_layers, d_model=d_model,
                            num_heads=num_heads, dff=dff,
-                           vocab_size=target_vocab_size,
+                           vocab_size=target_vocab_size, seq_length=seq_length,
                            dropout_rate=dropout_rate)
 
     self.final_layer = tf.keras.layers.Dense(target_vocab_size)
+
+  def CalculateEmbeddingDimensions(self,featureList):
+    embeddingDimension = []
+    total_output_dimensions = 0
+
+    for i, feature in enumerate(featureList):
+        if (feature["embedded"] == True):
+            import math
+            output_dimension = math.ceil(feature["vocab_size"]**0.25)
+        else:
+            output_dimension = 1
+
+        # the positional encoder heeft een getal deelbaar door 2 nodig
+        if (output_dimension % 2 == 1):
+            output_dimension += 1
+        
+        embeddingDimension.append(output_dimension)
+        total_output_dimensions += output_dimension
+    print("Embedding dimensions:")
+    print(embeddingDimension)
+    return embeddingDimension
   
   #@tf.function
   def call(self, inputs):
@@ -540,7 +567,9 @@ class Transformer(tf.keras.Model):
     # To use a Keras model with `.fit` you must pass all your inputs in the
     # first argument.
     context, x  = inputs
-
+   
+    x = tf.squeeze(x, axis=-1)
+    context = tf.squeeze(context, axis=-1)
     context = self.encoder(context)  # (batch_size, context_len, d_model)
 
     x = self.decoder(x, context)  # (batch_size, target_len, d_model)
@@ -557,6 +586,60 @@ class Transformer(tf.keras.Model):
 
     # Return the final output and the attention weights.
     return logits
+  
+
+
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+  """
+  Custom learning rate schedule that implements the learning rate function
+  described in the original Transformer paper. The learning rate is increased
+  linearly for the first `warmup_steps` training steps, and then decreased
+  proportionally to the inverse square root of the step number.
+
+  Args:
+    d_model (int): the dimensionality of the model.
+    warmup_steps (int): the number of steps taken to increase the learning rate
+      linearly. Default is 4000.
+
+  Attributes:
+    d_model (float): the dimensionality of the model as a float.
+    warmup_steps (int): the number of steps taken to increase the learning rate
+      linearly.
+
+  Methods:
+    __call__(step): returns the learning rate at the given step.
+
+  Returns:
+    The learning rate at the given step.
+  """
+  def __init__(self, d_model, warmup_steps=4000):
+    super().__init__()
+
+    self.d_model = d_model
+    self.d_model = tf.cast(self.d_model, tf.float32)
+
+    self.warmup_steps = warmup_steps
+
+  def __call__(self, step):
+    """
+    Returns the learning rate at the given step.
+
+    Args:
+      step (int): the current training step.
+
+    Returns:
+      The learning rate at the given step as a float32 tensor.
+    """
+    step = tf.cast(step, dtype=tf.float32)
+    arg1 = tf.math.rsqrt(step)
+    arg2 = step * (self.warmup_steps ** -1.5)
+
+    return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+
+
+
+
+
 
 #tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()    
@@ -581,6 +664,7 @@ if __name__ == "__main__":
       dff=dff,
       input_vocab_size=input_vocab_size,       #tokenizers.pt.get_vocab_size().numpy(),
       target_vocab_size=target_vocab_size,     #tokenizers.en.get_vocab_size().numpy(),
+      featureList=None,
       dropout_rate=dropout_rate)
 
 

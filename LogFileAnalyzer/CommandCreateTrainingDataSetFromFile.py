@@ -45,6 +45,6 @@ if __name__ == "__main__":
 
     datasetFromFile = CreateTrainingDatasetFromFile(InputFile, itemFile, OriginalTokenFileDirectory, TrainingsParameter)
 
-    Dataset.SetMarkerAtDataSetEdge(datasetFromFile, 1, TrainingsParameter["DataTypeForTensors"])
+    Dataset.SetMarkerAtDataSetEdge(datasetFromFile, 1, TrainingsParameter["DataTypeForTensors"])  
 
     Dataset.SaveDataset(datasetFromFile, DatasetFile.strip())

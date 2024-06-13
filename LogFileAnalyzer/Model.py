@@ -162,7 +162,9 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
             num_heads=num_heads,
             dff=dff,
             input_vocab_size=input_vocab_size,       
-            target_vocab_size=target_vocab_size,     
+            target_vocab_size=target_vocab_size,    
+            featureList=modelFeatureList, 
+            seq_length=TrainingsParameter["Model"]["seq_length"],
             dropout_rate=dropout_rate)
     
     loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  

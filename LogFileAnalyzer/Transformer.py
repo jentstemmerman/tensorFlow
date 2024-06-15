@@ -516,7 +516,7 @@ class Transformer(tf.keras.Model):
                input_vocab_size, target_vocab_size, featureList, seq_length, dropout_rate=0.1):
     super().__init__()
 
-    d_model=self.CalculateEmbeddingDimensions(featureList)[0]                # to be fixed for multifeature
+    
     
     self.encoder = Encoder(num_layers=num_layers, d_model=d_model,
                            num_heads=num_heads, dff=dff,
@@ -530,7 +530,7 @@ class Transformer(tf.keras.Model):
 
     self.final_layer = tf.keras.layers.Dense(target_vocab_size)
 
-  def CalculateEmbeddingDimensions(self,featureList):
+  def CalculateEmbeddingDimensions(featureList):
     embeddingDimension = []
     total_output_dimensions = 0
 
@@ -636,9 +636,13 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 
     return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
 
+  def get_config(self):
 
-
-
+    return {"d_model": self.d_model, "warmup_steps":self.warmup_steps}
+  
+  @classmethod
+  def from_config(cls, config):
+      return cls(**config)
 
 
 #tf.config.run_functions_eagerly(True)  

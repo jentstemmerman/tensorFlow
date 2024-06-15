@@ -52,7 +52,7 @@
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/out/Training", 
 						 "/home/jents/AI/TrainingSet4/",
-						 "1", 
+						 "13", 
 						 "/home/jents/AI/TrainingSet4/out/dataset_dir"], 
 
 				"cwd": "${workspaceFolder}",

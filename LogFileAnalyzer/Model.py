@@ -145,13 +145,15 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 TrainingsParameter["Model"]["seq_length"], 
                                                                 return_sequences = TrainingsParameter["Model"]["return_states"] , 
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
+        optimizer = 'adam'
     elif (modelSource["Network"] == "Transformer"):    
-        num_layers = 4
+        num_layers = 6
         d_model = 128
         dff = 512
-        num_heads = 8
+        num_heads = 16
         dropout_rate = 0.1
 
+        d_model=Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
         # Parameters, only one feature supported yet (don't know whether it will ever be possible)
         input_vocab_size = modelFeatureList[0]["vocab_size"]
         target_vocab_size = modelFeatureList[0]["vocab_size"]
@@ -166,22 +168,28 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
             featureList=modelFeatureList, 
             seq_length=TrainingsParameter["Model"]["seq_length"],
             dropout_rate=dropout_rate)
+        
+        learning_rate = Transformer.CustomSchedule(d_model)
+
+        optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
+                                     epsilon=1e-9)
     
     loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
 
+
     if (modelSource["Source"] == "NewModel"):
-        model.compile(optimizer='adam', loss=loss_function)
+        model.compile(optimizer=optimizer, loss=loss_function)
 
     elif (modelSource["Source"]  == "FromCheckpoint"):
         checkpointPath        = modelSource["CheckpointPath"] + os.path.sep + "ckpt_" + str(modelSource["CheckpointNumber"])
-        model.compile(optimizer='adam', loss=loss_function)
+        model.compile(optimizer=optimizer, loss=loss_function)
         model.load_weights(checkpointPath)
 
     elif (modelSource["Source"]  == "FromFile"):
         ModelDirectory = modelSource["ModelDirectory"]
         model = tf.keras.models.load_model(ModelDirectory, compile=False )
         loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
-        model.compile(optimizer='adam', loss=loss_function)
+        model.compile(optimizer=optimizer, loss=loss_function)
 
     return model
 
@@ -219,8 +227,8 @@ def TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpoint
 
     neptune_callback = NeptuneCallback(run=run) 
 
-    history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, neptune_callback,TrainBatchEnd_callback ])
-    
+    #history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback,  ])
+    history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])
     sys.stdout = sys.__stdout__
 
     return model

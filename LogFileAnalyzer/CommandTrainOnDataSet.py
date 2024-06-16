@@ -5,7 +5,7 @@ import os
 import Model
 import tensorflow as tf
 
-def TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, batch_size, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter):
+def TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter):
 
     modelFeatureList = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
     maskValueList    = Model.GetMaskValueList(id_from_tokenList)
@@ -16,7 +16,7 @@ def TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, batch_
     assert(model is not None)
     
     datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())   
-    datasetForTraining = Dataset.PrepareDataSetForTraining(datasetForTraining, batch_size, shuffle=False, buffer_size=TrainingsParameter["BUFFER_SIZE"])
+    datasetForTraining = Dataset.PrepareDataSetForTraining(datasetForTraining, TrainingsParameter["BatchSize"], shuffle=False, buffer_size=TrainingsParameter["BUFFER_SIZE"])
     model = Model.TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpointDir)
     
     try:
@@ -35,15 +35,14 @@ if __name__ == "__main__":
 
     parameters = sys.argv[1:]
 
-    if (len(parameters)==6):
+    if (len(parameters)==5):
         TrainingDataSetFile           = parameters[0]
         itemFile                      = parameters[1]
         OriginalTokenFileDirectory    = parameters[2]
-        batch_size                    = int(parameters[3])
-        TrainingCheckpointDir         = parameters[4]
-        TrainedModelDir               = parameters[5]
+        TrainingCheckpointDir         = parameters[3]
+        TrainedModelDir               = parameters[4]
     else:
-        print("Did not receive 6 parameters. Parameters received: " + str(sys.argv-1))
+        print("Did not receive 5 parameters. Parameters received: " + str(sys.argv-1))
     
  #   tf.config.run_functions_eagerly(True)  
  #   tf.data.experimental.enable_debug_mode()    
@@ -52,4 +51,4 @@ if __name__ == "__main__":
     itemList             = TokenParser.GetItemListToSearchFor(itemFile)
     id_from_tokenList, _ = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList, OutputVocabularyDirectory=None)  
 
-    TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, batch_size, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter)
+    TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter)

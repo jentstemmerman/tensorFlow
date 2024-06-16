@@ -35,7 +35,6 @@
 				"args": ["/home/jents/AI/TrainingSet4/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset",  
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/",
-						 "32", 
 						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainingCheckPoints",
 						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel"], 
 
@@ -52,7 +51,6 @@
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/out/Training", 
 						 "/home/jents/AI/TrainingSet4/",
-						 "13", 
 						 "/home/jents/AI/TrainingSet4/out/dataset_dir"], 
 
 				"cwd": "${workspaceFolder}",

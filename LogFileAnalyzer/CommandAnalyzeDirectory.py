@@ -37,7 +37,7 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
                                         token_from_idList=token_from_idList,
                                         numberOfThreads=numberOfThreads, 
                                         Workers=Workers,
-                                        DataTypeForTensors=TrainingsParameter["Model"]["DataTypeForTensors"] )
+                                        DataTypeForTensors=TrainingsParameter["DataTypeForTensors"] )
             
             worker.KillWorkers(Workers)
     

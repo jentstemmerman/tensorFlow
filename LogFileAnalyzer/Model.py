@@ -168,11 +168,10 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
             featureList=modelFeatureList, 
             seq_length=TrainingsParameter["Model"]["seq_length"],
             dropout_rate=dropout_rate)
-        
+        optimizer = 'adam'
         learning_rate = Transformer.CustomSchedule(d_model)
 
-        optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98,
-                                     epsilon=1e-9)
+        optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
     
     loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
 

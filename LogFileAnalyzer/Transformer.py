@@ -551,7 +551,7 @@ class Transformer(tf.keras.Model):
     print(embeddingDimension)
     return embeddingDimension
   
-  #@tf.function
+  @tf.function
   def call(self, inputs):
     """
     Forward pass of the transformer model.

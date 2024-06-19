@@ -169,14 +169,15 @@ class OneStep(tf.keras.Model):
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
       # Run the model.
-      predicted_logits_list  = self.model(inputs=inputTensor)
+      predicted_logits_list  = self.model(inputs=(inputTensor,inputTensor))
       numberOfFeatures       = len(self.Tokens_from_idList)
       predictions            = []
       probabilityOfPredictions = None
-      probabilityOfActuals  = None
+      probabilityOfActuals     = None
 
+      
       for index, Tokens_from_ids in enumerate(self.Tokens_from_idList):
-          predicted_logits = predicted_logits_list[index]
+          predicted_logits = predicted_logits_list
           predicted_logits = predicted_logits[:, -1, :]
           predicted_logits = predicted_logits / self.temperature
  

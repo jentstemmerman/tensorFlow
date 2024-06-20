@@ -72,7 +72,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     return self.embedding.compute_mask(*args, **kwargs)
   
 
-
+  @tf.function
   def call(self, x):
     """
     Computes the output of the layer.
@@ -128,6 +128,7 @@ class CrossAttention(BaseAttention):
   Args:
       **kwargs: Arguments to pass to the MultiHeadAttention layer.
   """
+  @tf.function
   def call(self, x, context):
     """
     The call function that performs the cross-attention operation.
@@ -154,6 +155,7 @@ class CrossAttention(BaseAttention):
     return x
 
 class GlobalSelfAttention(BaseAttention):
+  @tf.function
   def call(self, x):
     """
     Apply the global self-attention mechanism to the input sequence.
@@ -186,6 +188,7 @@ class CausalSelfAttention(BaseAttention):
       Output sequence tensor of the same shape as the input, after self-attention
       and residual connection with layer normalization applied.
   """
+  @tf.function
   def call(self, x):
     attn_output = self.mha(
         query=x,
@@ -234,6 +237,7 @@ class FeedForward(tf.keras.layers.Layer):
     self.add = tf.keras.layers.Add()
     self.layer_norm = tf.keras.layers.LayerNormalization()
 
+  @tf.function
   def call(self, x):
     """
     Passes the input tensor `x` through a feedforward network consisting of two
@@ -276,6 +280,7 @@ class EncoderLayer(tf.keras.layers.Layer):
 
     self.ffn = FeedForward(d_model, dff)
 
+  @tf.function
   def call(self, x):
     """
     Applies the forward pass of the encoder layer.
@@ -341,6 +346,7 @@ class Encoder(tf.keras.layers.Layer):
         for _ in range(num_layers)]
     self.dropout = tf.keras.layers.Dropout(dropout_rate)
 
+  @tf.function
   def call(self, x):
     """
     Perform forward pass of the `Encoder` layer.
@@ -401,6 +407,7 @@ class DecoderLayer(tf.keras.layers.Layer):
 
     self.ffn = FeedForward(d_model, dff)
 
+  @tf.function
   def call(self, x, context):
     """
     Forward pass of the `DecoderLayer`.
@@ -464,6 +471,7 @@ class Decoder(tf.keras.layers.Layer):
 
     self.last_attn_scores = None
 
+  @tf.function
   def call(self, x, context):
     """
     Implements the forward pass for the decoder layer.

@@ -16,7 +16,7 @@ def TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, Traini
     assert(model is not None)
     
     datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())   
-    datasetForTraining = Dataset.PrepareDataSetForTraining(datasetForTraining, TrainingsParameter["BatchSize"], shuffle=False, buffer_size=TrainingsParameter["BUFFER_SIZE"])
+    datasetForTraining = Dataset.PrepareDataSetForTraining(datasetForTraining, TrainingsParameter["BatchSize"], shuffle=TrainingsParameter["shuffleTraining"], buffer_size=TrainingsParameter["BUFFER_SIZE"])
     model = Model.TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpointDir)
     
     model.save(TrainedModelDir)

@@ -31,7 +31,8 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
         numberOfIdenticals = 0
         accumulatedActualProbability = 0
         accumulatedPredictedProbability = 0
-        
+        accumulatedPredictionAccuracy = 0
+
         IdenticalString =  " (ID)"
         for executionIndex in range(numberOfParallelExecutions):
             
@@ -39,7 +40,8 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
             ProbabilityOfPredictionsString= "Prob of pred: "
             predictionsString = ". Predicted: " 
             actualsString = "Actual: " 
-            
+            AccuracyOfPrediction = 0
+
             for featureIndex in range(numberOfFeatures):
 
                 prediction = TranslateToString(predictions[featureIndex][executionIndex])  
@@ -70,10 +72,17 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
                 ProbabilityOfPredictionsString += "{:2.3f} ".format(probabilityOfPrediction)    
                 ProbabilityOfPredictionsString  = extend_string_with_spaces(ProbabilityOfPredictionsString, number_string_length)
 
+                AccuracyOfPrediction += 1-(probabilityOfPrediction-probabilityOfActual)
+
+                accumulatedPredictionAccuracy   += AccuracyOfPrediction
                 accumulatedActualProbability    += probabilityOfActual
                 accumulatedPredictedProbability += probabilityOfPrediction
 
-            lineToWrite = actualsString + predictionsString + ProbabilityOfActualsString + "  "  + ProbabilityOfPredictionsString + PrintfList[executionIndex]
+            AccuracyOfPrediction = AccuracyOfPrediction / numberOfFeatures
+            AccuracyOfPredictionString  = "HIDDEN" + str(int(AccuracyOfPrediction * 100))    
+            AccuracyOfPredictionString  = extend_string_with_spaces(AccuracyOfPredictionString, 10)
+            
+            lineToWrite = AccuracyOfPredictionString + actualsString + predictionsString + ProbabilityOfActualsString + "  "  + ProbabilityOfPredictionsString + PrintfList[executionIndex]
             linesToWrite.append(lineToWrite)
 
         return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
@@ -103,6 +112,7 @@ def ComposeLineListColored(numberOfParallelExecutions, nextPredictedTokens, next
 
             lineToWrite = "Actual: " + nextToken[0]  + "".join("  {:2.3f}".format(nextTokenProbability) for nextTokenProbability in nextTokenProbabilities) + \
                 ". Pred: " + nextPredictedToken + " {:2.3f}".format(probabilityPredictions[executionIndex].numpy()) + ". " + PrintfList[executionIndex] + "<br>" 
+            
             linesToWrite.append(lineToWrite)
 
             for nextTokenProbability in nextTokenProbabilities:

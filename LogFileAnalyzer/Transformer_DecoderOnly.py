@@ -392,8 +392,7 @@ class DecoderLayer(tf.keras.layers.Layer):
                d_model,
                num_heads,
                dff,
-               dropout_rate=0.1,
-               enable_cross_attention=False):
+               dropout_rate=0.1):
     
     super(DecoderLayer, self).__init__()
 
@@ -401,40 +400,10 @@ class DecoderLayer(tf.keras.layers.Layer):
         num_heads=num_heads,
         key_dim=d_model,
         dropout=dropout_rate)
-    if (enable_cross_attention):
-      self.cross_attention = CrossAttention(
-          num_heads=num_heads,
-          key_dim=d_model,
-          dropout=dropout_rate)
-    else:
-      self.cross_attention = None
+    self.cross_attention = None
 
     self.ffn = FeedForward(d_model, dff)
 
-  @tf.function
-  def call(self, x, context):
-    """
-    Forward pass of the `DecoderLayer`.
-
-    Args:
-      x (tf.Tensor): The input tensor of shape
-      `(batch_size, target_seq_len, d_model)`.
-      context (tf.Tensor): The context tensor of shape
-      `(batch_size, input_seq_len, d_model)`.
-
-    Returns:
-      The output tensor of the `DecoderLayer` of shape
-      `(batch_size, target_seq_len, d_model)`.
-
-    """
-    x = self.causal_self_attention(x=x)
-    x = self.cross_attention(x=x, context=context)
-
-    # Cache the last attention scores for plotting later
-    self.last_attn_scores = self.cross_attention.last_attn_scores
-
-    x = self.ffn(x)  # Shape `(batch_size, seq_len, d_model)`.
-    return x
   
   @tf.function
   def call(self, x):
@@ -501,29 +470,6 @@ class Decoder(tf.keras.layers.Layer):
     self.last_attn_scores = None
 
   @tf.function
-  def call(self, x, context):
-    """
-    Implements the forward pass for the decoder layer.
-
-    Args:
-      x (ndarray): A tensor of shape (batch_size, target_seq_len), representing the input token IDs.
-      context (ndarray): A tensor of shape (batch_size, input_seq_len, d_model), representing the output from the encoder layers.
-
-    Returns:
-      ndarray: A tensor of shape (batch_size, target_seq_len, d_model), representing the output from the decoder layers.
-    """
-    # `x` is token-IDs shape (batch, target_seq_len)
-    x = self.pos_embedding(x)  # (batch_size, target_seq_len, d_model)
-
-    x = self.dropout(x)
-
-    for i in range(self.num_layers):
-      x  = self.dec_layers[i](x, context)
-
-    self.last_attn_scores = self.dec_layers[-1].last_attn_scores
-
-    # The shape of x is (batch_size, target_seq_len, d_model).
-    return x
   
   @tf.function
   def call(self, x):
@@ -575,17 +521,10 @@ class Transformer(tf.keras.Model):
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
   def __init__(self, *, num_layers, d_model, num_heads, dff,
-               input_vocab_size, target_vocab_size, featureList, seq_length, dropout_rate=0.1, decoder_only=True):
+               input_vocab_size, target_vocab_size, featureList, seq_length, dropout_rate=0.1):
     super().__init__()
-    self.decoder_only = decoder_only
     
-    if (not self.decoder_only):
-      self.encoder = Encoder(num_layers=num_layers, d_model=d_model,
-                            num_heads=num_heads, dff=dff,
-                            vocab_size=input_vocab_size,  seq_length=seq_length,
-                            dropout_rate=dropout_rate)
-    else:
-      self.encoder = None
+    self.encoder = None
 
     self.decoder = Decoder(num_layers=num_layers, d_model=d_model,
                            num_heads=num_heads, dff=dff,
@@ -630,17 +569,10 @@ class Transformer(tf.keras.Model):
 
     # To use a Keras model with `.fit` you must pass all your inputs in the
     # first argument.
-    if (self.decoder_only):
-      x  = inputs
+    x  = inputs
   
-      x = tf.squeeze(x, axis=-1)
-      x = self.decoder(x)  
-    else:
-      context, x  = inputs
-      context = tf.squeeze(context, axis=-1)
-      context = self.encoder(context)  # (batch_size, context_len, d_model)
-
-      x = self.decoder(x, context)  # (batch_size, target_len, d_model)
+    x = tf.squeeze(x, axis=-1)
+    x = self.decoder(x)  
 
     # Final linear layer output.
     logits = self.final_layer(x)  # (batch_size, target_len, target_vocab_size)

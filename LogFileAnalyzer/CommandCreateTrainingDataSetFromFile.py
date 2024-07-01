@@ -8,13 +8,14 @@ def CreateTrainingDatasetFromFile(InputFile, itemFile, OriginalTokenFileDirector
     itemList             = TokenParser.GetItemListToSearchFor(itemFile)
     id_from_tokenList, _ = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList, OutputVocabularyDirectory=None)  
  
-
+    dual_input = True
     dataSetOfFile = Dataset.CreateDatasetFromFile(  InputFile, 
                                                     None,
                                                     itemList=itemList,
                                                     id_from_tokenList=id_from_tokenList,
                                                     stride=int(TrainingsParameter["stride_dataset"]), 
                                                     seq_length=TrainingsParameter["Model"]["seq_length"],
+                                                    dual_input=dual_input
                                                     DataTypeForTensors = TrainingsParameter["DataTypeForTensors"], 
                                                     removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                                     num_parallel_calls = TrainingsParameter["num_parallel_calls"],

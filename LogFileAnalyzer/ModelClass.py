@@ -149,32 +149,39 @@ class LSTMPrintfLogModel(tf.keras.Model):
     
 class OneStep(tf.keras.Model):
  
-  def __init__(self, model, Tokens_from_idList, ids_from_tokensList, temperature=1.0):
+  def __init__(self, model, Tokens_from_idList, temperature=1.0):
     super().__init__()
     self.temperature = temperature
     self.model = model
     self.Tokens_from_idList = Tokens_from_idList
 
-  def GetProbabilityFromLogits(self, logits, id):
-    probability = logits[id].numpy()
+  def GetProbabilityFromLogits(self, softmaxLogits, id):
+    probability = softmaxLogits[id].numpy()
     return probability
 
-  def GetProbabilitiesFromLogits(self, logits, id):
+  def GetProbabilitiesFromLogits(self, softmaxLogits, id):
 
-    probabilities = tf.gather(logits, id, axis=1, batch_dims=1)
+    probabilities = tf.gather(softmaxLogits, id, axis=1, batch_dims=1)
 
     return probabilities
   
-  #@tf.function
+  def GetCrossEntropyromLogits(self, softmaxLogits, id):
+    probabilities = tf.keras.losses.sparse_categorical_crossentropy(id, softmaxLogits, from_logits=True)
+    
+    return probabilities
+  
+  
+ # @tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
       # Run the model.
-      predicted_logits_list  = self.model(inputs=(inputTensor,inputTensor))
+      predicted_logits_list  = self.model(inputs=(inputTensor))       JENTS: decoderonly
+      #predicted_logits_list  = self.model(inputs=(inputTensor,inputTensor))  
       numberOfFeatures       = len(self.Tokens_from_idList)
       predictions            = []
       probabilityOfPredictions = None
       probabilityOfActuals     = None
-
+      crossEntropyOfActuals    = None
       
       for index, Tokens_from_ids in enumerate(self.Tokens_from_idList):
           predicted_logits = predicted_logits_list
@@ -200,13 +207,11 @@ class OneStep(tf.keras.Model):
 
           
           predictions.append(prediction)
-          
-          #probabilityOfPrediction = tf.reshape(probabilityOfPrediction, [1,1])
+        
           
           if (probabilityOfPredictions is None):
               probabilityOfPredictions  = probabilityOfPrediction   
           else:
-              #probabilityOfPredictions2  = np.stack((probabilityOfPredictions, probabilityOfPrediction))
               probabilityOfPredictions   = np.append(probabilityOfPredictions, probabilityOfPrediction)
 
           probabilityOfActual = self.GetProbabilitiesFromLogits(softmaxLogits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
@@ -214,11 +219,19 @@ class OneStep(tf.keras.Model):
           if (probabilityOfActuals is None):
               probabilityOfActuals = probabilityOfActual
           else:
-              #probabilityOfActuals2  = np.stack((probabilityOfActuals, probabilityOfActual))
               probabilityOfActuals   = np.append(probabilityOfActuals, probabilityOfActual)
+
+
+          crossEntropyOfActual = self.GetCrossEntropyromLogits(softmaxLogits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
+
+          if (crossEntropyOfActuals is None):
+              crossEntropyOfActuals = crossEntropyOfActual
+          else:
+              crossEntropyOfActuals   = np.append(crossEntropyOfActuals, crossEntropyOfActual)
       
       probabilityOfPredictions = np.reshape(probabilityOfPredictions, [numberOfFeatures, int(len(probabilityOfPredictions) / numberOfFeatures)])
       probabilityOfActuals     = np.reshape(probabilityOfActuals,     [numberOfFeatures, int(len(probabilityOfActuals)     / numberOfFeatures)])
-      
-      return predictions, probabilityOfPredictions, probabilityOfActuals
+      crossEntropyOfActuals    = np.reshape(crossEntropyOfActuals,    [numberOfFeatures, int(len(crossEntropyOfActuals)     / numberOfFeatures)])
+    
+      return predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals
       

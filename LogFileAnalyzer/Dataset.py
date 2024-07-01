@@ -75,7 +75,7 @@ def PrepareDataSetForTraining(dataset, batch_size, shuffle=False, buffer_size=0)
     
     return dataset
 
-def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, dual_input = False, verbose=False):
     FileIterator = LogFileIterator.LogfileIterator(InputDirectory)
     InputFile   = FileIterator.get_first_tokenlogfile()
 
@@ -89,7 +89,7 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             
             if InputFile is None:
                 break
-            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors)
+            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors)
             futureList.append(future)
             InputFile = FileIterator.get_next_tokenlogfile()
         
@@ -120,7 +120,7 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             result = completed_future.result()
 
         
-def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors):
+def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors):
     print("process_file " + InputFile + "\n")
     IntermediateFile = None #OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".intermediate"
     outputDatasetFile = OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".dataset"
@@ -131,6 +131,7 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
                                     id_from_tokenList, 
                                     stride, 
                                     seq_length, 
+                                    dual_input,
                                     DataTypeForTensors, 
                                     ReductionInSamples=None, 
                                     removeDuplicates=False, 
@@ -144,7 +145,7 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
 
 
 # This function will not create an intermediate tokenfile
-def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
 
     print("Creating a dataset from  " + InputFile + ".\n")
     
@@ -192,8 +193,12 @@ def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenLi
         PrintDataset(datasetfast, 10)
 
     datasetfast = datasetfast.map(lambda x: tf.cast(x, DataTypeForTensors))
-    datasetfast = datasetfast.map(TokenParser.split_input_target_transformer) 
-       
+    
+    if (dual_input):
+        datasetfast = datasetfast.map(TokenParser.split_input_target_transformer) 
+    else:
+        datasetfast = datasetfast.map(TokenParser.split_input_target_transformer_decoder_only)
+        
     return datasetfast
 
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):

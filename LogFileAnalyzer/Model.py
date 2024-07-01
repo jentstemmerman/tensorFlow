@@ -12,7 +12,7 @@ import worker
 import Logger
 import LogFileIterator
 import MultiDimensionalModel
-import Transformer
+
 import ModelCallbacks
 import neptune
 from neptune.integrations.tensorflow_keras import NeptuneCallback
@@ -94,7 +94,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
     
         TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
 
-        one_step_model = ModelClass.OneStep(model, token_from_idList, id_from_tokenList, temperature=temperature)
+        one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
         window_size = 8
         Accumulator = 0
         AccumulatorCount = 0
@@ -146,28 +146,42 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 return_sequences = TrainingsParameter["Model"]["return_states"] , 
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
         optimizer = 'adam'
-    elif (modelSource["Network"] == "Transformer"):    
+    elif (modelSource["Network"] == "Transformer") or (modelSource["Network"] == "Transformer_DecoderOnly"):    
         num_layers = 6
         d_model = 128
         dff = 512
         num_heads = 16
         dropout_rate = 0.1
-
+        import Transformer
         d_model=Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
         # Parameters, only one feature supported yet (don't know whether it will ever be possible)
         input_vocab_size = modelFeatureList[0]["vocab_size"]
         target_vocab_size = modelFeatureList[0]["vocab_size"]
 
-        model = Transformer.Transformer(
-            num_layers=num_layers,
-            d_model=d_model,
-            num_heads=num_heads,
-            dff=dff,
-            input_vocab_size=input_vocab_size,       
-            target_vocab_size=target_vocab_size,    
-            featureList=modelFeatureList, 
-            seq_length=TrainingsParameter["Model"]["seq_length"],
-            dropout_rate=dropout_rate)
+        if (modelSource["Network"] == "Transformer"):
+            model = Transformer.Transformer(
+                num_layers=num_layers,
+                d_model=d_model,
+                num_heads=num_heads,
+                dff=dff,
+                input_vocab_size=input_vocab_size,       
+                target_vocab_size=target_vocab_size,    
+                featureList=modelFeatureList, 
+                seq_length=TrainingsParameter["Model"]["seq_length"],
+                dropout_rate=dropout_rate)
+        else:
+            import Transformer_DecoderOnly
+            model = Transformer_DecoderOnly.Transformer(
+                num_layers=num_layers,
+                d_model=d_model,
+                num_heads=num_heads,
+                dff=dff,
+                input_vocab_size=input_vocab_size,       
+                target_vocab_size=target_vocab_size,    
+                featureList=modelFeatureList, 
+                seq_length=TrainingsParameter["Model"]["seq_length"],
+                dropout_rate=dropout_rate)
+            
         optimizer = 'adam'
         learning_rate = Transformer.CustomSchedule(d_model)
 

@@ -22,7 +22,7 @@ def TranslateToString(value):
 
 import Dataset
 
-def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, probabilityOfPredictions):
+def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions):
     with tf.device('/CPU:0'):
         string_length = 17
         number_string_length = 6
@@ -32,6 +32,7 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
         accumulatedActualProbability = 0
         accumulatedPredictedProbability = 0
         accumulatedPredictionAccuracy = 0
+        accumulatedCrossEntropyOfActual = 0
 
         IdenticalString =  " (ID)"
         for executionIndex in range(numberOfParallelExecutions):
@@ -40,7 +41,9 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
             ProbabilityOfPredictionsString= "Prob of pred: "
             predictionsString = ". Predicted: " 
             actualsString = "Actual: " 
+            crossEntropyOfActualString = "ActualCrEntr: "
             AccuracyOfPrediction = 0
+
 
             for featureIndex in range(numberOfFeatures):
 
@@ -68,21 +71,28 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
                 ProbabilityOfActualsString += "{:2.3f} ".format(probabilityOfActual)
                 ProbabilityOfActualsString  = extend_string_with_spaces(ProbabilityOfActualsString, number_string_length)
 
+                crossEntropyOfActual        = crossEntropyOfActuals[featureIndex][executionIndex]
+                crossEntropyOfActualString += "{:2.3f} ".format(crossEntropyOfActual)
+                crossEntropyOfActualString  = extend_string_with_spaces(crossEntropyOfActualString, number_string_length)
+
                 probabilityOfPrediction         = probabilityOfPredictions[featureIndex][executionIndex]
                 ProbabilityOfPredictionsString += "{:2.3f} ".format(probabilityOfPrediction)    
                 ProbabilityOfPredictionsString  = extend_string_with_spaces(ProbabilityOfPredictionsString, number_string_length)
 
                 AccuracyOfPrediction += 1-(probabilityOfPrediction-probabilityOfActual)
-
+                
+                
                 accumulatedPredictionAccuracy   += AccuracyOfPrediction
                 accumulatedActualProbability    += probabilityOfActual
                 accumulatedPredictedProbability += probabilityOfPrediction
+                accumulatedCrossEntropyOfActual += crossEntropyOfActual
 
             AccuracyOfPrediction = AccuracyOfPrediction / numberOfFeatures
             AccuracyOfPredictionString  = "HIDDEN" + str(int(AccuracyOfPrediction * 100))    
             AccuracyOfPredictionString  = extend_string_with_spaces(AccuracyOfPredictionString, 10)
             
-            lineToWrite = AccuracyOfPredictionString + actualsString + predictionsString + ProbabilityOfActualsString + "  "  + ProbabilityOfPredictionsString + PrintfList[executionIndex]
+
+            lineToWrite = AccuracyOfPredictionString + actualsString + predictionsString + ProbabilityOfActualsString + crossEntropyOfActualString + "  "  + ProbabilityOfPredictionsString + PrintfList[executionIndex]
             linesToWrite.append(lineToWrite)
 
         return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
@@ -122,10 +132,10 @@ def ComposeLineListColored(numberOfParallelExecutions, nextPredictedTokens, next
         return linesToWrite, numberOfIdenticals, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
      
     
-def InferenceOutputThread(workerParameter, threadId, numberOfParallelExecutions, predictions, nextTokens, PrintfList, probabilityOfActuals, probabilityOfPredictions):
+def InferenceOutputThread(workerParameter, threadId, numberOfParallelExecutions, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions):
     with tf.device('/CPU:0'):
         id_from_tokenList = workerParameter
-        linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, nextTokens, PrintfList, probabilityOfActuals, probabilityOfPredictions)
+        linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions)
         return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
 
 

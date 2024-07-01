@@ -63,7 +63,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         accumulatedNextTokenProbability      = 0
         accumulatedPredictedTokenProbability = 0
 
-        one_step_model = ModelClass.OneStep(model, token_from_idList, id_from_tokenList, temperature=temperature)
+        one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
 
         sharedTokenList  = []
         manager          = None
@@ -121,9 +121,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     break
 
                 numberOfAnalyzedLinesThisCycle = 0
-                nextPredictionsList        = []
-                probabilityOfPredictionsList     = []
-                probabilityOfActualsList    = []
+                nextPredictionsList            = []
+                probabilityOfPredictionsList   = []
+                probabilityOfActualsList       = []
+                crossEntropyOfActualsList      = []
                 indexOfFirstPredictionTemp     = indexOfFirstPrediction
 
                 assemblySubmissionStartTime    = time.time()
@@ -138,7 +139,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 
                 for threadId in range(0, numberOfThreads):
 
-                    predictions, probabilityOfPredictions, probabilityOfActuals = one_step_model.generate_steps_optimized(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
+                    predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals = one_step_model.generate_steps_optimized(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
                     
                     # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
                     nextPredictionsList.append(predictions)
@@ -149,6 +150,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
                     probabilityOfActualsList.append(probabilityOfActuals)
 
+                    # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                    crossEntropyOfActualsList.append(crossEntropyOfActuals)
+
                 generationTime = time.time() - generationStartTime
                 print("   Generation Time = {:2.3f}.".format(generationTime))
             
@@ -156,7 +160,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     inputQueue  = Workers[threadId]["inputQueue"]
                     if (threadId == 0):
                         outputStartTime = time.time()
-                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfActualsList[threadId], probabilityOfPredictionsList[threadId], )))
+                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], )))
                 
                 nexttokenIdsList            = []
                 nextTokensList              = []

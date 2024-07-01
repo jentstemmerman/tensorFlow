@@ -20,6 +20,7 @@ def CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, mergeDat
                                            DataTypeForTensors = TrainingsParameter["DataTypeForTensors"], 
                                            removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                            num_parallel_calls = TrainingsParameter["num_parallel_calls"],
+                                           dual_input = TrainingsParameter["Model"]["Network"] == "Transformer",
                                            verbose = False)   
     
 

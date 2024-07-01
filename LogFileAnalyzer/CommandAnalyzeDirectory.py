@@ -59,5 +59,8 @@ if __name__ == "__main__":
         print("Did not receive 6 parameters. Parameters received: ", len(parameters))
        
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
-    
+        
+   # tf.config.run_functions_eagerly(True)  
+   # tf.data.experimental.enable_debug_mode()    
+   
     AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature)  

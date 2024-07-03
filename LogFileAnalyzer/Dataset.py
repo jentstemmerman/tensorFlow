@@ -137,8 +137,8 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
                                     removeDuplicates=False, 
                                     num_parallel_calls=10, 
                                     verbose=False)
-    print("temporary disabled SetMarkerAtDataSetEdge because not compatible with transformer input, TODO: fix this Jents!")
-    #dataset = SetMarkerAtDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
+    # print("temporary disabled SetMarkerAtDataSetEdge because not compatible with transformer input, TODO: fix this Jents!")
+    dataset = SetMarkerAtDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
     print("Saving dataset " + os.path.basename(InputFile) + "...\n")
     Dataset.SaveDataset(dataset, outputDatasetFile.strip())
     print("Dataset " + os.path.basename(InputFile) + " saved.\n")

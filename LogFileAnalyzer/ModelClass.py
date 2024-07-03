@@ -175,7 +175,7 @@ class OneStep(tf.keras.Model):
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
       # Run the model.
-      predicted_logits_list  = self.model(inputs=(inputTensor))       JENTS: decoderonly
+      predicted_logits_list  = self.model(inputs=(inputTensor))    #   JENTS: decoderonly
       #predicted_logits_list  = self.model(inputs=(inputTensor,inputTensor))  
       numberOfFeatures       = len(self.Tokens_from_idList)
       predictions            = []

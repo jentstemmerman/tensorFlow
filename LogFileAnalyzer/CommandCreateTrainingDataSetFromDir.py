@@ -30,12 +30,11 @@ if __name__ == "__main__":
     print("Creating Dataset from directory...\n")
     parameters = sys.argv[1:]
 
-    if (len(parameters)==5):
+    if (len(parameters)==4):
         InputDirectory                     = parameters[0]
         itemFile                           = parameters[1]
         IntermediateDirectory              = parameters[2]
         OriginalTokenFileDirectory         = parameters[3]
-        outputFile                         = parameters[4]
     else:
         print("Did not receive 5 parameters. Parameters received: ", len(parameters))
 

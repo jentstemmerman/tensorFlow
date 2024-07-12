@@ -189,9 +189,6 @@ def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenLi
     if (removeDuplicates):
         datasetfast = datasetfast.unique()
 
-    if (verbose):
-        PrintDataset(datasetfast, 10)
-
     datasetfast = datasetfast.map(lambda x: tf.cast(x, DataTypeForTensors))
     
     if (dual_input):

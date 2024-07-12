@@ -147,13 +147,14 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
         optimizer = 'adam'
     elif (modelSource["Network"] == "Transformer") or (modelSource["Network"] == "Transformer_DecoderOnly"):    
-        num_layers = 6
-        d_model = 128
-        dff = 512
+        num_layers = 8
+        d_model = 16
+        
         num_heads = 16
         dropout_rate = 0.1
         import Transformer
         d_model=Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
+        dff = d_model * 4
         # Parameters, only one feature supported yet (don't know whether it will ever be possible)
         input_vocab_size = modelFeatureList[0]["vocab_size"]
         target_vocab_size = modelFeatureList[0]["vocab_size"]
@@ -206,7 +207,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
 
     return model
 
-def TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpointDir, TrainingLogFile=None):
+def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParameter, TrainingCheckpointDir, TrainingLogFile=None):
 
     if (TrainingLogFile is not None): 
         sys.stdout = Logger.Logger(TrainingLogFile)
@@ -241,7 +242,8 @@ def TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpoint
     neptune_callback = NeptuneCallback(run=run) 
 
     #history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback,  ])
-    history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])
+    history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])
+    #history = model.fit(datasetForTraining, validation_split=0.2, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])
     sys.stdout = sys.__stdout__
 
     return model

@@ -5,7 +5,7 @@ import os
 import Model
 import tensorflow as tf
 
-def TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter):
+def TrainModelOnDataSet(TrainingDataSetFile, VerificationDataSetFile, id_from_tokenList, itemList, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter):
 
     modelFeatureList = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
     maskValueList    = Model.GetMaskValueList(id_from_tokenList)
@@ -17,14 +17,15 @@ def TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, Traini
     
     datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())   
     datasetForTraining = Dataset.PrepareDataSetForTraining(datasetForTraining, TrainingsParameter["BatchSize"], shuffle=TrainingsParameter["shuffleTraining"], buffer_size=TrainingsParameter["BUFFER_SIZE"])
-    model = Model.TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpointDir)
+    
+    if (VerificationDataSetFile != ""):
+        print("Use for verification: ", VerificationDataSetFile)
+        datasetForVerification = Dataset.LoadDataset(VerificationDataSetFile.strip())  
+        datasetForVerification = Dataset.PrepareDataSetForTraining(datasetForVerification, TrainingsParameter["BatchSize"], shuffle=TrainingsParameter["shuffleTraining"], buffer_size=TrainingsParameter["BUFFER_SIZE"])
+
+    model = Model.TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParameter, TrainingCheckpointDir)
     
     model.save(TrainedModelDir)
-
-
-
-
-
 
 
 
@@ -33,20 +34,21 @@ if __name__ == "__main__":
 
     parameters = sys.argv[1:]
 
-    if (len(parameters)==5):
+    if (len(parameters)==6):
         TrainingDataSetFile           = parameters[0]
-        itemFile                      = parameters[1]
-        OriginalTokenFileDirectory    = parameters[2]
-        TrainingCheckpointDir         = parameters[3]
-        TrainedModelDir               = parameters[4]
+        VerificationDataSetFile       = parameters[1]
+        itemFile                      = parameters[2]
+        OriginalTokenFileDirectory    = parameters[3]
+        TrainingCheckpointDir         = parameters[4]
+        TrainedModelDir               = parameters[5]
     else:
-        print("Did not receive 5 parameters. Parameters received: " + str(sys.argv-1))
+        print("Did not receive 6 parameters. Parameters received: " + str(sys.argv-1))
     
-   # tf.config.run_functions_eagerly(True)  
-   # tf.data.experimental.enable_debug_mode()    
+    #tf.config.run_functions_eagerly(True)  
+    #tf.data.experimental.enable_debug_mode()    
 
     TrainingsParameter   = DefaultTrainingSettings.TrainingsParameter
     itemList             = TokenParser.GetItemListToSearchFor(itemFile)
     id_from_tokenList, _ = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList, OutputVocabularyDirectory=None)  
 
-    TrainModelOnDataSet(TrainingDataSetFile, id_from_tokenList, itemList, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter)
+    TrainModelOnDataSet(TrainingDataSetFile, VerificationDataSetFile, id_from_tokenList, itemList, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter)

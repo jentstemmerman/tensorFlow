@@ -183,7 +183,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             layer_output = output_layer(lstm_out, training=training)
             output_List.append(layer_output)
         
-        return output_List
+        return output_List    
     
 if __name__ == '__main__':
     ##################### Settings ######################
@@ -271,6 +271,7 @@ if __name__ == '__main__':
     modelPrediction = model(datasetInputData_tensor)
     print("modelPrediction: ")
     print(modelPrediction.shape)
+
 
 
 

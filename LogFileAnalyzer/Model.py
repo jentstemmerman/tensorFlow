@@ -137,6 +137,7 @@ def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
             modelFeatureList.append({"embedded": False, "layer_name": name})
     return modelFeatureList
 
+ 
 def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
 
     if (modelSource["Network"] == "LSTMMultiModel"):
@@ -148,8 +149,6 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
         optimizer = 'adam'
     elif (modelSource["Network"] == "Transformer") or (modelSource["Network"] == "Transformer_DecoderOnly"):    
         num_layers = 8
-        d_model = 16
-        
         num_heads = 16
         dropout_rate = 0.1
         import Transformer
@@ -178,7 +177,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                 num_heads=num_heads,
                 dff=dff,
                 input_vocab_size=input_vocab_size,       
-                target_vocab_size=target_vocab_size,    
+
                 featureList=modelFeatureList, 
                 seq_length=TrainingsParameter["Model"]["seq_length"],
                 dropout_rate=dropout_rate)
@@ -240,6 +239,11 @@ def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParam
     run = neptune.init_run(project='Log/TensorFlowLogger', api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5NDRiM2JmMC1kNGI4LTQ4NDEtYjc5NS0wYmY2YTdhZjg1YTUifQ==')
 
     neptune_callback = NeptuneCallback(run=run) 
+
+    #batch_x, batch_y = next(iter(datasetForTraining))
+    #input_shape = batch_x.shape[1:]  # Determine the input shape from the batch (exclude batch dimension)
+    #model.build(input_shape=(None, *input_shape))  
+
 
     #history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback,  ])
     history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])

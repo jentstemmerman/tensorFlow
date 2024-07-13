@@ -468,9 +468,6 @@ class Decoder(tf.keras.layers.Layer):
         for _ in range(num_layers)]
 
     self.last_attn_scores = None
-
-  @tf.function
-  
   @tf.function
   def call(self, x):
     """
@@ -495,65 +492,22 @@ class Decoder(tf.keras.layers.Layer):
 
     # The shape of x is (batch_size, target_seq_len, d_model).
     return x
+class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
-class Transformer(tf.keras.Model):
-  """
-  A transformer model that consists of an encoder, a decoder and a final dense layer.
-
-  Args:
-    num_layers (int): Number of layers in both the encoder and decoder.
-    d_model (int): Hidden size of the model.
-    num_heads (int): Number of attention heads used in the model.
-    dff (int): Size of the feedforward layer in the encoder and decoder.
-    input_vocab_size (int): Size of the vocabulary of the input.
-    target_vocab_size (int): Size of the vocabulary of the target.
-    dropout_rate (float): Dropout rate applied to the output of each sub-layer.
-
-  Attributes:
-    encoder (Encoder): An instance of the Encoder class.
-    decoder (Decoder): An instance of the Decoder class.
-    final_layer (Dense): A Dense layer that converts the final transformer output to output token probabilities.
-
-  Methods:
-    call(inputs): Forward pass of the transformer model.
-
-  Returns:
-    logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
-  """
-  def __init__(self, *, num_layers, d_model, num_heads, dff,
-               input_vocab_size, target_vocab_size, featureList, seq_length, dropout_rate=0.1):
+  def __init__(self, *, num_layers, d_model, num_heads, dff, vocab_size, featureList, seq_length,
+               dropout_rate=0.1):
     super().__init__()
     
     self.encoder = None
 
     self.decoder = Decoder(num_layers=num_layers, d_model=d_model,
                            num_heads=num_heads, dff=dff,
-                           vocab_size=target_vocab_size, seq_length=seq_length,
+                           vocab_size=vocab_size, seq_length=seq_length,
                            dropout_rate=dropout_rate)
 
-    self.final_layer = tf.keras.layers.Dense(target_vocab_size)
+    self.final_layer = tf.keras.layers.Dense(vocab_size)
 
-  def CalculateEmbeddingDimensions(featureList):
-    embeddingDimension = []
-    total_output_dimensions = 0
 
-    for i, feature in enumerate(featureList):
-        if (feature["embedded"] == True):
-            import math
-            output_dimension = math.ceil(feature["vocab_size"]**0.25)
-        else:
-            output_dimension = 1
-
-        # the positional encoder heeft een getal deelbaar door 2 nodig
-        if (output_dimension % 2 == 1):
-            output_dimension += 1
-        
-        embeddingDimension.append(output_dimension)
-        total_output_dimensions += output_dimension
-    print("Embedding dimensions:")
-    print(embeddingDimension)
-    return embeddingDimension
-  
   @tf.function
   def call(self, inputs):
     """
@@ -583,6 +537,66 @@ class Transformer(tf.keras.Model):
       del logits._keras_mask
     except AttributeError:
       pass
+
+    # Return the final output and the attention weights.
+    return logits
+
+class Transformer(tf.keras.Model):
+  """
+  A transformer model that consists of an encoder, a decoder and a final dense layer.
+
+  Args:
+    num_layers (int): Number of layers in both the encoder and decoder.
+    d_model (int): Hidden size of the model.
+    num_heads (int): Number of attention heads used in the model.
+    dff (int): Size of the feedforward layer in the encoder and decoder.
+    input_vocab_size (int): Size of the vocabulary of the input.
+    target_vocab_size (int): Size of the vocabulary of the target.
+    dropout_rate (float): Dropout rate applied to the output of each sub-layer.
+
+  Attributes:
+    encoder (Encoder): An instance of the Encoder class.
+    decoder (Decoder): An instance of the Decoder class.
+    final_layer (Dense): A Dense layer that converts the final transformer output to output token probabilities.
+
+  Methods:
+    call(inputs): Forward pass of the transformer model.
+
+  Returns:
+    logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
+  """
+  def __init__(self, *, num_layers, d_model, num_heads, dff,
+               input_vocab_size, featureList, seq_length, dropout_rate=0.1):
+    super().__init__()
+
+    self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, d_model=d_model, num_heads=num_heads, dff=dff,
+               vocab_size=input_vocab_size, featureList=featureList, seq_length=seq_length, dropout_rate=0.1)
+
+
+  def CalculateEmbeddingDimensions(featureList):
+    embeddingDimension = []
+    total_output_dimensions = 0
+
+    for i, feature in enumerate(featureList):
+        if (feature["embedded"] == True):
+            import math
+            output_dimension = math.ceil(feature["vocab_size"]**0.25)
+        else:
+            output_dimension = 1
+
+        # the positional encoder heeft een getal deelbaar door 2 nodig
+        if (output_dimension % 2 == 1):
+            output_dimension += 1
+        
+        embeddingDimension.append(output_dimension)
+        total_output_dimensions += output_dimension
+    print("Embedding dimensions:")
+    print(embeddingDimension)
+    return embeddingDimension
+  
+  @tf.function
+  def call(self, inputs):
+    logits = self.decoderOnlyTransformerLayer(inputs)
 
     # Return the final output and the attention weights.
     return logits
@@ -646,7 +660,7 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
   @classmethod
   def from_config(cls, config):
       return cls(**config)
-
+  
 
 #tf.config.run_functions_eagerly(True)  
 #tf.data.experimental.enable_debug_mode()    
@@ -705,6 +719,7 @@ if __name__ == "__main__":
 
   history = transformer.fit(datasetForTraining, epochs=epochs)
   print("Done")
+
 
 
 

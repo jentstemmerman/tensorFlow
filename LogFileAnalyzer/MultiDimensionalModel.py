@@ -146,7 +146,10 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             
             self.input_layerList.append(input_layer)    
 
-
+     #   import Transformer_DecoderOnly
+     #   self.decoderOnlyTransformerLayer = Transformer_DecoderOnly.DecoderOnlyTransformerLayer(num_layers=num_layers, d_model=d_model, num_heads=num_heads, dff=dff,
+    #                         vocab_size=input_vocab_size, featureList=featureList, seq_length=seq_length, dropout_rate=0.1)
+    
         self.lstm_layer       = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfInputsToLstm), return_sequences=return_sequences, dropout=0.1)
         
         self.output_layerList  = []

@@ -53,6 +53,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
         d_model (int): The number of dimensions in the embedding vector.
     """
     super().__init__()
+    self.seq_length = seq_length
     self.d_model = d_model
     self.embedding = tf.keras.layers.Embedding(vocab_size, d_model, mask_zero=True)
     self.pos_encoding = positional_encoding(length=seq_length, depth=d_model)
@@ -83,10 +84,12 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     Returns:
         The output sequence of embedding vectors with added positional information.
     """
-    length = tf.shape(x)[1]
+    
     x = self.embedding(x)
     # This factor sets the relative scale of the embedding and positonal_encoding.
     x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+    
+    length = self.seq_length # tf.shape(x)[1]
     x = x + self.pos_encoding[tf.newaxis, :length, :]
     return x
 
@@ -256,120 +259,6 @@ class FeedForward(tf.keras.layers.Layer):
     x = self.layer_norm(x)
     return x
 
-class EncoderLayer(tf.keras.layers.Layer):
-  """
-  A single layer in the transformer encoder stack.
-
-  Args:
-    d_model (int): The dimensionality of the input and output sequences.
-    num_heads (int): The number of attention heads to be used in the self-attention sub-layer.
-    dff (int): The number of hidden units in the feedforward sub-layer.
-    dropout_rate (float): The dropout rate to be applied after the self-attention sub-layer.
-
-  Attributes:
-    self_attention (GlobalSelfAttention): A self-attention layer.
-    ffn (FeedForward): A feedforward neural network layer.
-  """
-  def __init__(self,*, d_model, num_heads, dff, dropout_rate=0.1):
-    super().__init__()
-
-    self.self_attention = GlobalSelfAttention(
-        num_heads=num_heads,
-        key_dim=d_model,
-        dropout=dropout_rate)
-
-    self.ffn = FeedForward(d_model, dff)
-
-  @tf.function
-  def call(self, x):
-    """
-    Applies the forward pass of the encoder layer.
-
-    Args:
-      x (tf.Tensor): The input sequence tensor.
-
-    Returns:
-      tf.Tensor: The output sequence tensor.
-    """
-    x = self.self_attention(x)
-    x = self.ffn(x)
-    return x
-
-
-class Encoder(tf.keras.layers.Layer):
-  """
-  A custom Keras layer that implements the encoder of a transformer-based
-  neural network architecture for natural language processing tasks such
-  as language translation or text classification.
-
-  Args:
-    num_layers (int): The number of layers in the encoder.
-    d_model (int): The dimensionality of the output space.
-    num_heads (int): The number of attention heads in the multi-head
-      self-attention mechanism.
-    dff (int): The dimensionality of the fully connected feedforward
-      network.
-    vocab_size (int): The size of the vocabulary of the input language.
-    dropout_rate (float): The dropout rate to use for regularization.
-
-  Attributes:
-    d_model (int): The dimensionality of the output space.
-    num_layers (int): The number of layers in the encoder.
-    pos_embedding (PositionalEmbedding): The layer that learns the position
-      embeddings for each token in the input sequence.
-    enc_layers (list): A list of `EncoderLayer` instances, one for each
-      layer in the encoder architecture.
-    dropout (Dropout): The dropout layer for regularization.
-
-  Methods:
-    call(x): The forward pass of the encoder layer.
-
-  Returns:
-    The output tensor of the encoder layer, which has shape
-    `(batch_size, seq_len, d_model)`.
-  """
-  def __init__(self, *, num_layers, d_model, num_heads,
-               dff, vocab_size, seq_length, dropout_rate=0.1):
-    super().__init__()
-
-    self.d_model = d_model
-    self.num_layers = num_layers
-
-    self.pos_embedding = PositionalEmbedding(
-        vocab_size=vocab_size, seq_length=seq_length, d_model=self.d_model)
-
-    self.enc_layers = [
-        EncoderLayer(d_model=d_model,
-                     num_heads=num_heads,
-                     dff=dff,
-                     dropout_rate=dropout_rate)
-        for _ in range(num_layers)]
-    self.dropout = tf.keras.layers.Dropout(dropout_rate)
-
-  @tf.function
-  def call(self, x):
-    """
-    Perform forward pass of the `Encoder` layer.
-
-    Args:
-    x: tensor of shape (batch_size, sequence_length) representing the input token IDs sequence.
-
-    Returns:
-    A tensor of shape (batch_size, sequence_length, d_model) representing the output after applying
-    the self-attention and feed-forward layers to the input sequence.
-    """
-    # `x` is token-IDs shape: (batch, seq_len)
-    x = self.pos_embedding(x)  # Shape `(batch_size, seq_len, d_model)`.
-
-    # Add dropout.
-    x = self.dropout(x)
-
-    for i in range(self.num_layers):
-      x = self.enc_layers[i](x)
-
-    return x  # Shape `(batch_size, seq_len, d_model)`.
-  
-
 class DecoderLayer(tf.keras.layers.Layer):
   """
   A single layer of the decoder in a transformer-based architecture.
@@ -468,6 +357,7 @@ class Decoder(tf.keras.layers.Layer):
         for _ in range(num_layers)]
 
     self.last_attn_scores = None
+
   @tf.function
   def call(self, x):
     """

@@ -20,7 +20,7 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
 
         modelSource = {"Source": "FromFile", "ModelDirectory": modelFile, "Network": TrainingsParameter["Model"]["Network"]}
         model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
-
+        model.summary()
             
         Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
     

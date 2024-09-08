@@ -175,14 +175,16 @@ class OneStep(tf.keras.Model):
  # @tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
+
       # Run the model.
       predicted_logits_list  = self.model(inputs=(inputTensor))    #   JENTS: decoderonly
 
     
       pooledLogitsVector = keras.layers.GlobalAveragePooling1D(data_format="channels_last")(predicted_logits_list)
 
+
       if (self.previousPooledLogitsVector is not None):
-        similarity = tf.keras.losses.cosine_similarity(pooledLogitsVector, self.previousPooledLogitsVector)
+        similarity = -tf.keras.losses.cosine_similarity(pooledLogitsVector, self.previousPooledLogitsVector)
       else:
         similarity = tf.ones(shape=pooledLogitsVector.shape)
         

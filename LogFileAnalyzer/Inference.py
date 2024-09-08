@@ -129,7 +129,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 probabilityOfPredictionsList   = []
                 probabilityOfActualsList       = []
                 crossEntropyOfActualsList      = []
-                pooledLogitsVectorList         = []
+                pooledLogitsVectorDataList     = []
                 indexOfFirstPredictionTemp     = indexOfFirstPrediction
 
                 assemblySubmissionStartTime    = time.time()
@@ -144,7 +144,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 
                 for threadId in range(0, numberOfThreads):
 
-                    predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVector = one_step_model.generate_steps_optimized(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
+                    predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
                     
                     # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
                     nextPredictionsList.append(predictions)
@@ -158,7 +158,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
                     crossEntropyOfActualsList.append(crossEntropyOfActuals)
 
-                    pooledLogitsVectorList.append(pooledLogitsVector)
+                    pooledLogitsVectorDataList.append(pooledLogitsVectorData)
 
                 generationTime = time.time() - generationStartTime
                 print("   Generation Time = {:2.3f}.".format(generationTime))
@@ -167,7 +167,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     inputQueue  = Workers[threadId]["inputQueue"]
                     if (threadId == 0):
                         outputStartTime = time.time()
-                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], pooledLogitsVectorList[threadId],)))
+                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], pooledLogitsVectorDataList[threadId],)))
                 
                 nexttokenIdsList            = []
                 nextTokensList              = []

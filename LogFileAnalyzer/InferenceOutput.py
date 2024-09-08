@@ -32,7 +32,7 @@ def ComposePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVecto
 
         return linesToWrite
 
-def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions):
+def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions, pooledLogitsVector):
     with tf.device('/CPU:0'):
         string_length = 17
         number_string_length = 6
@@ -53,7 +53,6 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
             actualsString = "Actual: " 
             crossEntropyOfActualString = "ActualCrEntr: "
             AccuracyOfPrediction = 0
-
 
             for featureIndex in range(numberOfFeatures):
 
@@ -100,9 +99,11 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
             AccuracyOfPrediction = AccuracyOfPrediction / numberOfFeatures
             AccuracyOfPredictionString  = "HIDDEN" + str(int(AccuracyOfPrediction * 100))    
             AccuracyOfPredictionString  = extend_string_with_spaces(AccuracyOfPredictionString, 10)
+
+            SimilarityString = " Simul: " + TranslateToString(pooledLogitsVector['similarity'][executionIndex].numpy()) + "  "
             
 
-            lineToWrite = AccuracyOfPredictionString + actualsString + predictionsString + ProbabilityOfActualsString + crossEntropyOfActualString + "  "  + ProbabilityOfPredictionsString + PrintfList[executionIndex]
+            lineToWrite = AccuracyOfPredictionString + SimilarityString + actualsString + predictionsString + ProbabilityOfActualsString + crossEntropyOfActualString + "  "  + ProbabilityOfPredictionsString + PrintfList[executionIndex]
             linesToWrite.append(lineToWrite)
 
         return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
@@ -145,7 +146,7 @@ def ComposeLineListColored(numberOfParallelExecutions, nextPredictedTokens, next
 def InferenceOutputThread(workerParameter, threadId, numberOfParallelExecutions, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions, pooledLogitsVector):
     with tf.device('/CPU:0'):
         id_from_tokenList = workerParameter
-        linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions)
+        linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions, pooledLogitsVector)
         pooledLogitsVectorlinesToWrite = ComposePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
          
         

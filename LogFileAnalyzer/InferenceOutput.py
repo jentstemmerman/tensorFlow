@@ -17,7 +17,7 @@ def TranslateToString(value):
     if isinstance(value, (Number, np.number)):
         value = "{:5.2f} ".format(value)  
     else:
-        value = value
+        value = str(value)
     return value
 
 import Dataset
@@ -26,7 +26,8 @@ def ComposePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVecto
     with tf.device('/CPU:0'):
         linesToWrite = []
         for executionIndex in range(numberOfParallelExecutions):
-            line = str(pooledLogitsVector['similarity'][executionIndex].numpy()) + "   " + str(pooledLogitsVector['vector'][executionIndex].numpy()) + "\n"
+            arrayString = np.array2string(pooledLogitsVector['vector'][executionIndex].numpy(), max_line_width=80, threshold=1000)
+            line = TranslateToString(pooledLogitsVector['similarity'][executionIndex].numpy()) + "   " + arrayString + "\n"
             linesToWrite.append(line)
 
         return linesToWrite

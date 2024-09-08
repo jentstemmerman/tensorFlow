@@ -170,8 +170,7 @@ class OneStep(tf.keras.Model):
     probabilities = tf.keras.losses.sparse_categorical_crossentropy(id, softmaxLogits, from_logits=True)
     
     return probabilities
-  
-  
+   
 
  # @tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
@@ -186,14 +185,14 @@ class OneStep(tf.keras.Model):
         similarity = tf.keras.losses.cosine_similarity(pooledLogitsVector, self.previousPooledLogitsVector)
       else:
         similarity = tf.ones(shape=pooledLogitsVector.shape)
+        
 
-      self.previousPooledLogitsVector = pooledLogitsVector
-
-      pooledLogitsVector = {
+      pooledLogitsData = {
                               'vector': pooledLogitsVector,
                               'similarity': similarity,
                            }
-
+     
+      self.previousPooledLogitsVector = pooledLogitsVector
       
       #predicted_logits_list  = self.model(inputs=(inputTensor,inputTensor))  
       numberOfFeatures       = len(self.Tokens_from_idList)
@@ -241,7 +240,7 @@ class OneStep(tf.keras.Model):
               probabilityOfActuals   = np.append(probabilityOfActuals, probabilityOfActual)
 
 
-          crossEntropyOfActual = self.GetCrossEntropyromLogits(softmaxLogits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
+          crossEntropyOfActual = self.GetCrossEntropyromLogits(predicted_logits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
 
           if (crossEntropyOfActuals is None):
               crossEntropyOfActuals = crossEntropyOfActual
@@ -252,5 +251,5 @@ class OneStep(tf.keras.Model):
       probabilityOfActuals     = np.reshape(probabilityOfActuals,     [numberOfFeatures, int(len(probabilityOfActuals)     / numberOfFeatures)])
       crossEntropyOfActuals    = np.reshape(crossEntropyOfActuals,    [numberOfFeatures, int(len(crossEntropyOfActuals)     / numberOfFeatures)])
     
-      return predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVector
+      return predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsData
       

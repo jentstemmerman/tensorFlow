@@ -176,6 +176,10 @@ class OneStep(tf.keras.Model):
     with tf.device('/GPU:0'):
       # Run the model.
       predicted_logits_list  = self.model(inputs=(inputTensor))    #   JENTS: decoderonly
+
+      pooledLogitsVector = keras.layers.GlobalAveragePooling1D(data_format="channels_last")(predicted_logits_list)
+
+
       #predicted_logits_list  = self.model(inputs=(inputTensor,inputTensor))  
       numberOfFeatures       = len(self.Tokens_from_idList)
       predictions            = []
@@ -233,5 +237,5 @@ class OneStep(tf.keras.Model):
       probabilityOfActuals     = np.reshape(probabilityOfActuals,     [numberOfFeatures, int(len(probabilityOfActuals)     / numberOfFeatures)])
       crossEntropyOfActuals    = np.reshape(crossEntropyOfActuals,    [numberOfFeatures, int(len(crossEntropyOfActuals)     / numberOfFeatures)])
     
-      return predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals
+      return predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVector
       

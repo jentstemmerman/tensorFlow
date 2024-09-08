@@ -22,6 +22,17 @@ def TranslateToString(value):
 
 import Dataset
 
+def ComposePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
+    with tf.device('/CPU:0'):
+        linesToWrite = []
+        for executionIndex in range(numberOfParallelExecutions):
+            line = str(pooledLogitsVector[executionIndex].numpy()) + "\n"
+            linesToWrite.append(line)
+
+        return linesToWrite
+
+
+
 def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions):
     with tf.device('/CPU:0'):
         string_length = 17
@@ -132,10 +143,13 @@ def ComposeLineListColored(numberOfParallelExecutions, nextPredictedTokens, next
         return linesToWrite, numberOfIdenticals, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
      
     
-def InferenceOutputThread(workerParameter, threadId, numberOfParallelExecutions, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions):
+def InferenceOutputThread(workerParameter, threadId, numberOfParallelExecutions, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions, pooledLogitsVector):
     with tf.device('/CPU:0'):
         id_from_tokenList = workerParameter
         linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions)
-        return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
+        pooledLogitsVectorlinesToWrite = ComposePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
+         
+        
+        return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability, pooledLogitsVectorlinesToWrite
 
 

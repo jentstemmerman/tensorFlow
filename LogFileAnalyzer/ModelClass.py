@@ -148,7 +148,8 @@ class LSTMPrintfLogModel(tf.keras.Model):
     
     
 class OneStep(tf.keras.Model):
- 
+  previousPooledLogitsVector = None
+  
   def __init__(self, model, Tokens_from_idList, temperature=1.0):
     super().__init__()
     self.temperature = temperature
@@ -171,15 +172,29 @@ class OneStep(tf.keras.Model):
     return probabilities
   
   
+
  # @tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
       # Run the model.
       predicted_logits_list  = self.model(inputs=(inputTensor))    #   JENTS: decoderonly
 
+    
       pooledLogitsVector = keras.layers.GlobalAveragePooling1D(data_format="channels_last")(predicted_logits_list)
 
+      if (self.previousPooledLogitsVector is not None):
+        similarity = tf.keras.losses.cosine_similarity(pooledLogitsVector, self.previousPooledLogitsVector)
+      else:
+        similarity = tf.ones(shape=pooledLogitsVector.shape)
 
+      self.previousPooledLogitsVector = pooledLogitsVector
+
+      pooledLogitsVector = {
+                              'vector': pooledLogitsVector,
+                              'similarity': similarity,
+                           }
+
+      
       #predicted_logits_list  = self.model(inputs=(inputTensor,inputTensor))  
       numberOfFeatures       = len(self.Tokens_from_idList)
       predictions            = []

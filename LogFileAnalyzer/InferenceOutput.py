@@ -26,12 +26,10 @@ def ComposePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVecto
     with tf.device('/CPU:0'):
         linesToWrite = []
         for executionIndex in range(numberOfParallelExecutions):
-            line = str(pooledLogitsVector[executionIndex].numpy()) + "\n"
+            line = str(pooledLogitsVector['similarity'][executionIndex].numpy()) + "   " + str(pooledLogitsVector['vector'][executionIndex].numpy()) + "\n"
             linesToWrite.append(line)
 
         return linesToWrite
-
-
 
 def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions):
     with tf.device('/CPU:0'):

@@ -190,3 +190,6 @@ LogFileAnalyzer/LogFileAnalyzerOld.code-workspace
 TrainingSet2/Tokens.dat
 TrainingSet4/Tokens.dat
 TrainingSet*
+data/*
+LogFileAnalyzer/my_model/*
+LogFileAnalyzer/cuda-keyring_1.1-1_all.deb.2

@@ -27,9 +27,8 @@ def GetLogFilePath(logFilename, userId):
     return log_file_path
 
 
-def GetOffsetsDirectoryPath(logFilename, userId):
+def GetOffsetsDirectoryPath(userId):
     userId = str(userId)
-    logFilename = os.path.basename(logFilename)
     baseDirectory = GetBaseDirectory("OffsetsType", userId)
 
     offset_file_path = baseDirectory

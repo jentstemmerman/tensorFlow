@@ -3,7 +3,6 @@ import hashlib
 import logging
 from collections import OrderedDict
 from threading import Lock
-import Constants
 import numpy as np
 import LRUCache
 import pickle

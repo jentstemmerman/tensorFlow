@@ -87,7 +87,7 @@ def GetAnnotationManager(userId):
 
 def GetNumberOfLinesInFile(file_path, userId):
     offsetArrayManager = GetOffsetsManager(userId)
-    _, NumberOfLines = offsetArrayManager.get_offsets_array(file_path, userId)
+    _, NumberOfLines = offsetArrayManager.get_offsets_array(file_path)
 
     return NumberOfLines
 
@@ -95,7 +95,7 @@ def GetNumberOfLinesInFile(file_path, userId):
 def GetOffsetsArray(file_path, userId):
     offsetArrayManager = GetOffsetsManager(userId)
 
-    offsetsArray, _ = offsetArrayManager.get_offsets_array(file_path, userId)
+    offsetsArray, _ = offsetArrayManager.get_offsets_array(file_path)
 
     return offsetsArray
 

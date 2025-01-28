@@ -24,28 +24,33 @@ class OffsetArrayManager:
             cached_file_path = self.offset_cache.get(offset_file_path)
             cached_hash = self.offset_cache.get(f"{offset_file_path}_hash")
             numberOfLines = self.offset_cache.get(f"{offset_file_path}_numberOfLines")
+            print("Hash from cache: ", cached_hash)
 
-            if cached_file_path is None:
-                offset_file_exists = os.path.exists(offset_file_path)
-                offset_file_hash_match = False
+            offset_file_exists = os.path.exists(offset_file_path)
+            offset_file_hash_match = False
 
-                if offset_file_exists:
-                    offset_file_hash = self.generate_file_hash(offset_file_path)
-                    offset_file_hash_match = offset_file_hash == cached_hash
+            if offset_file_exists:
+                offset_file_hash = self.generate_file_hash(offset_file_path)
 
-                if not offset_file_exists or not offset_file_hash_match:
+                offset_file_hash_match = offset_file_hash == cached_hash
+                print("File exists. Hash from file: ", offset_file_hash)
+
+                if not offset_file_hash_match:
                     numberOfLines = self.generate_offset_file(
                         file_path, offset_file_path
                     )
-
                     offset_file_hash = self.generate_file_hash(offset_file_path)
-                    numberOfLines = self.get_number_of_lines_in_file(
-                        self, offset_file_path
-                    )
+                    cached_file_path = None
+            else:
+                numberOfLines = self.generate_offset_file(file_path, offset_file_path)
+                offset_file_hash = self.generate_file_hash(offset_file_path)
+                print("File generated. Hash from new file: ", offset_file_hash)
 
+                cached_file_path = None
+
+            if cached_file_path is None:
                 # Update cache with new offsets and file hash
                 offset_file_content = self.read_offset_file(offset_file_path)
-                offset_file_hash = self.generate_file_hash(offset_file_path)
 
                 self.offset_cache.put(offset_file_path, offset_file_content)
                 self.offset_cache.put(f"{offset_file_path}_hash", offset_file_hash)

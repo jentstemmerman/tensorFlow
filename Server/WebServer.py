@@ -245,14 +245,7 @@ def get_file_metadata(file_name):
 
     try:
         file_size = os.path.getsize(file_path)
-        print(
-            "get_file_metadata: Return metadata for file ",
-            file_name,
-            ". file_size ",
-            file_size,
-            "numberOfLines ",
-            numberOfLines,
-        )
+
         return jsonify({"size": file_size, "numberOfLines": numberOfLines})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

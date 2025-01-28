@@ -8,10 +8,11 @@ import json
 from flask_socketio import SocketIO, emit
 import time
 import threading
-import Constants
+
 
 WebServer = Flask(__name__)
-cors = CORS(WebServer, resources={r"/*": {"origins": "*:3000"}})
+cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
+
 socketio = SocketIO(WebServer, cors_allowed_origins=["*"])
 
 

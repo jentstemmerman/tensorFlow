@@ -180,6 +180,22 @@ def get_file_lines(file_name):
         return jsonify({"error": str(e)}), 500
 
 
+@WebServer.route("/api/file/checkannotations/<file_name>", methods=["GET"])
+def check_file_annotations(file_name):
+    try:
+        userId = request.args.get("userId", None)
+        annotation_id = int(request.args.get("annotation_id", 0))
+
+        annotations_exists = FileHandler.CheckAnnotations(
+            file_name, userId, annotation_id
+        )
+
+        return jsonify({"annotations_exists": annotations_exists})
+    except Exception as e:
+        print(e)
+        return jsonify({"error": str(e)}), 500
+
+
 @WebServer.route("/api/file/getannotations/<file_name>", methods=["GET"])
 def get_file_annotations(file_name):
     """Return a specific part of the file content based on line numbers."""

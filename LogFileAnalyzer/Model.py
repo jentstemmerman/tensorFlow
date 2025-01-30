@@ -67,6 +67,21 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
+def AnalyzePrintfFile(model, inputFile, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
+    itemList = TokenParser.GetItemListToSearchFor(itemFile)
+
+    printfFileToProcess      = inputFile
+
+    outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".mdtxt")
+    LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
+
+    FileNamePooledVectors = Path(printfFileToProcess).name.replace(".log", "_PooledVectors" + str(temperature) + ".txt")
+    FileNamePooledVectors = os.path.join(outputDirectory, FileNamePooledVectors)
+    
+    Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, FileNamePooledVectors=FileNamePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
+
+
+
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)

@@ -8,7 +8,9 @@ import json
 from flask_socketio import SocketIO, emit
 import time
 import threading
-
+import sys
+sys.path.append('../LogFileAnalyzer')
+import CommandAnalyzeFile
 
 WebServer = Flask(__name__)
 cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
@@ -52,7 +54,7 @@ ColumnAnnotations = [
 
 
 def GetOffsetFilePath(LogFilename, userId):
-    baseDirectory = Constants.GetBaseDirectory("OffsetsType", userId)
+    baseDirectory = Constants.GetUserSpecificBaseDirectory("OffsetsType", userId)
 
     offset_file_path = os.path.join(baseDirectory, LogFilename)
     return offset_file_path
@@ -78,7 +80,7 @@ def get_directory_listing():
         SignatureDirType = "SignatureType"
         ModelDirType = "ModelDirType"
 
-    base_directory = Constants.GetBaseDirectory(requested_directoryType, userId)
+    base_directory = Constants.GetUserSpecificBaseDirectory(requested_directoryType, userId)
 
     # Resolve the full directory path
     full_directory_path = os.path.normpath(os.path.join(base_directory, requested_path))
@@ -134,7 +136,7 @@ def get_signature_files_list():
 
     userId = request.args.get("userId", "")
 
-    base_directory = Constants.GetBaseDirectory("SignatureType", userId)
+    base_directory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
 
     files = []
 
@@ -173,6 +175,38 @@ def get_file_lines(file_name):
                 "start": lineOffset,
                 "size": numberOfLines,
                 "annotations": ColumnAnnotations,
+            }
+        )
+    except Exception as e:
+        print(e)
+        return jsonify({"error": str(e)}), 500
+
+
+@WebServer.route("/api/file/analyze_file/<file_name>", methods=["GET"])
+def analyze_file(file_name):
+    """Return a specific part of the file content based on line numbers."""
+    try:
+        userId = request.args.get("userId", None)
+        modelDirectory = request.args.get("modelDirectory", None)
+        tokenDirectory = request.args.get("tokenDirectory", None)
+        modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
+        
+        file_path = Constants.GetLogFilePath(logFilename=file_name, userId=userId)
+        outputDirectory = Constants.GetLogFileAnalyzedPath(logFilename=file_name, userId=userId)
+        
+        OriginalTokenFileDirectory =  os.path.join( Constants.GetTokenFilesPath(), tokenDirectory)
+            
+        itemFile = os.path.join( Constants.GetItemFilesPath(), "Itemfile.txt")
+                
+        outputDirectory = Constants.GetLogFileAnalyzedPath(logFilename=file_name, userId=userId)
+        
+        CommandAnalyzeFile.AnalyzeFile(modelDirectory, file_path, outputDirectory, OriginalTokenFileDirectory, itemFile, temperature=1)
+
+        # print("get_file_lines file_name: ", file_name, ", lineOffset: ", lineOffset, "numberOfLines: ", numberOfLines, "offset_file_path: ", offset_file_path, "file_path: ", file_path)
+
+        return jsonify(
+            {
+                "ok": 1,
             }
         )
     except Exception as e:
@@ -256,7 +290,7 @@ def upload_file():
     print("/api/uploadLogFile ")
     file = request.files["file"]
     userId = request.form["userId"]
-    baseDirectory = Constants.GetBaseDirectory("LogType", userId)
+    baseDirectory = Constants.GetUserSpecificBaseDirectory("LogType", userId)
     file_path = os.path.join(baseDirectory, file.filename)
 
     if not os.path.exists(os.path.dirname(file_path)):
@@ -302,7 +336,7 @@ def upload_signature():
             "endLine": endLine,
         }
 
-        baseDirectory = Constants.GetBaseDirectory("SignatureType", userId)
+        baseDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
         file_path = os.path.join(baseDirectory, signature_name)
 
         # Ensure the directory exists

@@ -19,9 +19,12 @@ def TrainModelOnDataSet(TrainingDataSetFile, VerificationDataSetFile, id_from_to
     datasetForTraining = Dataset.PrepareDataSetForTraining(datasetForTraining, TrainingsParameter["BatchSize"], shuffle=TrainingsParameter["shuffleTraining"], buffer_size=TrainingsParameter["BUFFER_SIZE"])
     
     if (VerificationDataSetFile != ""):
-        print("Use for verification: ", VerificationDataSetFile)
-        datasetForVerification = Dataset.LoadDataset(VerificationDataSetFile.strip())  
-        datasetForVerification = Dataset.PrepareDataSetForTraining(datasetForVerification, TrainingsParameter["BatchSize"], shuffle=TrainingsParameter["shuffleTraining"], buffer_size=TrainingsParameter["BUFFER_SIZE"])
+        if not os.path.exists(VerificationDataSetFile.strip()):
+            datasetForVerification = None
+        else:
+            print("Use for verification: ", VerificationDataSetFile)
+            datasetForVerification = Dataset.LoadDataset(VerificationDataSetFile.strip())  
+            datasetForVerification = Dataset.PrepareDataSetForTraining(datasetForVerification, TrainingsParameter["BatchSize"], shuffle=TrainingsParameter["shuffleTraining"], buffer_size=TrainingsParameter["BUFFER_SIZE"])
 
     model = Model.TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParameter, TrainingCheckpointDir)
     

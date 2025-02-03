@@ -409,6 +409,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
     Returns:
       logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
+      hidden_states (tf.Tensor): Hidden states from the decoder. Shape (batch_size, target_len, d_model).
     """
 
     # To use a Keras model with `.fit` you must pass all your inputs in the
@@ -416,10 +417,12 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
     x  = inputs
   
     x = tf.squeeze(x, axis=-1)
-    x = self.decoder(x)  
+    
+    
+    hidden_states = self.decoder(x)  
 
     # Final linear layer output.
-    logits = self.final_layer(x)  # (batch_size, target_len, target_vocab_size)
+    logits = self.final_layer(hidden_states)  # (batch_size, target_len, target_vocab_size)
 
     try:
       # Drop the keras mask, so it doesn't scale the losses/metrics.
@@ -428,8 +431,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
     except AttributeError:
       pass
 
-    # Return the final output and the attention weights.
-    return logits
+    return logits, hidden_states
 
 class Transformer(tf.keras.Model):
   """
@@ -480,16 +482,21 @@ class Transformer(tf.keras.Model):
         
         embeddingDimension.append(output_dimension)
         total_output_dimensions += output_dimension
-    print("Embedding dimensions:")
-    print(embeddingDimension)
+    #print("Embedding dimensions:")
+    #print(embeddingDimension)
     return embeddingDimension
   
-  @tf.function
-  def call(self, inputs):
-    logits = self.decoderOnlyTransformerLayer(inputs)
-
+  # @tf.function
+  def call(self, inputs, training=False):
+    logits, hidden_state = self.decoderOnlyTransformerLayer(inputs)
+    
+    if (training):
+      returnValue = logits
+    else:
+      returnValue = logits, hidden_state
+      
     # Return the final output and the attention weights.
-    return logits
+    return returnValue
   
 
 

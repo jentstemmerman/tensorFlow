@@ -148,7 +148,6 @@ class LSTMPrintfLogModel(tf.keras.Model):
     
     
 class OneStep(tf.keras.Model):
-  previousPooledLogitsVector = None
   
   def __init__(self, model, Tokens_from_idList, temperature=1.0):
     super().__init__()
@@ -172,30 +171,43 @@ class OneStep(tf.keras.Model):
     return probabilities
    
 
- # @tf.function
+  @tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
 
       # Run the model.
-      predicted_logits_list  = self.model(inputs=(inputTensor))    #   JENTS: decoderonly
+      predicted_logits_list, hidden_state  = self.model(inputs=(inputTensor))   
+   
+      hiddenStateOfPrediction = hidden_state[:,-1,:]
+      hiddenStateOfLineBeforePrediction = hidden_state[:,-2,:]
+      
+      indexOfPrediction = hidden_state.shape[1] - 1
+             
+      hiddenStateOfPrediction2 = tf.gather(hidden_state, indices=indexOfPrediction, axis=1)
+      hiddenStateOfLineBeforePrediction2 = tf.gather(hidden_state, indices=indexOfPrediction-1, axis=1)
+            
+      ### this code is here to check if the gather function is ok
+      are_hiddenStateOfPrediction_equal = tf.reduce_all(tf.equal(hiddenStateOfPrediction, hiddenStateOfPrediction2))
+      are_hiddenStateOfLineBeforePrediction_equal = tf.reduce_all(tf.equal(hiddenStateOfLineBeforePrediction, hiddenStateOfLineBeforePrediction2))
+            
+      if (not are_hiddenStateOfPrediction_equal):
+        print("hiddenStateOfPrediction not equal")
+        exit()
+        
+      if (not are_hiddenStateOfLineBeforePrediction_equal):
+        print("hiddenStateOfLineBeforePrediction not equal")
+        exit()
+      ### end of check code
+      
+      similarity = -tf.keras.losses.cosine_similarity(hiddenStateOfPrediction, hiddenStateOfLineBeforePrediction)
 
-    
-      pooledLogitsVector = keras.layers.GlobalAveragePooling1D(data_format="channels_last")(predicted_logits_list)
-
-
-      if (self.previousPooledLogitsVector is not None):
-        similarity = -tf.keras.losses.cosine_similarity(pooledLogitsVector, self.previousPooledLogitsVector)
-      else:
-        similarity = tf.ones(shape=pooledLogitsVector.shape)
         
 
       pooledLogitsData = {
-                              'vector': pooledLogitsVector,
+                              'vector': hiddenStateOfPrediction,
                               'similarity': similarity,
                            }
-     
-      self.previousPooledLogitsVector = pooledLogitsVector
-      
+          
       #predicted_logits_list  = self.model(inputs=(inputTensor,inputTensor))  
       numberOfFeatures       = len(self.Tokens_from_idList)
       predictions            = []
@@ -205,7 +217,7 @@ class OneStep(tf.keras.Model):
       
       for index, Tokens_from_ids in enumerate(self.Tokens_from_idList):
           predicted_logits = predicted_logits_list
-          predicted_logits = predicted_logits[:, -1, :]
+          predicted_logits = predicted_logits[:, -1, :]    # take the last logits, this is the one the model predicts
           predicted_logits = predicted_logits / self.temperature
  
           if (Tokens_from_ids is not None):

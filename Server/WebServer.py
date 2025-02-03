@@ -167,7 +167,8 @@ def get_file_lines(file_name):
         content = FileHandler.read_file_lines(
             file_path, userId, lineOffset, numberOfLines
         )
-        content = content.decode("utf-8")
+        
+        content = content.decode("utf-8", errors="ignore")
 
         return jsonify(
             {

@@ -22,7 +22,7 @@ def TranslateToString(value):
 
 import Dataset
 
-def ComposePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
+def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
     with tf.device('/CPU:0'):
         linesToWrite = []
         for executionIndex in range(numberOfParallelExecutions):
@@ -31,6 +31,13 @@ def ComposePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVecto
             linesToWrite.append(line)
 
         return linesToWrite
+
+def ComposeDensePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
+    with tf.device('/CPU:0'):
+        for executionIndex in range(numberOfParallelExecutions):
+            vector = pooledLogitsVector['vector'][executionIndex].numpy()
+
+        return vector
 
 def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions, pooledLogitsVector):
     with tf.device('/CPU:0'):
@@ -147,9 +154,9 @@ def InferenceOutputThread(workerParameter, threadId, numberOfParallelExecutions,
     with tf.device('/CPU:0'):
         id_from_tokenList = workerParameter
         linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions, pooledLogitsVector)
-        pooledLogitsVectorlinesToWrite = ComposePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
-         
+        pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
+        pooledMachineReadableLogitsVectorlinesToWrite = ComposeDensePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
         
-        return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability, pooledLogitsVectorlinesToWrite
+        return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite
 
 

@@ -75,12 +75,13 @@ def AnalyzePrintfFile(model, inputFile, outputDirectory, itemFile, temperature, 
     outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".mdtxt")
     LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-    FileNamePooledVectors = Path(printfFileToProcess).name.replace(".log", "_PooledVectors" + str(temperature) + ".txt")
-    FileNamePooledVectors = os.path.join(outputDirectory, FileNamePooledVectors)
+    FileNameHumanReadablePooledVectors = Path(printfFileToProcess).name.replace(".log", "_HumanReadablePooledVectors" + str(temperature) + ".txt")
+    FileNameHumanReadablePooledVectors = os.path.join(outputDirectory, FileNameHumanReadablePooledVectors)
     
-    Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, FileNamePooledVectors=FileNamePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
-
-
+    FileNameMachineReadablePooledVectors = Path(printfFileToProcess).name.replace(".log", "_MachineReadablePooledVectors" + str(temperature) + ".dat")
+    FileNameMachineReadablePooledVectors = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors)
+    
+    Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
 
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
 
@@ -92,10 +93,13 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".mdtxt")
         LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
 
-        FileNamePooledVectors = Path(printfFileToProcess).name.replace(".log", "_PooledVectors" + str(temperature) + ".txt")
-        FileNamePooledVectors = os.path.join(outputDirectory, FileNamePooledVectors)
+        FileNameHumanReadablePooledVectors = Path(printfFileToProcess).name.replace(".log", "_HumanReadablePooledVectors" + str(temperature) + ".txt")
+        FileNameHumanReadablePooledVectors = os.path.join(outputDirectory, FileNameHumanReadablePooledVectors)
         
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, FileNamePooledVectors=FileNamePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
+        FileNameMachineReadablePooledVectors = Path(printfFileToProcess).name.replace(".log", "_MachineReadablePooledVectors" + str(temperature) + ".dat")
+        FileNameMachineReadablePooledVectors = os.path.join(outputDirectory, FileNameHumanReadablePooledVectors)
+    
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -218,7 +222,13 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
 
     elif (modelSource["Source"]  == "FromFile"):
         ModelDirectory = modelSource["ModelDirectory"]
-        model = tf.keras.models.load_model(ModelDirectory, compile=False )
+        
+        custom_objects = {
+            'Transformer': type(model),
+            'Custom_loss_function': MultiDimensionalModel.Custom_loss_function
+        }
+        
+        model = tf.keras.models.load_model(ModelDirectory, custom_objects=custom_objects, compile=False )
         loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
         model.compile(optimizer=optimizer, loss=loss_function)
 

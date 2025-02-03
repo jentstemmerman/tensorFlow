@@ -8,7 +8,7 @@ import Dataset
 
 def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature):
     with tf.device('/CPU:0'):
-        numberOfThreads = 7  # 1 for the main process
+        numberOfThreads = 1  # 1 for debugging puposes # 1 for the main process
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
@@ -60,7 +60,7 @@ if __name__ == "__main__":
        
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
         
-   # tf.config.run_functions_eagerly(True)  
-   # tf.data.experimental.enable_debug_mode()    
+    tf.config.run_functions_eagerly(True)  
+    tf.data.experimental.enable_debug_mode()    
    
     AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature)  

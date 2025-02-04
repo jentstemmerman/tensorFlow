@@ -1,5 +1,4 @@
 import DefaultTrainingSettings
-import os
 import Model
 import tensorflow as tf
 import worker
@@ -8,7 +7,9 @@ import Dataset
 
 def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature):
     with tf.device('/CPU:0'):
-        numberOfThreads = 1  # 1 for debugging puposes # 1 for the main process
+       
+        numberOfThreads = 1
+
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)

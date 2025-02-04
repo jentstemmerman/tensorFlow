@@ -11,16 +11,14 @@ def AnalyzeFile(modelDirectory, inputFile, outputDirectory, OriginalTokenFileDir
     tf.data.experimental.enable_debug_mode() 
       
     with tf.device('/CPU:0'):
-
    
         success = False
-        numberOfThreads = 7  # 1 for the main process
+        numberOfThreads = 1  # 1 for the main process
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
         id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList) 
         modelFeatureList                     = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
-
         maskValueList                        = Model.GetMaskValueList(id_from_tokenList)
 
         TrainingsParameter = DefaultTrainingSettings.TrainingsParameter

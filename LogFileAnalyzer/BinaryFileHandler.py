@@ -1,6 +1,7 @@
 import struct
 import json
 import os
+import numpy as np
 
 class BinaryDataFile:
     HEADER_SIZE = 128  # Assuming header size is 128 bytes
@@ -20,7 +21,8 @@ class BinaryDataFile:
         self.fmt = self.TYPE_MAP[data_type] * numbers_per_line
         self.file_handler = None
         self._write_header({"record_count": 0, "version": 1.0, "description": "Binary data file"})
-
+        self._read_header()
+        
     def _write_header(self, header_data):
         """Write the JSON header to the file."""
         json_header = json.dumps(header_data).encode("utf-8")
@@ -33,11 +35,19 @@ class BinaryDataFile:
             f.write(padded_header)
 
     def _read_header(self):
-        """Read and return the JSON header from the file."""
         with open(self.filename, "rb") as f:
             header_bytes = f.read(self.HEADER_SIZE)
             header_str = header_bytes.rstrip(b'\x00').decode("utf-8")  # Remove padding
-            return json.loads(header_str)
+            self._header_cache = json.loads(header_str)
+            return self._header_cache
+
+    def _get_header(self):
+        """Read and return the JSON header from the file or from the member if already read."""
+        if hasattr(self, '_header_cache'):
+            return self._header_cache
+        else:
+            return self._read_header()        
+
 
     def clear_file(self):
         """Clear the binary file and reset the JSON header."""
@@ -47,11 +57,21 @@ class BinaryDataFile:
 
     def append(self, record):
         """Append a record to the binary file."""
-        with open(self.filename, "ab") as f:
-            f.write(struct.pack(self.fmt, *record))
-        header = self._read_header()
-        header["record_count"] += 1
-        self._write_header(header)
+        if self.file_handler is None:
+            self.file_handler = open(self.filename, "ab")
+        
+        # Ensure record is iterable
+        if ((not isinstance(record, np.ndarray)) and (not isinstance(record, (list, tuple)))):
+            record = [record]
+        
+        # Check for numpy array and convert to list
+        if hasattr(record, 'tolist'):
+            record = record.tolist()
+        
+        # Convert numpy.float32 to native Python float
+        record = [float(x) for x in record]    # this is not needed for float32
+        self.file_handler.write(struct.pack(self.fmt, *record))
+        self._header_cache["record_count"] += 1
 
     def read_next(self):
         """Read the next record from the file."""
@@ -64,7 +84,7 @@ class BinaryDataFile:
 
     def read_at(self, index):
         """Read a record at a specific index (0-based)."""
-        header = self._read_header()
+        header = self._get_header()
         record_count = header.get("record_count", 0)
 
         if index >= record_count:

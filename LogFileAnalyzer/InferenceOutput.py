@@ -34,10 +34,11 @@ def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pool
 
 def ComposeDensePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
     with tf.device('/CPU:0'):
+        vectorsToWrite = []
         for executionIndex in range(numberOfParallelExecutions):
             vector = pooledLogitsVector['vector'][executionIndex].numpy()
-
-        return vector
+            vectorsToWrite.append(vector)
+        return vectorsToWrite
 
 def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions, pooledLogitsVector):
     with tf.device('/CPU:0'):

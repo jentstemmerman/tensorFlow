@@ -71,6 +71,7 @@ with tf.device('/CPU:0'):
         return newWindow, newToken, newTokenId, nextTokenIdWindow
 
 
+
     def AssembleInputsThread(workerParameter, threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, window_size):
         with tf.device('/CPU:0'):
 

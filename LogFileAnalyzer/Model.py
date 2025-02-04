@@ -223,11 +223,8 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
     elif (modelSource["Source"]  == "FromFile"):
         ModelDirectory = modelSource["ModelDirectory"]
         
-        custom_objects = {
-            'Transformer': type(model),
-            'Custom_loss_function': MultiDimensionalModel.Custom_loss_function
-        }
-        
+
+        custom_objects = None
         model = tf.keras.models.load_model(ModelDirectory, custom_objects=custom_objects, compile=False )
         loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
         model.compile(optimizer=optimizer, loss=loss_function)

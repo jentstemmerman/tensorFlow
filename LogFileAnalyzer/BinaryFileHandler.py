@@ -1,9 +1,9 @@
-import json
 import struct
+import json
 import os
 
 class BinaryDataFile:
-    HEADER_SIZE = 512  # Fixed header space
+    HEADER_SIZE = 128  # Assuming header size is 128 bytes
 
     # Mapping for user-friendly types
     TYPE_MAP = {
@@ -12,26 +12,14 @@ class BinaryDataFile:
         "float64": "d"
     }
 
-    def __init__(self, filename, data_type="int32", numbers_per_line=4):
-        """
-        Initialize the binary file handler with a JSON header.
-
-        :param filename: Path to the binary file
-        :param data_type: User-friendly data type ('int32', 'float32', 'float64')
-        :param numbers_per_line: How many numbers per line
-        """
-        if data_type not in self.TYPE_MAP:
-            raise ValueError(f"Unsupported data type: {data_type}. Use one of {list(self.TYPE_MAP.keys())}")
-
+    def __init__(self, filename, data_type="float32", numbers_per_line=3):
         self.filename = filename
-        self.data_type = self.TYPE_MAP[data_type]  # Convert to struct format
+        self.data_type = data_type
         self.numbers_per_line = numbers_per_line
-        self.fmt = f"{numbers_per_line}{self.data_type}"  # Example: "4f" for four float32 values
-        self.record_size = struct.calcsize(self.fmt)
-
-        # Ensure file has a JSON header
-        if not os.path.exists(self.filename) or os.path.getsize(self.filename) < self.HEADER_SIZE:
-            self._write_header({"record_count": 0, "version": 1.0, "description": "Binary data file"})
+        self.record_size = struct.calcsize(self.TYPE_MAP[data_type]) * numbers_per_line
+        self.fmt = self.TYPE_MAP[data_type] * numbers_per_line
+        self.file_handler = None
+        self._write_header({"record_count": 0, "version": 1.0, "description": "Binary data file"})
 
     def _write_header(self, header_data):
         """Write the JSON header to the file."""
@@ -53,45 +41,29 @@ class BinaryDataFile:
 
     def clear_file(self):
         """Clear the binary file and reset the JSON header."""
-        self._write_header({"record_count": 0, "version": 1.0, "description": "Binary data file"})
+        with open(self.filename, "wb") as f:
+            header = json.dumps({"record_count": 0, "version": 1.0, "description": "Binary data file"}).ljust(self.HEADER_SIZE)
+            f.write(header.encode('utf-8'))
 
-    def append(self, data):
-        """
-        Append a new line of numbers to the binary file.
-
-        :param data: A tuple or list of numbers matching the format
-        """
-        if len(data) != self.numbers_per_line:
-            raise ValueError(f"Data must contain exactly {self.numbers_per_line} elements.")
-        
-        # Read the current header
-        header = self._read_header()
-        record_count = header.get("record_count", 0)
-
+    def append(self, record):
+        """Append a record to the binary file."""
         with open(self.filename, "ab") as f:
-            f.write(struct.pack(self.fmt, *data))
-
-        # Update the record count in the header
-        header["record_count"] = record_count + 1
+            f.write(struct.pack(self.fmt, *record))
+        header = self._read_header()
+        header["record_count"] += 1
         self._write_header(header)
 
-    def read_next(self, file_obj):
-        """
-        Read the next record from an open file object.
+    def read_next(self):
+        """Read the next record from the file."""
+        if self.file_handler is None:
+            self.file_handler = open(self.filename, "rb")
+            self.file_handler.seek(self.HEADER_SIZE)  # Skip header
 
-        :param file_obj: A binary file object (opened in "rb" mode)
-        :return: A tuple of numbers, or None if end of file is reached
-        """
-        data = file_obj.read(self.record_size)
+        data = self.file_handler.read(self.record_size)
         return struct.unpack(self.fmt, data) if data else None
 
     def read_at(self, index):
-        """
-        Read a record at a specific index (0-based).
-
-        :param index: Record index to read
-        :return: A tuple of numbers
-        """
+        """Read a record at a specific index (0-based)."""
         header = self._read_header()
         record_count = header.get("record_count", 0)
 
@@ -107,11 +79,19 @@ class BinaryDataFile:
 
     def get_header_info(self):
         """Return the JSON header as a dictionary."""
-        return self._read_header()
+        with open(self.filename, "rb") as f:
+            header = f.read(self.HEADER_SIZE).decode('utf-8').rstrip('\x00')
+            return json.loads(header)
+
+    def close(self):
+        """Close the file handler if it's open."""
+        if self.file_handler:
+            self.file_handler.close()
+            self.file_handler = None
 
 # Example Usage
 if __name__ == "__main__":
-    binary_file = BinaryDataFile("data_with_json_header.bin", data_type="f", numbers_per_line=3)
+    binary_file = BinaryDataFile("data_with_json_header.bin", data_type="float32", numbers_per_line=3)
 
     # Clear file (resets header)
     binary_file.clear_file()
@@ -119,15 +99,18 @@ if __name__ == "__main__":
     # Append records
     binary_file.append((1.1, 2.2, 3.3))
     binary_file.append((4.4, 5.5, 6.6))
+    binary_file.append((7.7, 8.8, 9.9))
 
     # Read back at index 1
     print(binary_file.read_at(1))  # Output: (4.4, 5.5, 6.6)
 
     # Read header
-    print(binary_file.get_header_info())  # Output: {'record_count': 2, 'version': 1.0, 'description': 'Binary data file'}
+    print(binary_file.get_header_info())  # Output: {'record_count': 3, 'version': 1.0, 'description': 'Binary data file'}
 
     # Read sequentially
-    with open("data_with_json_header.bin", "rb") as f:
-        f.seek(BinaryDataFile.HEADER_SIZE)  # Skip header
-        print(binary_file.read_next(f))  # Output: (1.1, 2.2, 3.3)
-        print(binary_file.read_next(f))  # Output: (4.4, 5.5, 6.6)
+    print(binary_file.read_next())  # Output: (1.1, 2.2, 3.3)
+    print(binary_file.read_next())  # Output: (4.4, 5.5, 6.6)
+    print(binary_file.read_next())  # Output: (7.7, 8.8, 9.9)
+
+    # Close the file handler
+    binary_file.close()

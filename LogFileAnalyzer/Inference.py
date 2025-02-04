@@ -88,15 +88,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
 
         indexOfFirstPrediction  = window_size + 1
         
-        result = InferenceAssembly.AssembleInputsThread(id_from_tokenList, 0, DataTypeForTensors, indexOfFirstPrediction, 1, sharedTokenList, window_size)
-        inputTensor = result[1]   
-        nexttokenIds = result[2]     
-       
-        predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, states=None)
-        numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
-
-
-        binaryFileHandler = BinaryFileHandler.BinaryDataFile(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=numberOfVectors)   
+        hiddenVectorSize = GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, indexOfFirstPrediction)
+        binaryFileHandler = BinaryFileHandler.BinaryDataFile(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize)   
         
         remainingNumberOfLines  = (numberOfLines - numberOfAnalyzedLines) - (window_size + 1)
         reducedParameters, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads)
@@ -277,6 +270,16 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileToAnalyze.close()
         LogfileAnalyzed.close()   
         binaryFileHandler.close()
+
+def GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, indexOfFirstPrediction):
+    result = InferenceAssembly.AssembleInputsThread(id_from_tokenList, 0, DataTypeForTensors, indexOfFirstPrediction, 1, sharedTokenList, window_size)
+
+    inputTensor = result[1]   
+    nexttokenIds = result[2]     
+       
+    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, states=None)
+    numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
+    return numberOfVectors
       
 
 

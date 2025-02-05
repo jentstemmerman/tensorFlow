@@ -35,15 +35,7 @@ def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions
 
     return reducedParameters, numberOfParallelExecutions, numberOfThreads
 
-def GetPooledVectorsFromFile(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors):
-    binaryFileHandler = BinaryFileHandler.BinaryDataFile(FileNameMachineReadablePooledVectors, data_type=DataTypeForTensors, numbers_per_line=numberOfHiddenVectors)
-    pooledVectors = binaryFileHandler.read_records(startVectorOffset, numberOfHiddenVectors)
-    
-    pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(pooledVectors)
-    pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(pooledVectors)
-    pooledVectors = tf.concat([pooledAverageVector, pooledMaxVector], axis=1)
-    
-    return pooledAverageVector
+
 
 def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors, id_from_tokenList, token_from_idList, temperature, seq_length):
     with tf.device('/CPU:0'):

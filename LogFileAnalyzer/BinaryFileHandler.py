@@ -2,6 +2,7 @@ import struct
 import json
 import os
 import numpy as np
+import tensorflow as tf
 
 class BinaryFileHandler:
     HEADER_SIZE = 128  # Assuming header size is 128 bytes
@@ -128,7 +129,8 @@ class BinaryFileHandler:
         return struct.unpack(self.fmt, data)
 
     def read_records(self, start_index, num_records):
-        """Read a specified number of records starting from a specific index."""
+        """Read a specified number of records starting from a specific index and return as a TensorFlow tensor."""
+
         header = self._get_header()
         record_count = header.get("record_count", 0)
 
@@ -148,7 +150,8 @@ class BinaryFileHandler:
             if len(data) != self.record_size:
                 raise ValueError("Invalid index or file corruption.")
             records.append(struct.unpack(self.fmt, data))
-        return records
+        
+        return tf.convert_to_tensor(records, dtype=tf.float32)
 
     def close(self):
         """Close the file handler if it's open."""

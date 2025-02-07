@@ -2,7 +2,6 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
 import FileHandler
-from urllib.parse import unquote
 import Constants
 import json
 from flask_socketio import SocketIO, emit
@@ -10,7 +9,7 @@ import time
 import threading
 import sys
 sys.path.append('../LogFileAnalyzer')
-import CommandAnalyzeFile
+import CommandAnalyzeFile # type: ignore
 
 WebServer = Flask(__name__)
 cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
@@ -300,7 +299,30 @@ def upload_file():
     file.save(file_path)
     return jsonify({"message": "File uploaded successfully", "filePath": file_path})
 
+@WebServer.route('/api/createFile', methods=['POST'])
+def create_file():
+    data = request.json
+    
+    user_id = data.get('userId')
+    path = data.get('path')
+    file_name = data.get('fileName')
+    file_type = data.get('fileType')
+    contents = data.get('contents')
+    
+    baseDirectory = Constants.GetUserSpecificBaseDirectory(file_type, user_id)
 
+    # Construct the full file path
+    full_path = os.path.join(baseDirectory, path, file_name)
+
+    try:
+        # Create the file and write contents
+        with open(full_path, 'w') as f:
+            f.write(contents)  # Write the contents to the file
+
+        return jsonify({"message": "File created successfully"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @WebServer.route("/api/uploadSignatureFile", methods=["POST"])
 def upload_signature():
     print("/api/uploadSignatureFile")
@@ -386,6 +408,8 @@ def save_user_settings(user_id):
     with open(settings_file_path, "w") as file:
         json.dump(settings, file)
     return jsonify({"message": "Settings saved successfully"})
+
+
 
 
 @WebServer.route("/")

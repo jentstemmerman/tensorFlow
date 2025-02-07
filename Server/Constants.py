@@ -1,5 +1,11 @@
 import os
+from pathlib import Path
 
+
+DATA_BASE_DIRECTORY = os.path.join("/" , "home", "jents", "AI", "data")
+
+
+LOG_FILE_ANALYZER_DIRECTORY = os.path.join("/" , "home", "jents", "AI", "LogFileAnalyzer")
 LOG_FILES_DIRECTORY = os.path.normpath("logFiles")
 ITEM_FILES_DIRECTORY = os.path.normpath("ItemFiles")
 ANALYZED_LOG_FILES_DIRECTORY = os.path.normpath("logFilesAnalyzed")
@@ -30,10 +36,34 @@ def GetLogFilePath(logFilename, userId):
 
 def GetLogFileAnalyzedPath(logFilename, userId):
     userId = str(userId)
-    logFilename = os.path.basename(logFilename)
+    logFilenameWithoughExtention = Path(logFilename).stem
+            
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
+    
+    FileNameAnalyzedLogFile = os.path.join(baseDirectory, logFilenameWithoughExtention, "Analyzed.txt")
 
-    return os.path.join(baseDirectory, logFilename + ".analysed")
+    return FileNameAnalyzedLogFile
+
+
+def GetLogFileMachineReadableVectorsPath(logFilename, userId, temperature):
+    userId = str(userId)
+    logFilenameWithoughExtention = Path(logFilename).stem
+            
+    baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
+    
+    FileNameMachineReadablePooledVectors = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors.dat")
+
+    return FileNameMachineReadablePooledVectors
+
+def GetLogFileHumanReadableVectorsPath(logFilename, userId, temperature):
+    userId = str(userId)
+    logFilenameWithoughExtention = Path(logFilename).stem
+            
+    baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
+    
+    FileNameHumanReadablePooledVectors = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors.dat")
+
+    return FileNameHumanReadablePooledVectors
 
 def GetItemFilesPath():
     return GetNonUserSpecificBaseDirectory("ItemFiles")
@@ -61,6 +91,9 @@ def GetModelsDirectoryPath():
     baseDirectory = GetNonUserSpecificBaseDirectory("ModelDirType")
     return baseDirectory
 
+def GetSignatureDirectoryPath(userId):
+    baseDirectory = GetUserSpecificBaseDirectory("SignatureType", userId)
+    return baseDirectory
 
 def GetNonUserSpecificBaseDirectory(directoryType):
     userSpecificDirectory = True
@@ -80,14 +113,14 @@ def GetNonUserSpecificBaseDirectory(directoryType):
 
     assert not userSpecificDirectory, "Non User specific directory expected"
 
-    base_directory = os.path.join(os.path.join("..", "data"), base_directory)
+    base_directory = os.path.join(DATA_BASE_DIRECTORY, base_directory)
     return base_directory
 
 def GetUserSpecificBaseDirectory(directoryType, userId):
     userSpecificDirectory = False
     if directoryType == "LogType":
         userSpecificDirectory = True
-        base_directory = LOG_FILES_DIRECTORY 
+        base_directory = LOG_FILES_DIRECTORY
     elif (directoryType == "logFilesAnalyzed"): 
         userSpecificDirectory = True
         base_directory = ANALYZED_LOG_FILES_DIRECTORY
@@ -111,6 +144,6 @@ def GetUserSpecificBaseDirectory(directoryType, userId):
     
     base_directory = os.path.join("User_" + str(userId), base_directory)
     base_directory = os.path.join("UserData", base_directory)
-    base_directory = os.path.join(os.path.join("..", "data"), base_directory)
+    base_directory = os.path.join(DATA_BASE_DIRECTORY, base_directory)
 
     return base_directory

@@ -5,7 +5,7 @@ import worker
 import TokenParser
 import Dataset
 
-def AnalyzeFile(modelDirectory, inputFile, outputDirectory, OriginalTokenFileDirectory, itemFile, temperature):
+def AnalyzeFile(modelDirectory, inputFile, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
     
     tf.config.run_functions_eagerly(True)  
     tf.data.experimental.enable_debug_mode() 
@@ -13,7 +13,7 @@ def AnalyzeFile(modelDirectory, inputFile, outputDirectory, OriginalTokenFileDir
     with tf.device('/CPU:0'):
    
         success = False
-        numberOfThreads = 1  # 1 for the main process
+        numberOfThreads = 7  # 1 for the main process
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
@@ -34,7 +34,9 @@ def AnalyzeFile(modelDirectory, inputFile, outputDirectory, OriginalTokenFileDir
             
             Model.AnalyzePrintfFile(    model, 
                                         inputFile=inputFile, 
-                                        outputDirectory=outputDirectory, 
+                                        LogFileAnalyzedPath=LogFileAnalyzedPath,
+                                        FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, 
+                                        FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors,
                                         itemFile=itemFile, 
                                         temperature=temperature, 
                                         seq_length=TrainingsParameter["Model"]["seq_length"], 

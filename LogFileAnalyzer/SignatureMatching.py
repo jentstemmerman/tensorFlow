@@ -3,6 +3,11 @@ import BinaryFileHandler
 import struct
 import numpy as np
 
+
+
+
+
+
 def save_signature_to_file(signatureFileName, FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors):
     # Assuming CalculateSignature is a function that returns the signature
     signature = CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors)
@@ -27,9 +32,8 @@ def read_signature_from_file(filename):
     signature_tensor = tf.convert_to_tensor(np.frombuffer(signature, dtype=DataTypeForTensors))
     return numberOfHiddenVectors, DataTypeForTensors, signature_tensor
 
-
 def CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors):
-    binaryFileHandler = BinaryFileHandler.BinaryDataFile(FileNameMachineReadablePooledVectors, data_type=DataTypeForTensors, numbers_per_line=numberOfHiddenVectors)
+    binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=numberOfHiddenVectors)
     pooledVectors = binaryFileHandler.read_records(startVectorOffset, numberOfHiddenVectors)
     
     pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(pooledVectors)

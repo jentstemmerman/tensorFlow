@@ -8,7 +8,7 @@ import Dataset
 def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature):
     with tf.device('/CPU:0'):
        
-        numberOfThreads = 1
+        numberOfThreads = 7
 
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 

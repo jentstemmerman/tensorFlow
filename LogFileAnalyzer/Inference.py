@@ -57,7 +57,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
 
         LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
 
-        FileHumanReadablePooledVectors  = open(FileNameHumanReadablePooledVectors,    "w")
+        file = Path(FileNameHumanReadablePooledVectors)
+        file.parent.mkdir(parents=True, exist_ok=True)
+        FileHumanReadablePooledVectors  = open(FileNameHumanReadablePooledVectors, "w")
 
         inputTensor  = []
         nexttokenIds = []
@@ -91,7 +93,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         indexOfFirstPrediction  = window_size + 1
         
         hiddenVectorSize = GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, indexOfFirstPrediction)
-        binaryFileHandler = BinaryFileHandler.BinaryDataFile(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize)   
+        binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize)   
         
         remainingNumberOfLines  = (numberOfLines - numberOfAnalyzedLines) - (window_size + 1)
         reducedParameters, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads)

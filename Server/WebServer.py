@@ -1,3 +1,4 @@
+from pathlib import Path
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
@@ -135,7 +136,7 @@ def get_signature_files_list():
 
     userId = request.args.get("userId", "")
 
-    base_directory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
+    base_directory = Constants.GetSignatureDirectoryPath(userId)
 
     files = []
 
@@ -192,15 +193,19 @@ def analyze_file(file_name):
         modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
         
         file_path = Constants.GetLogFilePath(logFilename=file_name, userId=userId)
-        outputDirectory = Constants.GetLogFileAnalyzedPath(logFilename=file_name, userId=userId)
         
         OriginalTokenFileDirectory =  os.path.join( Constants.GetTokenFilesPath(), tokenDirectory)
             
         itemFile = os.path.join( Constants.GetItemFilesPath(), "Itemfile.txt")
                 
-        outputDirectory = Constants.GetLogFileAnalyzedPath(logFilename=file_name, userId=userId)
+        LogFileAnalyzedPath = Constants.GetLogFileAnalyzedPath(logFilename=file_name, userId=userId)
         
-        CommandAnalyzeFile.AnalyzeFile(modelDirectory, file_path, outputDirectory, OriginalTokenFileDirectory, itemFile, temperature=1)
+        temperature = 1
+         
+        FileNameMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId, temperature)
+        FileNameHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId, temperature)
+        
+        CommandAnalyzeFile.AnalyzeFile(modelDirectory, file_path, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature=1)
 
         # print("get_file_lines file_name: ", file_name, ", lineOffset: ", lineOffset, "numberOfLines: ", numberOfLines, "offset_file_path: ", offset_file_path, "file_path: ", file_path)
 
@@ -349,6 +354,25 @@ def upload_signature():
             "endLine: ",
             endLine,
         )
+        
+        temperature = 1
+        Constants.LOG_FILE_ANALYZER_DIRECTORY
+        FileNameMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId, temperature)
+        
+        # Assuming CalculateSignature is a function that returns the signature
+        import DefaultTrainingSettings
+        
+        DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
+        
+        startVectorOffset = startLine
+        numberOfHiddenVectors = endLine - startLine + 1
+        
+        import SignatureMatching
+        
+        
+        signature = SignatureMatching.CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors)
+            
+        
 
         # Pack all these values into a json and save that to the file
         signature_data = {
@@ -357,6 +381,7 @@ def upload_signature():
             "signature_text": signature_text,
             "startLine": startLine,
             "endLine": endLine,
+            "signature": signature.numpy().tolist(),
         }
 
         baseDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
@@ -367,7 +392,12 @@ def upload_signature():
 
         with open(file_path, "w") as file:
             json.dump(signature_data, file)
+        
+        
 
+        
+        SignatureMatching.save_signature_to_file(signature_name, FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors)
+        
         return jsonify(
             {
                 "message": "Signature uploaded successfully",

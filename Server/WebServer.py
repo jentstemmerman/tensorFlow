@@ -11,7 +11,9 @@ import threading
 import sys
 sys.path.append('../LogFileAnalyzer')
 import CommandAnalyzeFile # type: ignore
-
+import DefaultTrainingSettings # type: ignore
+import SignatureMatching # type: ignore
+        
 WebServer = Flask(__name__)
 cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
 
@@ -339,12 +341,15 @@ def upload_signature():
         startLine = int(request.form["startLine"])
         endLine = int(request.form["endLine"])
         userId = request.form["userId"]
+        modelDirectory = request.form["modelDirectory"]
 
         print(
             "signature_name: ",
             signature_name,
             "userId: ",
             userId,
+            "modelDirectory: ",
+            modelDirectory,
             "logFileName: ",
             logFileName,
             "signature_text: ",
@@ -358,24 +363,14 @@ def upload_signature():
         temperature = 1
         Constants.LOG_FILE_ANALYZER_DIRECTORY
         FileNameMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId, temperature)
-        
-        # Assuming CalculateSignature is a function that returns the signature
-        import DefaultTrainingSettings
-        
         DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
-        
-        startVectorOffset = startLine
-        numberOfHiddenVectors = endLine - startLine + 1
-        
-        import SignatureMatching
-        
-        
-        signature = SignatureMatching.CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors)
-            
-        
+        modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
+   
+        signature = SignatureMatching.CalculateSignature(FileNameMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
 
         # Pack all these values into a json and save that to the file
         signature_data = {
+            "modelDirectory": modelDirectory,
             "signature_name": signature_name,
             "logFileName": logFileName,
             "signature_text": signature_text,
@@ -392,12 +387,7 @@ def upload_signature():
 
         with open(file_path, "w") as file:
             json.dump(signature_data, file)
-        
-        
-
-        
-        SignatureMatching.save_signature_to_file(signature_name, FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors)
-        
+                
         return jsonify(
             {
                 "message": "Signature uploaded successfully",

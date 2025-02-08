@@ -8,13 +8,15 @@ import numpy as np
 
 
 
-def save_signature_to_file(signatureFileName, FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors):
+def save_signature_to_file(signatureFileName, FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, vectorSize, DataTypeForTensors):
     # Assuming CalculateSignature is a function that returns the signature
     signature = CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors)
     
     with open(signatureFileName, 'wb') as file:
-        # Save the number of hidden vectors
+
+        file.write(struct.pack('i', startVectorOffset))
         file.write(struct.pack('i', numberOfHiddenVectors))
+        file.write(struct.pack('i', vectorSize))
         # Save the data type for tensors
         file.write(DataTypeForTensors.encode('utf-8'))
         # Save the signature
@@ -23,7 +25,9 @@ def save_signature_to_file(signatureFileName, FileNameMachineReadablePooledVecto
 def read_signature_from_file(filename):
     with open(filename, 'rb') as file:
         # Read the number of hidden vectors
+        startVectorOffset = struct.unpack('i', file.read(4))[0]
         numberOfHiddenVectors = struct.unpack('i', file.read(4))[0]
+        vectorSize = struct.unpack('i', file.read(4))[0]
         # Read the data type for tensors
         DataTypeForTensors = file.read(4).decode('utf-8')
         # Read the signature
@@ -33,12 +37,18 @@ def read_signature_from_file(filename):
     return numberOfHiddenVectors, DataTypeForTensors, signature_tensor
 
 def CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors):
-    binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=numberOfHiddenVectors)
+    binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=None)
+    
     pooledVectors = binaryFileHandler.read_records(startVectorOffset, numberOfHiddenVectors)
     
-    pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(pooledVectors)
-    pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(pooledVectors)
-    pooledVectors = tf.concat([pooledAverageVector, pooledMaxVector], axis=1)
+    batchedPooledVectors = tf.expand_dims(pooledVectors, axis=0) # Add a bactch dimension. Will be removed in the squeeze
+    
+    pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_first")(batchedPooledVectors)
+    
+    #pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_first")(batchedPooledVectors)
+    #concatinatedVectors = tf.concat([pooledAverageVector, pooledMaxVector], axis=1)
+    
+    pooledAverageVector = tf.squeeze(pooledAverageVector, axis=0) # remove the batch dimension from the tensor
     
     return pooledAverageVector
 

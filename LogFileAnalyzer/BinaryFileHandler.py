@@ -18,13 +18,13 @@ class BinaryFileHandler:
         self.filename = filename
         self.data_type = data_type
         self.numbers_per_line = numbers_per_line
-        self.record_size = struct.calcsize(self.TYPE_MAP[data_type]) * numbers_per_line
-        self.fmt = self.TYPE_MAP[data_type] * numbers_per_line
         self.read_file_handler = None
         self.write_file_handler = None
         self._header_cache = {}
-       
         self._read_header()
+        self.numbers_per_line = self._header_cache.get("numbers_per_line", self.numbers_per_line)
+        self.record_size = struct.calcsize(self.TYPE_MAP[data_type]) * self.numbers_per_line
+        self.fmt = self.TYPE_MAP[data_type] * self.numbers_per_line
         
     def _write_header(self, header_data, flush=False):
         """Write the JSON header to the file."""
@@ -46,7 +46,7 @@ class BinaryFileHandler:
     def _read_header(self):
         self._header_cache = {}
         if not os.path.exists(self.filename):
-            self._header_cache = {"record_count": 0, "version": 1.0, "description": "Binary data file"}
+            self._header_cache = {"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line}
             self._write_header(self._header_cache, flush=True)
             
         if self.read_file_handler is None:
@@ -55,8 +55,12 @@ class BinaryFileHandler:
             header_bytes = self.read_file_handler.read(self.HEADER_SIZE)
             header_str = header_bytes.rstrip(b'\x00').decode("utf-8")  # Remove padding
             self._header_cache = json.loads(header_str)
+            
             return self._header_cache
 
+    def get_numbersPerLine(self):
+        return self.numbers_per_line
+    
     def _get_header(self):
         """Read and return the JSON header from the file or from the member if already read."""
         if hasattr(self, '_header_cache'):
@@ -68,7 +72,7 @@ class BinaryFileHandler:
     def clear_file(self):
         """Clear the binary file and reset the JSON header."""
         with open(self.filename, "wb") as f:
-            header = json.dumps({"record_count": 0, "version": 1.0, "description": "Binary data file"}).ljust(self.HEADER_SIZE)
+            header = json.dumps({"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line}).ljust(self.HEADER_SIZE)
             f.write(header.encode('utf-8'))
             
 

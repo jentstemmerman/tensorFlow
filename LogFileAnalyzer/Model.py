@@ -145,6 +145,7 @@ def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
             modelFeatureList.append({"embedded": False, "layer_name": name})
     return modelFeatureList
 
+             
  
 def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
 

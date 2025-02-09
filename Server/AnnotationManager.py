@@ -166,6 +166,7 @@ class AnnotationCacheManager:
         )
 
 
+
 if __name__ == "__main__":
     annotation_id0 = 0
     file_path = "log1.log"

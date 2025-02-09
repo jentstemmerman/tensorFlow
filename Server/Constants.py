@@ -44,6 +44,27 @@ def GetLogFileAnalyzedPath(logFilename, userId):
 
     return FileNameAnalyzedLogFile
 
+def GetLogFileMachineReadableSimularitiesFile(logFilename, userId, SignatureName):
+    userId = str(userId)
+    
+    logFilenameWithoughExtention = Path(logFilename).stem
+       
+    baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
+    
+    FileNameSimularitiesWithSignature = os.path.join(baseDirectory, logFilenameWithoughExtention, "Simularities_" + SignatureName + ".dat")
+
+    return FileNameSimularitiesWithSignature
+
+def GetLogFileHumanReadableSimularitiesFile(logFilename, userId, SignatureName):
+    userId = str(userId)
+    
+    logFilenameWithoughExtention = Path(logFilename).stem
+       
+    baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
+    
+    FileNameSimularitiesWithSignature = os.path.join(baseDirectory, logFilenameWithoughExtention, "Simularities_" + SignatureName + ".txt")
+
+    return FileNameSimularitiesWithSignature
 
 def GetLogFileMachineReadableVectorsPath(logFilename, userId, temperature):
     userId = str(userId)

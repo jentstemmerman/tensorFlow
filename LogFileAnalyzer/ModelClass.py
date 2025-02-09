@@ -171,7 +171,7 @@ class OneStep(tf.keras.Model):
     return probabilities
    
 
-  @tf.function
+ # @tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, states=None):
     with tf.device('/GPU:0'):
 

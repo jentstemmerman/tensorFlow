@@ -177,7 +177,7 @@ def get_file_lines(file_name):
                 "text": content,
                 "start": lineOffset,
                 "size": numberOfLines,
-                "annotations": ColumnAnnotations,
+               # "annotations": ColumnAnnotations,
             }
         )
     except Exception as e:
@@ -343,7 +343,7 @@ def upload_signature():
         userId = request.form["userId"]
         modelDirectory = request.form["modelDirectory"]
 
-        print(
+        print("uploadSignature: ",
             "signature_name: ",
             signature_name,
             "userId: ",
@@ -376,7 +376,9 @@ def upload_signature():
             "signature_text": signature_text,
             "startLine": startLine,
             "endLine": endLine,
+            "DataTypeForTensors" : DataTypeForTensors,
             "signature": signature.numpy().tolist(),
+            
         }
 
         baseDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
@@ -398,6 +400,51 @@ def upload_signature():
     except Exception as e:
         print("Error uploading signature:", e)
         return jsonify({"message": "Error uploading signature", "error": str(e)}), 500
+
+@WebServer.route("/api/enableSignature", methods=["POST"])
+def enable_signature():
+    print("api/enableSignature")
+
+    try:
+        signature_name = request.form["signature_name"]
+        logFileName = request.form["logFileName"]
+        userId = request.form["userId"]
+        path = request.form["path"]
+        similaritythreshold = float(request.form["similarityThreshold"])
+        
+        print("enable_signature: "
+            "signature_name: ",
+            signature_name,
+            "similaritythreshold: ",
+            similaritythreshold,
+            "path: ",
+            path,
+            "userId: ",
+            userId,
+            "logFileName: ",
+            logFileName,
+        )
+        
+        baseDirectory = Constants.GetSignatureDirectoryPath(userId)
+        signature_file = os.path.join(baseDirectory, signature_name)
+        simularitiesMachineReadableFileName = Constants.GetLogFileMachineReadableSimularitiesFile(logFileName, userId, signature_name)
+        simularitiesHumanReadableFileName = Constants.GetLogFileHumanReadableSimularitiesFile(logFileName, userId, signature_name)
+        DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
+        
+        similarityTresholdCrossedCounter = SignatureMatching.CreateSimularitiesFile(logFileName, signature_file, simularitiesMachineReadableFileName, simularitiesHumanReadableFileName, userId, similaritythreshold, DataTypeForTensors)
+                
+        return jsonify(
+            {
+                "message": "Signature uploaded successfully",
+                "similarityTresholdCrossedCounter": similarityTresholdCrossedCounter,
+                "signature_name": signature_name,
+            }
+        )
+
+    except Exception as e:
+        print("Error enable_signature:", e)
+        return jsonify({"message": "Error enable_signature", "error": str(e)}), 500
+
 
 
 @WebServer.route("/api/settings/<user_id>", methods=["GET"])

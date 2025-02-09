@@ -482,8 +482,8 @@ class Transformer(tf.keras.Model):
         
         embeddingDimension.append(output_dimension)
         total_output_dimensions += output_dimension
-    #print("Embedding dimensions:")
-    #print(embeddingDimension)
+    print("Embedding dimensions:")
+    print(embeddingDimension)
     return embeddingDimension
   
   # @tf.function

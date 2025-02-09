@@ -93,7 +93,7 @@ class BinaryFileHandler:
         record = [float(x) for x in record]    # this is not needed for float32
         self.write_file_handler.write(struct.pack(self.fmt, *record))
         self._header_cache["record_count"] += 1
-        self.write_file_handler.flush()
+        #self.write_file_handler.flush()
         # Update the header in the file
         
 

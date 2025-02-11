@@ -47,8 +47,8 @@ if __name__ == "__main__":
     else:
         print("Did not receive 6 parameters. Parameters received: " + str(sys.argv-1))
     
-    tf.config.run_functions_eagerly(True)  
-    tf.data.experimental.enable_debug_mode()    
+    #tf.config.run_functions_eagerly(True)  
+    #tf.data.experimental.enable_debug_mode()    
 
     TrainingsParameter   = DefaultTrainingSettings.TrainingsParameter
     itemList             = TokenParser.GetItemListToSearchFor(itemFile)

@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 class BinaryFileHandler:
-    HEADER_SIZE = 128  # Assuming header size is 128 bytes
+    HEADER_SIZE = 256  # Assuming header size is 128 bytes
 
     # Mapping for user-friendly types
     TYPE_MAP = {
@@ -14,8 +14,9 @@ class BinaryFileHandler:
         "float64": "d"
     }
 
-    def __init__(self, filename, data_type="float32", numbers_per_line=3):
+    def __init__(self, filename, data_type="float32", numbers_per_line=3, modelHash=""):
         self.filename = filename
+        self.modelHash = modelHash
         self.data_type = data_type
         self.numbers_per_line = numbers_per_line
         self.read_file_handler = None
@@ -46,7 +47,7 @@ class BinaryFileHandler:
     def _read_header(self):
         self._header_cache = {}
         if not os.path.exists(self.filename):
-            self._header_cache = {"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line}
+            self._header_cache = {"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line, "modelHash": self.modelHash}
             self._write_header(self._header_cache, flush=True)
             
         if self.read_file_handler is None:
@@ -57,6 +58,13 @@ class BinaryFileHandler:
             self._header_cache = json.loads(header_str)
             
             return self._header_cache
+
+    def get_modelHash(self):
+        header = self._get_header()
+        self.modelHash = header.get("modelHash", 0)
+        
+        return self.modelHash
+
 
     def get_numbersPerLine(self):
         return self.numbers_per_line
@@ -71,8 +79,9 @@ class BinaryFileHandler:
 
     def clear_file(self):
         """Clear the binary file and reset the JSON header."""
+        self.modelHash = ""
         with open(self.filename, "wb") as f:
-            header = json.dumps({"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line}).ljust(self.HEADER_SIZE)
+            header = json.dumps({"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line, "modelHash": self.modelHash}).ljust(self.HEADER_SIZE)
             f.write(header.encode('utf-8'))
             
 

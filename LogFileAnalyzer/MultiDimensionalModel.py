@@ -4,6 +4,8 @@ from tensorflow import keras
 import TokenParser
 import Dataset
 import math 
+import ModelHash
+
 
 def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
     verbose = False
@@ -118,9 +120,11 @@ def CalculateEmbeddingDimensions(featureList):
     return embeddingDimension
 
 class LSTMPrintfLogMultiModel(tf.keras.Model):
-    def __init__(self, featureList, rnn_units, sequence_length, return_sequences, datatype):
+    def __init__(self, featureList, rnn_units, sequence_length, return_sequences, datatype, hashAtCreation):
         super().__init__()
 
+        self.hashAtCreation = ModelHash.ModelHash(hashAtCreation) # if hashAtCreation is None, a new hash is created, else hashAtCreation is used
+            
         activationFunctionForDenseLayerAfterLstm = None #"elu"  ## half as slow as None
         self.numberOfFeatures = len(featureList)
         self.numberOfInputsToLstm = 0
@@ -128,6 +132,10 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
         self.return_states    = return_sequences
         self.featureList      = featureList
         self.datatype         = datatype
+        self.rnn_units        = rnn_units
+        self.sequence_length  = sequence_length
+        self.return_sequences = return_sequences
+        
         embeddingDimensionList = CalculateEmbeddingDimensions(featureList)
 
         self.input_layerList  = []
@@ -165,7 +173,32 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
             self.output_layerList.append(dense_output_layer)  
 
+        def GetHashAtCreation(self):
+          return self.hashAtCreation.getHash()
+    
+        def get_config(self):
+            config = super().get_config()
+            config.update({
+                "featureList": self.featureList,
+                "rnn_units": self.rnn_units,
+                "return_sequences": self.return_sequences,
+                "datatype": self.datatype,
+                "sequence_length": self.sequence_length,
+                "hashAtCreation": self.hashAtCreation.getHash()
+            })
+            return config
 
+        @classmethod
+        def from_config(cls, config):
+            hashAtCreation = config.pop("hashAtCreation")
+            model = cls(
+                featureList=config['featureList'],
+                rnn_units=config['rnn_units'],
+                return_sequences=config['return_sequences'],
+                datatype=config['datatype'],
+                sequence_length=config['sequence_length'],
+                hashAtCreation=config['hashAtCreation'],
+            )
 
     def call(self, inputs, training=False):
         input_outputs = []

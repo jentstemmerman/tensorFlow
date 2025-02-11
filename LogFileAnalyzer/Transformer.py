@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import ModelHash
+
 
 # JENTS: this looks like the classic positional encoding. 
 def positional_encoding(length, depth): # lenght is the sequence lenght, depth the embedding dimension
@@ -521,10 +523,21 @@ class Transformer(tf.keras.Model):
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
   def __init__(self, *, num_layers, d_model, num_heads, dff,
-               input_vocab_size, target_vocab_size, featureList, seq_length, dropout_rate=0.1):
+               input_vocab_size, target_vocab_size, featureList, seq_length, hashAtCreation=None, dropout_rate=0.1):
     super().__init__()
 
-    
+    self.hashAtCreation=hashAtCreation
+    self.num_layers=num_layers
+    self.d_model=d_model
+    self.num_heads=num_heads
+    self.dff=dff
+    self.input_vocab_size=input_vocab_size
+    self.target_vocab_size=target_vocab_size
+    self.featureList=featureList
+    self.seq_length=seq_length
+    self.dropout_rate=dropout_rate
+      
+    self.hashAtCreation = ModelHash.ModelHash(hashAtCreation) # if hashAtCreation is None, a new hash is created, else hashAtCreation is used
     
     self.encoder = Encoder(num_layers=num_layers, d_model=d_model,
                            num_heads=num_heads, dff=dff,
@@ -537,6 +550,42 @@ class Transformer(tf.keras.Model):
                            dropout_rate=dropout_rate)
 
     self.final_layer = tf.keras.layers.Dense(target_vocab_size)
+
+  def GetHashAtCreation(self):
+    return self.hashAtCreation.getHash()
+
+  def get_config(self):
+    config = super().get_config()
+    config.update({
+      "num_layers": self.encoder.num_layers,
+      "d_model": self.encoder.d_model,
+      "num_heads": self.decoder.dec_layers[0].causal_self_attention.mha.num_heads,
+      "dff": self.decoder.dec_layers[0].ffn.seq.layers[0].units,
+      "input_vocab_size": self.encoder.pos_embedding.embedding.input_dim,
+      "target_vocab_size": self.decoder.pos_embedding.embedding.input_dim,
+      "featureList": None,  # Assuming featureList is not used in the current implementation
+      "seq_length": self.encoder.pos_embedding.pos_encoding.shape[0],
+      "dropout_rate": self.encoder.enc_layers[0].self_attention.mha.dropout.rate,
+      "hashAtCreation": self.hashAtCreation.getHash()
+    })
+    return config
+
+  @classmethod
+  def from_config(cls, config):
+    model = cls(
+      hashAtCreation=config['hashAtCreation'],
+      num_layers=config['num_layers'],
+      d_model=config['d_model'],
+      num_heads=config['num_heads'],
+      dff=config['dff'],
+      input_vocab_size=config['input_vocab_size'],
+      target_vocab_size=config['target_vocab_size'],
+      featureList=config['featureList'],
+      seq_length=config['seq_length'],
+      dropout_rate=config.get('dropout_rate', 0.1)
+    )
+
+    return model
 
   def CalculateEmbeddingDimensions(featureList):
     embeddingDimension = []

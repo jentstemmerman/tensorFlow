@@ -19,7 +19,7 @@ TOKEN_FILE_DIRECTORY = "TokenFiles"
 
 def GetAnnotationsDirectoryPath(logFilename, userId):
     userId = str(userId)
-    logFilename = os.path.basename(logFilename)
+
     baseDirectory = GetUserSpecificBaseDirectory("AnnotationType", userId)
 
     annotations_file_path = baseDirectory

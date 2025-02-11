@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../LogFileAnalyzer')
+
 import time
 import tensorflow as tf
 import numpy as np
@@ -18,6 +21,8 @@ import neptune
 from neptune.integrations.tensorflow_keras import NeptuneCallback
 import DefaultTrainingSettings
 import math
+
+
 
 def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile):
     CrossReferenceTokens = False
@@ -76,16 +81,19 @@ def AnalyzePrintfFile(model, inputFile, LogFileAnalyzedPath, FileNameMachineRead
     
     Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
 
-def AnalyzePrintfFiles(model, inputDirectory, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
+def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
     verificationFileIterator = LogFileIterator.LogfileIterator(inputDirectory)
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
     while (printfFileToProcess is not None):
-        LogfileAnalyzed = LogFileAnalyzedPath
-    
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
+        
+        FileNameHumanReadablePooledVectors = os.path.join(outputDirectory, printfFileToProcess + "_HumanReadablePooledVectors")
+        FileNameMachineReadablePooledVectors = os.path.join(outputDirectory, printfFileToProcess + "_MachineReadablePooledVectors")
+        LogFileAnalyzedPath = os.path.join(outputDirectory, printfFileToProcess + "_LogFileAnalyzedPath")
+        
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogFileAnalyzedPath, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -180,7 +188,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                 dropout_rate=dropout_rate)
         else:
             import Transformer_DecoderOnly
-            model = Transformer_DecoderOnly.Transformer(
+            model = Transformer_DecoderOnly.Transformer_DecoderOnly(
                 num_layers=num_layers,
                 d_model=d_model,
                 num_heads=num_heads,
@@ -212,7 +220,18 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
         
 
         custom_objects = None
-        model = tf.keras.models.load_model(ModelDirectory, custom_objects=custom_objects, compile=False )
+        custom_objects = {
+            'Custom_loss_function': MultiDimensionalModel.Custom_loss_function,
+            'LSTMPrintfLogMultiModel': MultiDimensionalModel.LSTMPrintfLogMultiModel,
+            'Transformer': Transformer.Transformer,
+            'Transformer_DecoderOnly': Transformer_DecoderOnly.Transformer_DecoderOnly
+        }
+        custom_objects = {
+            'Custom_loss_function': MultiDimensionalModel.Custom_loss_function,
+            'Transformer_DecoderOnly': Transformer_DecoderOnly.Transformer_DecoderOnly
+        }
+        
+        model = tf.keras.models.load_model(ModelDirectory, custom_objects=custom_objects, compile=False)
         loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
         model.compile(optimizer=optimizer, loss=loss_function)
 

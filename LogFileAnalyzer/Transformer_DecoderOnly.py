@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import ModelHash
 
 # JENTS: this looks like the classic positional encoding. 
 def positional_encoding(length, depth): # lenght is the sequence lenght, depth the embedding dimension
@@ -433,15 +434,15 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
     return logits, hidden_states
 
-class Transformer(tf.keras.Model):
+class Transformer_DecoderOnly(tf.keras.Model):
   """
-  A transformer model that consists of an encoder, a decoder and a final dense layer.
+  A Transformer_DecoderOnly model that consists of a decoder and a final dense layer.
 
   Args:
-    num_layers (int): Number of layers in both the encoder and decoder.
+    num_layers (int): Number of layers in decoder.
     d_model (int): Hidden size of the model.
     num_heads (int): Number of attention heads used in the model.
-    dff (int): Size of the feedforward layer in the encoder and decoder.
+    dff (int): Size of the feedforward layer in decoder.
     input_vocab_size (int): Size of the vocabulary of the input.
     target_vocab_size (int): Size of the vocabulary of the target.
     dropout_rate (float): Dropout rate applied to the output of each sub-layer.
@@ -458,13 +459,59 @@ class Transformer(tf.keras.Model):
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
   def __init__(self, *, num_layers, d_model, num_heads, dff,
-               input_vocab_size, featureList, seq_length, dropout_rate=0.1):
+               input_vocab_size, featureList, seq_length, hashAtCreation=None, dropout_rate=0.1):
     super().__init__()
+
+
+    self.num_layers=num_layers
+    self.d_model=d_model
+    self.num_heads=num_heads
+    self.dff=dff
+    self.input_vocab_size=input_vocab_size
+    self.featureList=featureList
+    self.seq_length=seq_length
+    self.dropout_rate=dropout_rate
+    self.hashAtCreation = ModelHash.ModelHash(hashAtCreation) # if hashAtCreation is None, a new hash is created, else hashAtCreation is used
 
     self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, d_model=d_model, num_heads=num_heads, dff=dff,
                vocab_size=input_vocab_size, featureList=featureList, seq_length=seq_length, dropout_rate=0.1)
 
+  def GetHashAtCreation(self):
+    return self.hashAtCreation.getHash()
+  
+  def get_config(self):                 # this method is used by the save method
+    config = super().get_config()
+    config.update({
+      "num_layers": self.num_layers,
+      "d_model": self.d_model,
+      "num_heads": self.num_heads,
+      "dff": self.dff,
+      "input_vocab_size": self.input_vocab_size,
+      "featureList": self.featureList,
+      "seq_length": self.seq_length,
+      "dropout_rate": self.dropout_rate,
+      "hashAtCreation": self.hashAtCreation.get_config(),
+    })
+    
+    return config
 
+  @classmethod                          #this method is used by the load method
+  def from_config(cls, config):
+    model = cls(
+      num_layers=config['num_layers'],
+      d_model=config['d_model'],
+      num_heads=config['num_heads'],
+      dff=config['dff'],
+      input_vocab_size=config['input_vocab_size'],
+      featureList=config['featureList'],
+      seq_length=config['seq_length'],
+      dropout_rate=config['dropout_rate'],
+      hashAtCreation=config['hashAtCreation'],
+    )
+
+    return model
+  
+  
   def CalculateEmbeddingDimensions(featureList):
     embeddingDimension = []
     total_output_dimensions = 0
@@ -575,7 +622,7 @@ if __name__ == "__main__":
   target_vocab_size = 1100
   epochs = 10
 
-  transformer = Transformer(
+  transformer = Transformer_DecoderOnly(
       num_layers=num_layers,
       d_model=d_model,
       num_heads=num_heads,

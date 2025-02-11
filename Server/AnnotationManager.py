@@ -30,7 +30,7 @@ class AnnotationCacheManager:
     """
 
     def read_annotation_file(self, file_path: str, annotation_id: int) -> list:
-        annotation_file_path = self.get_annotation_file_path(file_path, annotation_id)
+        annotation_file_path = AnnotationCacheManager.get_annotation_file_path(file_path, annotation_id, self.userId)
 
         annotations = []
 
@@ -54,7 +54,7 @@ class AnnotationCacheManager:
         self, file_path: str, annotations: list, annotation_id: int
     ):
         fileName = os.path.basename(file_path)
-        annotation_file_path = self.get_annotation_file_path(fileName, annotation_id)
+        annotation_file_path = AnnotationCacheManager.get_annotation_file_path(fileName, annotation_id, self.userId)
 
         try:
             os.makedirs(os.path.dirname(annotation_file_path), exist_ok=True)
@@ -64,7 +64,7 @@ class AnnotationCacheManager:
             logger.error(f"An error occurred while writing to file: {e}")
 
     def check_annotation_file_exists(self, file_path: str, annotation_id: int) -> bool:
-        annotation_file_path = self.get_annotation_file_path(file_path, annotation_id)
+        annotation_file_path = AnnotationCacheManager.get_annotation_file_path(file_path, annotation_id, self.userId)
         return os.path.exists(annotation_file_path)
 
     """
@@ -82,7 +82,7 @@ class AnnotationCacheManager:
     def get_annotations(
         self, file_path: str, startLine: int, numberOfLines: int, annotation_id: int
     ) -> list:
-        annotation_file_path = self.get_annotation_file_path(file_path, annotation_id)
+        annotation_file_path = AnnotationCacheManager.get_annotation_file_path(file_path, annotation_id, self.userId)
 
         # print("[AnnotationManager] get_annotations ", startLine, " numberOfLines: ", numberOfLines)
 
@@ -150,12 +150,13 @@ class AnnotationCacheManager:
         except Exception as e:
             logger.error(f"Error generating file hash: {e}")
             raise
-
-    def get_annotation_file_path(self, fileName: str, annotation_id: int) -> str:
+    
+    @staticmethod
+    def get_annotation_file_path(fileName: str, annotation_id: int, userId: int) -> str:
         import Constants
 
         annotationFilePath = Constants.GetAnnotationsDirectoryPath(
-            fileName, self.userId
+            fileName, userId
         )
 
         fileNameWithoutExtension = os.path.splitext(os.path.basename(fileName))[0]

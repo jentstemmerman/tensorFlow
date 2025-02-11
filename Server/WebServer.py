@@ -13,7 +13,8 @@ sys.path.append('../LogFileAnalyzer')
 import CommandAnalyzeFile # type: ignore
 import DefaultTrainingSettings # type: ignore
 import SignatureMatching # type: ignore
-        
+import AnnotationManager # type: ignore
+
 WebServer = Flask(__name__)
 cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
 
@@ -343,9 +344,11 @@ def upload_signature():
         userId = request.form["userId"]
         modelDirectory = request.form["modelDirectory"]
 
+        
         print("uploadSignature: ",
             "signature_name: ",
             signature_name,
+
             "userId: ",
             userId,
             "modelDirectory: ",
@@ -366,7 +369,8 @@ def upload_signature():
         DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
         modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
    
-        signature = SignatureMatching.CalculateSignature(FileNameMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
+        # the modelHash is taken from the header of the machineReadablePooledVectors file
+        signature, modelHash = SignatureMatching.CalculateSignature(FileNameMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
 
         # Pack all these values into a json and save that to the file
         signature_data = {
@@ -377,10 +381,11 @@ def upload_signature():
             "startLine": startLine,
             "endLine": endLine,
             "DataTypeForTensors" : DataTypeForTensors,
+            "modelHash": modelHash,
             "signature": signature.numpy().tolist(),
-            
         }
 
+       
         baseDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
         file_path = os.path.join(baseDirectory, signature_name)
 
@@ -389,7 +394,9 @@ def upload_signature():
 
         with open(file_path, "w") as file:
             json.dump(signature_data, file)
-                
+
+        print("Signature saved. modelHash: ", modelHash) 
+       
         return jsonify(
             {
                 "message": "Signature uploaded successfully",
@@ -432,7 +439,10 @@ def enable_signature():
         DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
         
         similarityTresholdCrossedCounter = SignatureMatching.CreateSimularitiesFile(logFileName, signature_file, simularitiesMachineReadableFileName, simularitiesHumanReadableFileName, userId, similaritythreshold, DataTypeForTensors)
-                
+        annotation_id = "0"
+        outputFile = AnnotationCacheManager.get_annotation_file_path(logFileName, annotation_id, userId)
+        SignatureMatching.CreateAnnotationListFromSimularitiesFile(simularitiesMachineReadableFileName, outputFile, DataTypeForTensors, annotationId = annotation_id, threshold = 0.8, comment = "")
+        
         return jsonify(
             {
                 "message": "Signature uploaded successfully",

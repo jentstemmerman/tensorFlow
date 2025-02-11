@@ -28,6 +28,7 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
         if (Workers == None):
             print("Could not start workers. END")
         else:
+
             Model.AnalyzePrintfFiles(   model, 
                                         inputDirectory=InputDirectory, 
                                         outputDirectory=outputDirectory, 

@@ -186,10 +186,6 @@ TrainingSet*
 data/*
 LogFileAnalyzer/my_model/*
 LogFileAnalyzer/cuda-keyring_1.1-1_all.deb.2
-
 LogFileAnalyzer/data_with_json_header.bin
-LogFileAnalyzer/output_log.txt
-
-
-LogFileAnalyzer/output_log.txt
 LogFileAnalyzer/Simularities_Markdirty.dat:Zone.Identifier
+LogFileAnalyzer/output_log.txt

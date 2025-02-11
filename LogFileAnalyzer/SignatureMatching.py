@@ -8,11 +8,7 @@ import numpy as np
 import Constants     # type: ignore
 import SignatureMatching
 import json
-import os
-
-
-
-
+import AnnotationManager
 
 
 def read_signature_from_file(filename):
@@ -22,6 +18,7 @@ def read_signature_from_file(filename):
     signature_text = signature_data['signature_text']
     logFileName = signature_data['logFileName']
     modelDirectory = signature_data['modelDirectory']
+    modelHash = signature_data['modelHash']
     startLine = signature_data['startLine']
     endLine = signature_data['endLine']
     DataTypeForTensors = signature_data['DataTypeForTensors']
@@ -35,20 +32,22 @@ def read_signature_from_file(filename):
 def CalculatePooledVectors(vectors):
     batchedvectors = tf.expand_dims(vectors, axis=0) # Add a bactch dimension. Will be removed in the squeeze
     pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
-    # pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
+    pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
     pooledAverageVector = tf.squeeze(pooledAverageVector, axis=0) # remove the batch dimension from the tensor
-    # pooledMaxVector = tf.squeeze(pooledMaxVector, axis=0)
-    # pooledVector = tf.concat([pooledAverageVector, pooledMaxVector], axis=0)
-    pooledVector = pooledAverageVector
+    pooledMaxVector = tf.squeeze(pooledMaxVector, axis=0)
+    pooledVector = tf.concat([pooledAverageVector, pooledMaxVector], axis=0)
     
     return pooledVector
 
-def CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors):
-    binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=None)
+def CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors, modelHash):
+    binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type=DataTypeForTensors, numbers_per_line=None)
     
+    modelHash = binaryFileHandler.get_modelHash()
     vectors = binaryFileHandler.read_records(startVectorOffset, numberOfHiddenVectors)
         
-    return CalculatePooledVectors(vectors)
+    signature = CalculatePooledVectors(vectors)
+   
+    return signature, modelHash
 
 """
 Reads hidden state vectors, computes a rolling mean-pooled vector using TensorFlow's 
@@ -129,9 +128,12 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     
     humanReadableOutputFileHandler = open(humanReadableOutputFile, 'w')
     
-    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1)
     inputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(hiddenVectorsFile, data_type=dataType, numbers_per_line=num_vectors_to_pool)
-
+    
+    modelHash = inputBinaryFileHandler.get_modelHash()
+    
+    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1, modelHash=modelHash)
+    
     index = 0
     similarityTresholdCrossedCounter = 0
     
@@ -153,4 +155,27 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     humanReadableOutputFileHandler.close
     return similarityTresholdCrossedCounter
 
+
+def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = "0", threshold = 0.8, comment = ""):
     
+    inputFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableSimularityFile, data_type=data_type, numbers_per_line=1)
+    
+    annotationList = []
+    
+    
+    while True:
+        simularity = inputFileHandler.read_next()
+        
+        if simularity is None:
+            break
+        
+        if simularity > threshold:
+            annotation = { "lineNumber": 10001,  "lineCount": 3, "AnnotationId": 1,  "Comment": comment}
+            annotationList.append(annotation) 
+            
+ 
+    AnnotationManager.write_annotation_file(
+        file_path=outputFile,
+        annotations=annotationList,
+        annotation_id=annotationId,
+    )

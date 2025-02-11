@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 class BinaryFileHandler:
-    HEADER_SIZE = 256  # Assuming header size is 128 bytes
+    HEADER_SIZE = 512  # Assuming header size is 128 bytes
 
     # Mapping for user-friendly types
     TYPE_MAP = {
@@ -45,19 +45,22 @@ class BinaryFileHandler:
             self.write_file_handler.flush()
 
     def _read_header(self):
-        self._header_cache = {}
-        if not os.path.exists(self.filename):
-            self._header_cache = {"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line, "modelHash": self.modelHash}
-            self._write_header(self._header_cache, flush=True)
+        try:
+            if not os.path.exists(self.filename):
+                self._header_cache = {"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line, "modelHash": self.modelHash}
+                self._write_header(self._header_cache, flush=True)
+                
+            if self.read_file_handler is None:
+                self.read_file_handler = open(self.filename, "rb")
             
-        if self.read_file_handler is None:
-            self.read_file_handler = open(self.filename, "rb")
-            
+            self.read_file_handler.seek(0)    
             header_bytes = self.read_file_handler.read(self.HEADER_SIZE)
-            header_str = header_bytes.rstrip(b'\x00').decode("utf-8")  # Remove padding
+            header_str = header_bytes.rstrip(b'\x00').decode("utf-8")  # Remove padding and ignore errors
             self._header_cache = json.loads(header_str)
-            
-            return self._header_cache
+        except Exception as e:
+            print(f"Error reading header: {e}")
+            self._header_cache = {}
+        return self._header_cache
 
     def get_modelHash(self):
         header = self._get_header()
@@ -71,10 +74,11 @@ class BinaryFileHandler:
     
     def _get_header(self):
         """Read and return the JSON header from the file or from the member if already read."""
-        if hasattr(self, '_header_cache'):
-            return self._header_cache
-        else:
-            return self._read_header()        
+        if not hasattr(self, '_header_cache'):
+
+            self._header_cache = self._read_header()
+        
+        return self._header_cache        
 
 
     def clear_file(self):
@@ -186,8 +190,16 @@ if __name__ == "__main__":
         os.remove("data_with_json_header.bin")
         
     # Clear file (resets header)
+    import ModelHash
+    modelHash = ModelHash.ModelHash()
+    binary_file = BinaryFileHandler("data_with_json_header.bin", data_type="float32", numbers_per_line=3, modelHash=modelHash.getHash())
+    header= binary_file._read_header()
+    binary_file.append((1.1, 2.2, 3.3))
+    header= binary_file._read_header()
+    binary_file._write_header( header, flush=False)
     
-    binary_file = BinaryFileHandler("data_with_json_header.bin", data_type="float32", numbers_per_line=3)
+    
+    
     binary_file.clear_file()
 
 

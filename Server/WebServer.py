@@ -14,6 +14,7 @@ import CommandAnalyzeFile # type: ignore
 import DefaultTrainingSettings # type: ignore
 import SignatureMatching # type: ignore
 import AnnotationManager # type: ignore
+import shutil
 
 WebServer = Flask(__name__)
 cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
@@ -185,10 +186,20 @@ def get_file_lines(file_name):
         print(e)
         return jsonify({"error": str(e)}), 500
 
+analyze_file_busy = False
 
 @WebServer.route("/api/file/analyze_file/<file_name>", methods=["GET"])
 def analyze_file(file_name):
     """Return a specific part of the file content based on line numbers."""
+    
+    global analyze_file_busy
+    
+    if analyze_file_busy:
+        print("Busy. END")
+        return jsonify({"error": True}), 500
+    
+    analyze_file_busy = True
+    
     try:
         userId = request.args.get("userId", None)
         modelDirectory = request.args.get("modelDirectory", None)
@@ -207,6 +218,18 @@ def analyze_file(file_name):
          
         FileNameMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId, temperature)
         FileNameHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId, temperature)
+        
+        # Clear directories
+        directories_to_clear = [
+            os.path.dirname(FileNameMachineReadablePooledVectors),
+            os.path.dirname(FileNameHumanReadablePooledVectors)
+        ]
+
+        for directory in directories_to_clear:
+            if os.path.exists(directory):
+                shutil.rmtree(directory)
+                os.makedirs(directory)
+        
         
         CommandAnalyzeFile.AnalyzeFile(modelDirectory, file_path, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature=1)
 

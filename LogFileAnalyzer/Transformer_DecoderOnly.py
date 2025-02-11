@@ -459,59 +459,16 @@ class Transformer_DecoderOnly(tf.keras.Model):
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
   def __init__(self, *, num_layers, d_model, num_heads, dff,
-               input_vocab_size, featureList, seq_length, hashAtCreation=None, dropout_rate=0.1):
+               input_vocab_size, featureList, seq_length, dropout_rate=0.1):
     super().__init__()
-
-
-    self.num_layers=num_layers
-    self.d_model=d_model
-    self.num_heads=num_heads
-    self.dff=dff
-    self.input_vocab_size=input_vocab_size
-    self.featureList=featureList
-    self.seq_length=seq_length
-    self.dropout_rate=dropout_rate
-    self.hashAtCreation = ModelHash.ModelHash(hashAtCreation) # if hashAtCreation is None, a new hash is created, else hashAtCreation is used
 
     self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, d_model=d_model, num_heads=num_heads, dff=dff,
                vocab_size=input_vocab_size, featureList=featureList, seq_length=seq_length, dropout_rate=0.1)
-
   def GetHashAtCreation(self):
-    return self.hashAtCreation.getHash()
-  
-  def get_config(self):                 # this method is used by the save method
-    config = super().get_config()
-    config.update({
-      "num_layers": self.num_layers,
-      "d_model": self.d_model,
-      "num_heads": self.num_heads,
-      "dff": self.dff,
-      "input_vocab_size": self.input_vocab_size,
-      "featureList": self.featureList,
-      "seq_length": self.seq_length,
-      "dropout_rate": self.dropout_rate,
-      "hashAtCreation": self.hashAtCreation.get_config(),
-    })
+    return "ijfdiaeof"
     
-    return config
 
-  @classmethod                          #this method is used by the load method
-  def from_config(cls, config):
-    model = cls(
-      num_layers=config['num_layers'],
-      d_model=config['d_model'],
-      num_heads=config['num_heads'],
-      dff=config['dff'],
-      input_vocab_size=config['input_vocab_size'],
-      featureList=config['featureList'],
-      seq_length=config['seq_length'],
-      dropout_rate=config['dropout_rate'],
-      hashAtCreation=config['hashAtCreation'],
-    )
 
-    return model
-  
-  
   def CalculateEmbeddingDimensions(featureList):
     embeddingDimension = []
     total_output_dimensions = 0
@@ -529,8 +486,8 @@ class Transformer_DecoderOnly(tf.keras.Model):
         
         embeddingDimension.append(output_dimension)
         total_output_dimensions += output_dimension
-    print("Embedding dimensions:")
-    print(embeddingDimension)
+    #print("Embedding dimensions:")
+    #print(embeddingDimension)
     return embeddingDimension
   
   # @tf.function

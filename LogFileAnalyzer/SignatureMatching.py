@@ -18,7 +18,7 @@ def read_signature_from_file(filename):
     signature_text = signature_data['signature_text']
     logFileName = signature_data['logFileName']
     modelDirectory = signature_data['modelDirectory']
-    modelHash = signature_data['modelHash']
+    # modelHash = signature_data['modelHash']
     startLine = signature_data['startLine']
     endLine = signature_data['endLine']
     DataTypeForTensors = signature_data['DataTypeForTensors']
@@ -130,16 +130,22 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     
     inputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(hiddenVectorsFile, data_type=dataType, numbers_per_line=num_vectors_to_pool)
     
-    modelHash = inputBinaryFileHandler.get_modelHash()
+    #modelHash = inputBinaryFileHandler.get_modelHash()
     
-    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1, modelHash=modelHash)
+    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1) # , modelHash=modelHash)
     
     index = 0
     similarityTresholdCrossedCounter = 0
     
     while True:
-        inputTensor = inputBinaryFileHandler.read_records(index, numberOfHiddenVectors)
+        
+        try:
+            inputTensor = inputBinaryFileHandler.read_records(index, numberOfHiddenVectors)
 
+        except (IndexError) as e:
+            print(f"IndexError: {e}")
+            break
+            
         if inputTensor is None:
             break
         
@@ -151,31 +157,48 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
         humanReadableOutputFileHandler.write(f"{index}\t{simularity}\n")
         outputBinaryFileHandler.append(simularity)
         index += 1
-
+        
+    outputBinaryFileHandler.close()
     humanReadableOutputFileHandler.close
+    
     return similarityTresholdCrossedCounter
 
 
-def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = "0", threshold = 0.8, comment = ""):
+def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = 0, threshold = 0.5, comment = ""):
     
     inputFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableSimularityFile, data_type=data_type, numbers_per_line=1)
     
     annotationList = []
-    
+    lineNumber = 0
+    annotationStart = 0
+    annotationLineCount = 0
+    withinAnnotation = False
+    threshold = 0.5
     
     while True:
         simularity = inputFileHandler.read_next()
         
         if simularity is None:
             break
+        else:
+            simularity = -(simularity[0])
         
-        if simularity > threshold:
-            annotation = { "lineNumber": 10001,  "lineCount": 3, "AnnotationId": 1,  "Comment": comment}
-            annotationList.append(annotation) 
-            
- 
-    AnnotationManager.write_annotation_file(
-        file_path=outputFile,
-        annotations=annotationList,
-        annotation_id=annotationId,
-    )
+        if simularity >= threshold:
+            if withinAnnotation:
+                annotationLineCount += 1
+            else:
+                annotationStart = lineNumber
+                annotationLineCount = 1
+                withinAnnotation = True
+        else:
+            if withinAnnotation:
+                annotation = { "lineNumber": annotationStart,  "lineCount": annotationLineCount, "AnnotationId": annotationId,  "Comment": comment}
+                annotationList.append(annotation)
+                withinAnnotation = False
+                annotationLineCount = 0
+
+        lineNumber += 1
+                   
+    return annotationList
+
+    

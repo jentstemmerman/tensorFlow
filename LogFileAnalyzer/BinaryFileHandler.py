@@ -117,6 +117,10 @@ class BinaryFileHandler:
             self.read_file_handler.seek(self.HEADER_SIZE)  # Skip header
 
         data = self.read_file_handler.read(self.record_size)
+        
+        if len(data) != self.record_size:
+            return None
+        
         return struct.unpack(self.fmt, data) if data else None
 
     def read_at(self, index):
@@ -176,7 +180,8 @@ class BinaryFileHandler:
             self.read_file_handler.close()
             self.read_file_handler = None
         if self.write_file_handler:
-            self._write_header(self._header_cache)
+
+            self._write_header(self._header_cache, flush=True)
             self.write_file_handler.close()
             self.write_file_handler = None
 

@@ -462,8 +462,8 @@ def enable_signature():
         DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
         
         similarityTresholdCrossedCounter = SignatureMatching.CreateSimularitiesFile(logFileName, signature_file, simularitiesMachineReadableFileName, simularitiesHumanReadableFileName, userId, similaritythreshold, DataTypeForTensors)
-        annotation_id = "0"
-        outputFile = AnnotationCacheManager.get_annotation_file_path(logFileName, annotation_id, userId)
+        annotation_id = 0
+        outputFile = AnnotationManager.AnnotationCacheManager.get_annotation_file_path(logFileName, annotation_id, userId)
         SignatureMatching.CreateAnnotationListFromSimularitiesFile(simularitiesMachineReadableFileName, outputFile, DataTypeForTensors, annotationId = annotation_id, threshold = 0.8, comment = "")
         
         return jsonify(

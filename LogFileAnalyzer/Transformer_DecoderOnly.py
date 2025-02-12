@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
-import ModelHash
 
 # JENTS: this looks like the classic positional encoding. 
 def positional_encoding(length, depth): # lenght is the sequence lenght, depth the embedding dimension
@@ -434,7 +433,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
     return logits, hidden_states
 
-class Transformer_DecoderOnly(tf.keras.Model):
+class Transformer(tf.keras.Model):
   """
   A Transformer_DecoderOnly model that consists of a decoder and a final dense layer.
 
@@ -464,9 +463,6 @@ class Transformer_DecoderOnly(tf.keras.Model):
 
     self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, d_model=d_model, num_heads=num_heads, dff=dff,
                vocab_size=input_vocab_size, featureList=featureList, seq_length=seq_length, dropout_rate=0.1)
-  def GetHashAtCreation(self):
-    return "ijfdiaeof"
-    
 
 
   def CalculateEmbeddingDimensions(featureList):
@@ -486,8 +482,8 @@ class Transformer_DecoderOnly(tf.keras.Model):
         
         embeddingDimension.append(output_dimension)
         total_output_dimensions += output_dimension
-    #print("Embedding dimensions:")
-    #print(embeddingDimension)
+    print("Embedding dimensions:")
+    print(embeddingDimension)
     return embeddingDimension
   
   # @tf.function
@@ -579,7 +575,7 @@ if __name__ == "__main__":
   target_vocab_size = 1100
   epochs = 10
 
-  transformer = Transformer_DecoderOnly(
+  transformer = Transformer(
       num_layers=num_layers,
       d_model=d_model,
       num_heads=num_heads,

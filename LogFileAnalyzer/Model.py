@@ -73,11 +73,11 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
     return mean_loss.numpy()
 
 def AnalyzePrintfFile(model, inputFile, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
-
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
 
-    printfFileToProcess = inputFile
-    LogfileAnalyzed     = LogFileAnalyzedPath
+    printfFileToProcess      = inputFile
+
+    LogfileAnalyzed = LogFileAnalyzedPath
     
     Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
 
@@ -188,7 +188,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                 dropout_rate=dropout_rate)
         else:
             import Transformer_DecoderOnly
-            model = Transformer_DecoderOnly.Transformer_DecoderOnly(
+            model = Transformer_DecoderOnly.Transformer(
                 num_layers=num_layers,
                 d_model=d_model,
                 num_heads=num_heads,
@@ -220,18 +220,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
         
 
         custom_objects = None
-        custom_objects = {
-            'Custom_loss_function': MultiDimensionalModel.Custom_loss_function,
-            'LSTMPrintfLogMultiModel': MultiDimensionalModel.LSTMPrintfLogMultiModel,
-            'Transformer': Transformer.Transformer,
-            'Transformer_DecoderOnly': Transformer_DecoderOnly.Transformer_DecoderOnly
-        }
-        custom_objects = {
-            'Custom_loss_function': MultiDimensionalModel.Custom_loss_function,
-            'Transformer_DecoderOnly': Transformer_DecoderOnly.Transformer_DecoderOnly
-        }
-        
-        model = tf.keras.models.load_model(ModelDirectory, custom_objects=custom_objects, compile=False)
+        model = tf.keras.models.load_model(ModelDirectory, custom_objects=custom_objects, compile=False )
         loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
         model.compile(optimizer=optimizer, loss=loss_function)
 

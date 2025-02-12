@@ -94,7 +94,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         hiddenVectorSize = GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, indexOfFirstPrediction)
         
-        hashAtCreation = model.GetHashAtCreation()
+        hashAtCreation =  "dddd"# model.GetHashAtCreation()
          
         binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=hashAtCreation)   
         

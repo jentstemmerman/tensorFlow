@@ -26,6 +26,7 @@ class BinaryFileHandler:
         self.numbers_per_line = self._header_cache.get("numbers_per_line", self.numbers_per_line)
         self.record_size = struct.calcsize(self.TYPE_MAP[data_type]) * self.numbers_per_line
         self.fmt = self.TYPE_MAP[data_type] * self.numbers_per_line
+        self.set_chunk_size_by_memory(1024)
         
     def _write_header(self, header_data, flush=False):
         """Write the JSON header to the file."""
@@ -185,12 +186,97 @@ class BinaryFileHandler:
             self.write_file_handler.close()
             self.write_file_handler = None
 
+    def set_chunk_size_by_memory(self, memory_bytes):
+        """
+        Sets the chunk size based on a memory budget in bytes.
+        It estimates the memory usage per record and then calculates the maximum
+        number of records that fit into the given memory budget.
+        
+        :param memory_bytes: Memory budget in bytes.
+        """
+        # Assume each record is stored along the first dimension.
+        record_shape = (self.numbers_per_line,)
+        
+        # If any dimension is unknown (None), assume 1 for estimation.
+        dims = [dim if dim is not None else 1 for dim in record_shape]
+        record_num_elements = np.prod(dims)
+        
+        # Get the size in bytes for one element of this dtype.
+        element_size = np.dtype(self.data_type).itemsize
+        record_size = record_num_elements * element_size
 
+        # Compute how many records fit into the memory budget.
+        chunk_size = memory_bytes // record_size
+        if chunk_size < 1:
+            chunk_size = 1  # Ensure at least one record per chunk.
+        self.chunk_size = int(chunk_size)
+        print(f"Chunk size set to {self.chunk_size} records per chunk based on a memory budget of {memory_bytes} bytes.")
 
+    def get_chunk_tensor(self, chunk_index):
+        """
+        Retrieves the tensor for the specified chunk.
+        If the chunk is the last one, it may contain fewer records than chunk_size.
+        """
+        start = chunk_index * self.chunk_size
+        end = start + self.chunk_size
+
+        if self.read_file_handler is None:
+            self.read_file_handler = open(self.filename, "rb")
+            self.read_file_handler.seek(self.HEADER_SIZE)  # Skip header
+
+        self.read_file_handler.seek(self.HEADER_SIZE + start * self.record_size)
+        records = []
+        for _ in range(self.chunk_size):
+            data = self.read_file_handler.read(self.record_size)
+            if len(data) != self.record_size:
+                break
+            records.append(struct.unpack(self.fmt, data))
+
+        return tf.convert_to_tensor(records, dtype=tf.float32)
+
+    def read_records_optimised(self, start_index, num_records):
+        """
+        Reads records in a sliding-window style, handling cases where the window spans multiple chunks.
+        """
+        chunk_size = self.chunk_size
+        start_chunk = start_index // chunk_size
+        end_index = start_index + num_records - 1
+        end_chunk = end_index // chunk_size
+
+        # Case 1: Entire window is within one chunk.
+        if start_chunk == end_chunk:
+            chunk_tensor = self.get_chunk_tensor(start_chunk)
+            start_offset = start_index % chunk_size
+            # Make sure we don't slice beyond the available records (especially for a small last chunk).
+            chunk_length = tf.shape(chunk_tensor)[0]
+            end_offset = tf.minimum(start_offset + num_records, chunk_length)
+            return chunk_tensor[start_offset:end_offset]
+
+        # Case 2: The window spans multiple chunks.
+        parts = []
+
+        # First chunk: from start_offset to the end of the chunk.
+        first_chunk_tensor = self.get_chunk_tensor(start_chunk)
+        start_offset = start_index % chunk_size
+        parts.append(first_chunk_tensor[start_offset:])
+
+        # Middle chunks: add entire chunks if they exist.
+        for chunk in range(start_chunk + 1, end_chunk):
+            parts.append(self.get_chunk_tensor(chunk))
+
+        # Last chunk: from the beginning to the required number of records.
+        last_chunk_tensor = self.get_chunk_tensor(end_chunk)
+        end_offset = (end_index % chunk_size) + 1  # +1 because end_index is inclusive.
+        last_chunk_length = tf.shape(last_chunk_tensor)[0]
+        end_offset = tf.minimum(end_offset, last_chunk_length)
+        parts.append(last_chunk_tensor[:end_offset])
+
+        # Concatenate all parts along the first axis.
+        return tf.concat(parts, axis=0)
 
 # Example Usage
 if __name__ == "__main__":
-        # Delete the file if it exists
+    # Delete the file if it exists
     if os.path.exists("data_with_json_header.bin"):
         os.remove("data_with_json_header.bin")
         
@@ -203,10 +289,7 @@ if __name__ == "__main__":
     header= binary_file._read_header()
     binary_file._write_header( header, flush=False)
     
-    
-    
     binary_file.clear_file()
-
 
     # Append records
     binary_file.append((1.1, 2.2, 3.3))

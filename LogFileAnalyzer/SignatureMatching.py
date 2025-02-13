@@ -133,9 +133,9 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     machine_readable_mtime = os.path.getmtime(machineReadableOutputFile) if os.path.exists(machineReadableOutputFile) else 0
     human_readable_mtime = os.path.getmtime(humanReadableOutputFile) if os.path.exists(humanReadableOutputFile) else 0
 
-    #if log_file_mtime < machine_readable_mtime and log_file_mtime < human_readable_mtime:
-    #    print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
-     #   return False
+    if log_file_mtime < machine_readable_mtime and log_file_mtime < human_readable_mtime:
+        print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
+        return False
     
     if os.path.exists(machineReadableOutputFile):
         os.remove(machineReadableOutputFile)
@@ -162,7 +162,13 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
         
         try:
             inputTensor = inputBinaryFileHandler.read_records(index, numberOfHiddenVectors)
-
+            inputTensor2 = inputBinaryFileHandler.read_records_optimised(index, numberOfHiddenVectors)
+            
+            if not tf.reduce_all(tf.equal(inputTensor, inputTensor2)):
+                print(f"Tensors are not equal at index {index}")
+            
+            assert tf.reduce_all(tf.equal(inputTensor, inputTensor2)), f"Tensors are not equal at index {index}"
+                
         except (IndexError) as e:
             print(f"IndexError: {e}")
             break
@@ -208,7 +214,7 @@ def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outp
                 withinAnnotation = True
         else:
             if withinAnnotation:
-                annotation = { "lineNumber": annotationStart,  "lineCount": annotationLineCount, "AnnotationId": annotationId,  "Comment": comment}
+                annotation = { "lineNumber": annotationStart,  "lineCount": annotationLineCount, "simularity": simularity, "AnnotationId": annotationId,  "Comment": comment}
                 annotationList.append(annotation)
                 withinAnnotation = False
                 annotationLineCount = 0
@@ -223,6 +229,6 @@ def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outp
         with open(outputFile, 'w') as f:
             json.dump(annotationList, f, indent=4)
                       
-
+    print("CreateAnnotationListFromSimularitiesFile DONE")
 
     

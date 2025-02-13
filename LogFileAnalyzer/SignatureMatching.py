@@ -41,7 +41,7 @@ def CalculatePooledVectors(vectors):
     
     return pooledVector
 
-def CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors, modelHash):
+def CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors):
     binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type=DataTypeForTensors, numbers_per_line=None)
     
     modelHash = binaryFileHandler.get_modelHash()
@@ -121,7 +121,7 @@ def CalculateSimularity(signature, tensor, data_type):
     
     return similarity
 
-def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile, humanReadableOutputFile, userId, similaritythreshold, dataType):
+def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile, humanReadableOutputFile, userId, dataType):
     
     if not os.path.exists(LogFileName):
         print(f"[CreateSimularitiesFile] LogFileName {LogFileName} does not exist.")
@@ -133,10 +133,14 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     machine_readable_mtime = os.path.getmtime(machineReadableOutputFile) if os.path.exists(machineReadableOutputFile) else 0
     human_readable_mtime = os.path.getmtime(humanReadableOutputFile) if os.path.exists(humanReadableOutputFile) else 0
 
-    if log_file_mtime < machine_readable_mtime and log_file_mtime < human_readable_mtime:
-        print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
-        return False
-       
+    #if log_file_mtime < machine_readable_mtime and log_file_mtime < human_readable_mtime:
+    #    print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
+     #   return False
+    
+    if os.path.exists(machineReadableOutputFile):
+        os.remove(machineReadableOutputFile)
+    if os.path.exists(humanReadableOutputFile):
+        os.remove(humanReadableOutputFile)
     
     temperature = 1
     hiddenVectorsFile = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId, temperature)
@@ -153,7 +157,6 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1) # , modelHash=modelHash)
     
     index = 0
-    similarityTresholdCrossedCounter = 0
     
     while True:
         
@@ -169,9 +172,6 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
         
         simularity = CalculateSimularity(signature_tensor, inputTensor, dataType).numpy()
         
-        if ((similaritythreshold is not None) and (simularity > similaritythreshold)):
-            similarityTresholdCrossedCounter += 1
-        
         humanReadableOutputFileHandler.write(f"{index}\t{simularity}\n")
         outputBinaryFileHandler.append(simularity)
         index += 1
@@ -179,7 +179,6 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     outputBinaryFileHandler.close()
     humanReadableOutputFileHandler.close()
     
-    return similarityTresholdCrossedCounter
 
 
 def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = 0, threshold = 0.5, comment = ""):
@@ -191,7 +190,6 @@ def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outp
     annotationStart = 0
     annotationLineCount = 0
     withinAnnotation = False
-    threshold = 0.5
     
     while True:
         simularity = inputFileHandler.read_next()
@@ -216,7 +214,15 @@ def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outp
                 annotationLineCount = 0
 
         lineNumber += 1
-                   
-    return annotationList
+    
+    if outputFile is not None:
+        output_dir = os.path.dirname(outputFile)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+                
+        with open(outputFile, 'w') as f:
+            json.dump(annotationList, f, indent=4)
+                      
+
 
     

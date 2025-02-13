@@ -408,10 +408,8 @@ def upload_signature():
             "signature": signature.numpy().tolist(),
         }
 
-       
-        baseDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
-        file_path = os.path.join(baseDirectory, signature_name)
-
+        file_path= Constants.GetSignatureFilePath(signature_name, userId)
+  
         # Ensure the directory exists
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
@@ -457,11 +455,11 @@ def enable_signature():
         
         baseDirectory = Constants.GetSignatureDirectoryPath(userId)
         signature_file = os.path.join(baseDirectory, signature_name)
-        simularitiesMachineReadableFileName = Constants.GetLogFileMachineReadableSimularitiesFile(logFileName, userId, signature_name)
-        simularitiesHumanReadableFileName = Constants.GetLogFileHumanReadableSimularitiesFile(logFileName, userId, signature_name)
+        simularitiesMachineReadableFileName = Constants.GetMachineReadableSimularitiesFile(logFileName, userId, signature_name)
+        simularitiesHumanReadableFileName = Constants.GetHumanReadableSimularitiesFile(logFileName, userId, signature_name)
         DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
         
-        similarityTresholdCrossedCounter = SignatureMatching.CreateSimularitiesFile(logFileName, signature_file, simularitiesMachineReadableFileName, simularitiesHumanReadableFileName, userId, similaritythreshold, DataTypeForTensors)
+        SignatureMatching.CreateSimularitiesFile(logFileName, signature_file, simularitiesMachineReadableFileName, simularitiesHumanReadableFileName, userId, similaritythreshold, DataTypeForTensors)
         annotation_id = 0
         outputFile = AnnotationManager.AnnotationCacheManager.get_annotation_file_path(logFileName, annotation_id, userId)
         SignatureMatching.CreateAnnotationListFromSimularitiesFile(simularitiesMachineReadableFileName, outputFile, DataTypeForTensors, annotationId = annotation_id, threshold = 0.8, comment = "")
@@ -469,7 +467,6 @@ def enable_signature():
         return jsonify(
             {
                 "message": "Signature uploaded successfully",
-                "similarityTresholdCrossedCounter": similarityTresholdCrossedCounter,
                 "signature_name": signature_name,
             }
         )
@@ -482,9 +479,19 @@ def enable_signature():
 def PreProcessLogFiles():
     try:
         userId = request.args.get("userId", None)
+        similaritythreshold = float(request.args.get("similaritythreshold", 0.5))
+        
+
+        def background_task(userId, DataTypeForTensors, similaritythreshold):
+            try:
+                FileHandler.async_preprocess_log_files(userId, DataTypeForTensors, similaritythreshold)
+                #socketio.emit('preprocess_complete', {'userId': userId})
+            except Exception as e:
+                print(f"Error processing log files for user {userId}: {e}")
+                #socketio.emit('preprocess_error', {'error': str(e), 'userId': userId})
 
         # Start a background thread to process the log files
-        threading.Thread(target=FileHandler.async_preprocess_log_files, args=(userId)).start()
+        threading.Thread(target=background_task, args=(userId, DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"],similaritythreshold,)).start()
 
         return jsonify({"started": True})
     except Exception as e:

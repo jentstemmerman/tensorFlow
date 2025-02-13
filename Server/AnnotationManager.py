@@ -163,7 +163,7 @@ class AnnotationCacheManager:
 
         return os.path.join(
             annotationFilePath,
-            fileNameWithoutExtension + "_annotations_" + str(annotation_id),
+            fileNameWithoutExtension, "annotations_" + str(annotation_id),
         )
 
 

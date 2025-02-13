@@ -17,14 +17,21 @@ ANNOTATION_FILES_DIRECTORY = os.path.normpath(os.path.join("cache", "annotations
 USER_SETTINGS_FILE_NAME = "UserSettings.json"
 TOKEN_FILE_DIRECTORY = "TokenFiles"
 
+def GetLogFilesExtention():
+    return ".log"
+
+def GetAnnotationFilesExtention():
+    return ".annotation"
+
+def GetSignatureFilesExtention():
+    return ".dat"
+
 def GetAnnotationsDirectoryPath(logFilename, userId):
     userId = str(userId)
 
     baseDirectory = GetUserSpecificBaseDirectory("AnnotationType", userId)
-
-    annotations_file_path = baseDirectory
-    return annotations_file_path
-
+    
+    return baseDirectory
 
 def GetLogFilePath(logFilename, userId):
     userId = str(userId)
@@ -44,22 +51,32 @@ def GetLogFileAnalyzedPath(logFilename, userId):
 
     return FileNameAnalyzedLogFile
 
-def GetLogFileMachineReadableSimularitiesFile(logFilename, userId, SignatureName):
+def GetSignatureFilePath(signatureName, userId):
+    userId = str(userId)
+    signatureName = os.path.basename(signatureName)
+    baseDirectory = GetUserSpecificBaseDirectory("SignatureType", userId)
+
+    signature_file_path = os.path.join(baseDirectory, signatureName + GetSignatureFilesExtention())
+    return signature_file_path
+
+def GetMachineReadableSimularitiesFile(logFilename, userId, SignatureFile):
     userId = str(userId)
     
-    logFilenameWithoughExtention = Path(logFilename).stem
+    logFilenameWithoughExtention = os.path.splitext(os.path.basename(logFilename))[0]
+    SignatureName = os.path.splitext(os.path.basename(SignatureFile))[0]
        
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
     
-    FileNameSimularitiesWithSignature = os.path.join(baseDirectory, logFilenameWithoughExtention, "Simularities_" + SignatureName + ".dat")
+    FileNameSimularitiesWithSignature = os.path.join(baseDirectory, logFilenameWithoughExtention, "Simularities_" + SignatureName + GetSignatureFilesExtention())
 
     return FileNameSimularitiesWithSignature
 
-def GetLogFileHumanReadableSimularitiesFile(logFilename, userId, SignatureName):
+def GetHumanReadableSimularitiesFile(logFilename, userId, SignatureFile):
     userId = str(userId)
     
-    logFilenameWithoughExtention = Path(logFilename).stem
-       
+    logFilenameWithoughExtention = os.path.splitext(os.path.basename(logFilename))[0]
+    SignatureName = os.path.splitext(os.path.basename(SignatureFile))[0]
+    
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
     
     FileNameSimularitiesWithSignature = os.path.join(baseDirectory, logFilenameWithoughExtention, "Simularities_" + SignatureName + ".txt")
@@ -68,7 +85,7 @@ def GetLogFileHumanReadableSimularitiesFile(logFilename, userId, SignatureName):
 
 def GetLogFileMachineReadableVectorsPath(logFilename, userId, temperature):
     userId = str(userId)
-    logFilenameWithoughExtention = Path(logFilename).stem
+    logFilenameWithoughExtention = os.path.splitext(os.path.basename(logFilename))[0]
             
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
     
@@ -78,11 +95,11 @@ def GetLogFileMachineReadableVectorsPath(logFilename, userId, temperature):
 
 def GetLogFileHumanReadableVectorsPath(logFilename, userId, temperature):
     userId = str(userId)
-    logFilenameWithoughExtention = Path(logFilename).stem
+    logFilenameWithoughExtention = os.path.splitext(os.path.basename(logFilename))[0]
             
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
     
-    FileNameHumanReadablePooledVectors = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors.dat")
+    FileNameHumanReadablePooledVectors = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors.txt")
 
     return FileNameHumanReadablePooledVectors
 

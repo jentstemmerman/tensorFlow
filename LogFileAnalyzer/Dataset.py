@@ -76,7 +76,7 @@ def PrepareDataSetForTraining(dataset, batch_size, shuffle=False, buffer_size=0)
     return dataset
 
 def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, dual_input = False, verbose=False):
-    FileIterator = LogFileIterator.LogfileIterator(InputDirectory)
+    FileIterator = FileIterator.FileIterator(InputDirector, ".log")
     InputFile   = FileIterator.get_first_tokenlogfile()
 
     import concurrent.futures
@@ -204,7 +204,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
     print("Processing log files to tokens:\n")
     tokenListListList = TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
     
-    TraininglogFileIterator = LogFileIterator.LogfileIterator(OutputDirectory)
+    TraininglogFileIterator = FileIterator.FileIterator(OutputDirectory, ".log")
     dataset                 = None
     filesUsed               = []
     TrainingLogTensor       = None

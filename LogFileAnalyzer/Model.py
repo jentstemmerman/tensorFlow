@@ -84,7 +84,7 @@ def AnalyzePrintfFile(model, inputFile, LogFileAnalyzedPath, FileNameMachineRead
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
-    verificationFileIterator = LogFileIterator.LogfileIterator(inputDirectory)
+    verificationFileIterator = LogFileIterator.FileIterator(inputDirectory, ".log")
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
     while (printfFileToProcess is not None):
@@ -102,7 +102,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
     calculateAverage = 0
 
     if (calculateAverage):
-        verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
+        verificationFileIterator = TokenParser.FileIterator(OutputDirectoryVerification)
         tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
 
         if (tokenLogfileToProcess == None):

@@ -243,6 +243,7 @@ def analyze_file(file_name):
     except Exception as e:
         print(e)
         return jsonify({"error": str(e)}), 500
+    
 
 @WebServer.route("/api/file/checkannotations/<file_name>", methods=["GET"])
 def check_file_annotations(file_name):
@@ -259,27 +260,19 @@ def check_file_annotations(file_name):
         print(e)
         return jsonify({"error": str(e)}), 500
 
+
 @WebServer.route("/api/PreProcessLogFiles", methods=["GET"])
 def PreProcessLogFiles():
     try:
         userId = request.args.get("userId", None)
 
         # Start a background thread to process the log files
-        threading.Thread(target=async_preprocess_log_files, args=(userId)).start()
+        threading.Thread(target=FileHandler.async_preprocess_log_files, args=(userId)).start()
 
         return jsonify({"started": True})
     except Exception as e:
         print(e)
         return jsonify({"error": str(e)}), 500
-
-def async_preprocess_log_files(userId):
-    try:
-        # Your asynchronous processing logic here
-        print(f"Processing log files for user {userId}")
-        time.sleep(1)  # Simulate long-running task
-        print(f"Finished processing log files for user {userId}")
-    except Exception as e:
-        print(f"Error processing log files for user {userId}: {e}")
 
 
 @WebServer.route("/api/file/getannotations/<file_name>", methods=["GET"])

@@ -2,6 +2,7 @@ import hashlib
 import os
 import OffsetArrayManager
 import AnnotationManager
+import time
 
 fileHandle = None
 file = "./Server/large-file.txt"
@@ -133,3 +134,12 @@ def select_input_file(file):
         file_path,
         file_size,
     )
+
+def async_preprocess_log_files(userId):
+    try:
+        # Your asynchronous processing logic here
+        print(f"Processing log files for user {userId}")
+        time.sleep(1)  # Simulate long-running task
+        print(f"Finished processing log files for user {userId}")
+    except Exception as e:
+        print(f"Error processing log files for user {userId}: {e}")

@@ -21,44 +21,31 @@ class OffsetArrayManager:
                 os.path.join(offset_file_path, offset_base_file_name) + ".offsets"
             )
 
-            cached_file_path = self.offset_cache.get(offset_file_path)
-            cached_hash = self.offset_cache.get(f"{offset_file_path}_hash")
+            cached_file_path = self.offset_cache.get(f"{offset_file_path}_offset_file_path")   
             numberOfLines = self.offset_cache.get(f"{offset_file_path}_numberOfLines")
-            print("Hash from cache: ", cached_hash)
-
             offset_file_exists = os.path.exists(offset_file_path)
-            offset_file_hash_match = False
-
-            if offset_file_exists:
-                offset_file_hash = self.generate_file_hash(offset_file_path)
-
-                offset_file_hash_match = offset_file_hash == cached_hash
-                print("File exists. Hash from file: ", offset_file_hash)
-
-                if not offset_file_hash_match:
-                    numberOfLines = self.generate_offset_file(
-                        file_path, offset_file_path
-                    )
-                    offset_file_hash = self.generate_file_hash(offset_file_path)
-                    cached_file_path = None
-            else:
-                numberOfLines = self.generate_offset_file(file_path, offset_file_path)
-                offset_file_hash = self.generate_file_hash(offset_file_path)
-                print("File generated. Hash from new file: ", offset_file_hash)
-
-                cached_file_path = None
 
             if cached_file_path is None:
+                if offset_file_exists:
+                    log_file_mtime = os.path.getmtime(file_path)
+                    offset_file_path_mtime = os.path.getmtime(offset_file_path) if os.path.exists(offset_file_path) else 0
+                    
+                    if log_file_mtime < offset_file_path_mtime:
+                        print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
+                    else:
+                        self.generate_offset_file(file_path, offset_file_path)
+                else:
+                    self.generate_offset_file(file_path, offset_file_path)
+
                 # Update cache with new offsets and file hash
                 offset_file_content = self.read_offset_file(offset_file_path)
+                numberOfLines = self.get_number_of_lines_in_file(offset_file_path)
 
+                self.offset_cache.put(f"{offset_file_path}_offset_file_path", file_path)
+                self.offset_cache.put(f"{offset_file_path}_numberOfLines", numberOfLines)
                 self.offset_cache.put(offset_file_path, offset_file_content)
-                self.offset_cache.put(f"{offset_file_path}_hash", offset_file_hash)
-                self.offset_cache.put(
-                    f"{offset_file_path}_numberOfLines", numberOfLines
-                )
 
-        return self.offset_cache.get(offset_file_path), numberOfLines
+            return self.offset_cache.get(offset_file_path), numberOfLines
 
     def get_number_of_lines_in_file(self, file_path):
         file_size = os.path.getsize(file_path)  # Get file size in bytes

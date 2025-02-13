@@ -261,20 +261,6 @@ def check_file_annotations(file_name):
         return jsonify({"error": str(e)}), 500
 
 
-@WebServer.route("/api/PreProcessLogFiles", methods=["GET"])
-def PreProcessLogFiles():
-    try:
-        userId = request.args.get("userId", None)
-
-        # Start a background thread to process the log files
-        threading.Thread(target=FileHandler.async_preprocess_log_files, args=(userId)).start()
-
-        return jsonify({"started": True})
-    except Exception as e:
-        print(e)
-        return jsonify({"error": str(e)}), 500
-
-
 @WebServer.route("/api/file/getannotations/<file_name>", methods=["GET"])
 def get_file_annotations(file_name):
     """Return a specific part of the file content based on line numbers."""
@@ -492,7 +478,18 @@ def enable_signature():
         print("Error enable_signature:", e)
         return jsonify({"message": "Error enable_signature", "error": str(e)}), 500
 
+@WebServer.route("/api/PreProcessLogFiles", methods=["GET"])
+def PreProcessLogFiles():
+    try:
+        userId = request.args.get("userId", None)
 
+        # Start a background thread to process the log files
+        threading.Thread(target=FileHandler.async_preprocess_log_files, args=(userId)).start()
+
+        return jsonify({"started": True})
+    except Exception as e:
+        print(e)
+        return jsonify({"error": str(e)}), 500
 
 @WebServer.route("/api/settings/<user_id>", methods=["GET"])
 def get_user_settings(user_id):

@@ -9,6 +9,8 @@ import Constants     # type: ignore
 import SignatureMatching
 import json
 import AnnotationManager
+import os
+import time
 
 
 def read_signature_from_file(filename):
@@ -120,6 +122,22 @@ def CalculateSimularity(signature, tensor, data_type):
     return similarity
 
 def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile, humanReadableOutputFile, userId, similaritythreshold, dataType):
+    
+    if not os.path.exists(LogFileName):
+        print(f"[CreateSimularitiesFile] LogFileName {LogFileName} does not exist.")
+        return False
+    
+    # it is possible that this function already ran, and machineReadableOutputFile and humanReadableOutputFile already exist for the given LogFileName
+    # we can check that by checking the date. If the LogFileName is older than the machineReadableOutputFile and humanReadableOutputFile, we can skip this function
+    log_file_mtime = os.path.getmtime(LogFileName)
+    machine_readable_mtime = os.path.getmtime(machineReadableOutputFile) if os.path.exists(machineReadableOutputFile) else 0
+    human_readable_mtime = os.path.getmtime(humanReadableOutputFile) if os.path.exists(humanReadableOutputFile) else 0
+
+    if log_file_mtime < machine_readable_mtime and log_file_mtime < human_readable_mtime:
+        print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
+        return False
+       
+    
     temperature = 1
     hiddenVectorsFile = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId, temperature)
     
@@ -159,7 +177,7 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
         index += 1
         
     outputBinaryFileHandler.close()
-    humanReadableOutputFileHandler.close
+    humanReadableOutputFileHandler.close()
     
     return similarityTresholdCrossedCounter
 

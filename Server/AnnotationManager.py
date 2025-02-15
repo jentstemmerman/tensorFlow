@@ -5,7 +5,7 @@ from collections import OrderedDict
 from threading import Lock
 import numpy as np
 import LRUCache
-import pickle
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -35,8 +35,8 @@ class AnnotationCacheManager:
         annotations = []
 
         try:
-            with open(annotation_file_path, "rb") as f:
-                annotations = pickle.load(f)
+            with open(annotation_file_path, "r") as f:
+                annotations = json.load(f)
 
         except (IOError, OSError) as e:
             logger.error(f"An error occurred while reading the annotation file: {e}")

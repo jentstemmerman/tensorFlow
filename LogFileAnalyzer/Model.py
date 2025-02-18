@@ -223,6 +223,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
         loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
         model.compile(optimizer=optimizer, loss=loss_function)
 
+   
     return model
 
 def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParameter, TrainingCheckpointDir, TrainingLogFile=None):
@@ -231,7 +232,7 @@ def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParam
         sys.stdout = Logger.Logger(TrainingLogFile)
     
     # Name of the checkpoint files
-    checkpoint_prefix = os.path.join(TrainingCheckpointDir, "ckpt_{epoch}")
+    checkpoint_prefix = os.path.join(TrainingCheckpointDir, "ckpt_{epoch}.keras")
     checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix, save_weights_only=False)
   
     print("\nSettings used: ")

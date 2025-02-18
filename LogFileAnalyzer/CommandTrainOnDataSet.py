@@ -18,6 +18,7 @@ def TrainModelOnDataSet(TrainingDataSetFile, VerificationDataSetFile, id_from_to
     datasetForTraining = Dataset.LoadDataset(TrainingDataSetFile.strip())   
     datasetForTraining = Dataset.PrepareDataSetForTraining(datasetForTraining, TrainingsParameter["BatchSize"], shuffle=TrainingsParameter["shuffleTraining"], buffer_size=TrainingsParameter["BUFFER_SIZE"])
     
+
     if (VerificationDataSetFile != ""):
         if not os.path.exists(VerificationDataSetFile.strip()):
             datasetForVerification = None
@@ -30,6 +31,16 @@ def TrainModelOnDataSet(TrainingDataSetFile, VerificationDataSetFile, id_from_to
     
     model.save(TrainedModelDir)
 
+    model.summary() 
+    
+    for var in model.trainable_variables:
+        print(var.name, var.shape)
+
+        
+    try:
+        model.save(TrainedModelDir)
+    except:
+        model = None
 
 
 if __name__ == "__main__":

@@ -1,6 +1,9 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import math
+import MultiDimensionalModel
+
 
 # JENTS: this looks like the classic positional encoding. 
 def positional_encoding(length, depth): # lenght is the sequence lenght, depth the embedding dimension
@@ -341,61 +344,93 @@ class Decoder(tf.keras.layers.Layer):
       Returns:
         ndarray: A tensor of shape (batch_size, target_seq_len, d_model), representing the output from the decoder layers.
   """
-  def __init__(self, *, num_layers, d_model, num_heads, dff, vocab_size, seq_length,
+  def __init__(self, *, num_layers, num_heads, dff, featureList, datatype, seq_length,
                dropout_rate=0.1):
     super(Decoder, self).__init__()
 
-    self.d_model = d_model
     self.num_layers = num_layers
 
-    self.pos_embedding = PositionalEmbedding(vocab_size=vocab_size, 
-                                             d_model=d_model, seq_length=seq_length)
+    output_dimension = 0
+
+    embeddingDimensionList = MultiDimensionalModel.CalculateEmbeddingDimensions(featureList)
+
+    self.input_layerList  = []
+
+    for i, feature in enumerate(featureList):
+
+        output_dimension += embeddingDimensionList[i]
+
+        if (feature["embedded"]):
+            input_layer = PositionalEmbedding(vocab_size=feature["vocab_size"], d_model=embeddingDimensionList[i], seq_length=seq_length)
+        else:
+            input_layer = MultiDimensionalModel.CustomIdentityLayer(datatype=datatype)  # no positional encoding for non-embedded features, might be wrong to do this
+        
+       
+        self.input_layerList.append(input_layer)    
+
     self.dropout = tf.keras.layers.Dropout(dropout_rate)
-    self.dec_layers = [
-        DecoderLayer(d_model=d_model, num_heads=num_heads,
-                     dff=dff, dropout_rate=dropout_rate)
-        for _ in range(num_layers)]
+    self.dec_layers = [DecoderLayer(d_model=output_dimension, num_heads=num_heads, dff=dff, dropout_rate=dropout_rate) for _ in range(num_layers)]
+
+    self.output_layerList  = []
+
+    for i, feature in enumerate(featureList):
+
+        layer_name = feature["layer_name"]
+
+        if (feature["embedded"]):
+            dense_output_layer = tf.keras.layers.Dense(units=feature["vocab_size"], name=layer_name, activation=None)
+        else:
+            dense_output_layer = MultiDimensionalModel.CustomDenseLayer(seq_length, 1) 
+
+        self.output_layerList.append(dense_output_layer)  
+
 
     self.last_attn_scores = None
 
   @tf.function
-  def call(self, x):
-    """
-    Implements the forward pass for the decoder layer.
+  def call(self, inputs, training=False):
+    inputList = []
+    
+    for i, input_layer in enumerate(self.input_layerList):
+        input_to_layer = inputs[:, :, i]
+        output = input_layer(input_to_layer, training = training)
+        inputList.append(output)
 
-    Args:
-      x (ndarray): A tensor of shape (batch_size, target_seq_len), representing the input token IDs.
-      context (ndarray): A tensor of shape (batch_size, input_seq_len, d_model), representing the output from the encoder layers.
-
-    Returns:
-      ndarray: A tensor of shape (batch_size, target_seq_len, d_model), representing the output from the decoder layers.
-    """
-    # `x` is token-IDs shape (batch, target_seq_len)
-    x = self.pos_embedding(x)  # (batch_size, target_seq_len, d_model)
-
-    x = self.dropout(x)
-
+    concatenated_inputs = tf.keras.layers.concatenate(inputList, axis=-1)
+    concatenated_inputs = self.dropout(concatenated_inputs)
+    
+    hidden_state = concatenated_inputs
+    
     for i in range(self.num_layers):
-      x  = self.dec_layers[i](x)
+      hidden_state = self.dec_layers[i](hidden_state)
 
+
+    output_List = []
+
+    for i, output_layer in enumerate(self.output_layerList):
+        layer_output = output_layer(hidden_state, training=training)
+        output_List.append(layer_output)
+
+  
     #self.last_attn_scores = self.dec_layers[-1].last_attn_scores
 
     # The shape of x is (batch_size, target_seq_len, d_model).
-    return x
+    return output_List, hidden_state
+  
+  
 class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
-  def __init__(self, *, num_layers, d_model, num_heads, dff, vocab_size, featureList, seq_length,
+  def __init__(self, *, num_layers, num_heads, dff, featureList, seq_length, datatype,
                dropout_rate=0.1):
     super().__init__()
     
     self.encoder = None
-
-    self.decoder = Decoder(num_layers=num_layers, d_model=d_model,
-                           num_heads=num_heads, dff=dff,
-                           vocab_size=vocab_size, seq_length=seq_length,
+    
+    self.decoder = Decoder(num_layers=num_layers, featureList=featureList,
+                           num_heads=num_heads, dff=dff, datatype=datatype,
+                           seq_length=seq_length,
                            dropout_rate=dropout_rate)
 
-    self.final_layer = tf.keras.layers.Dense(vocab_size)
 
 
   @tf.function
@@ -416,13 +451,9 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
     # first argument.
     x  = inputs
   
-    x = tf.squeeze(x, axis=-1)
-    
-    
-    hidden_states = self.decoder(x)  
-
-    # Final linear layer output.
-    logits = self.final_layer(hidden_states)  # (batch_size, target_len, target_vocab_size)
+    #x = tf.squeeze(x, axis=-1)
+        
+    logits, hidden_states = self.decoder(x)  
 
     try:
       # Drop the keras mask, so it doesn't scale the losses/metrics.
@@ -457,34 +488,13 @@ class Transformer(tf.keras.Model):
   Returns:
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
-  def __init__(self, *, num_layers, d_model, num_heads, dff,
-               input_vocab_size, featureList, seq_length, dropout_rate=0.1):
+  def __init__(self, *, num_layers, num_heads, dff,
+               input_vocab_size, featureList, datatype, seq_length, dropout_rate=0.1):
     super().__init__()
 
-    self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, d_model=d_model, num_heads=num_heads, dff=dff,
-               vocab_size=input_vocab_size, featureList=featureList, seq_length=seq_length, dropout_rate=0.1)
+    self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, featureList=featureList, datatype=datatype, num_heads=num_heads, dff=dff,
+               seq_length=seq_length, dropout_rate=0.1)
 
-
-  def CalculateEmbeddingDimensions(featureList):
-    embeddingDimension = []
-    total_output_dimensions = 0
-
-    for i, feature in enumerate(featureList):
-        if (feature["embedded"] == True):
-            import math
-            output_dimension = math.ceil(feature["vocab_size"]**0.25)
-        else:
-            output_dimension = 1
-
-        # the positional encoder heeft een getal deelbaar door 2 nodig
-        if (output_dimension % 2 == 1):
-            output_dimension += 1
-        
-        embeddingDimension.append(output_dimension)
-        total_output_dimensions += output_dimension
-    print("Embedding dimensions:")
-    print(embeddingDimension)
-    return embeddingDimension
   
   # @tf.function
   def call(self, inputs, training=False):
@@ -577,7 +587,6 @@ if __name__ == "__main__":
 
   transformer = Transformer(
       num_layers=num_layers,
-      d_model=d_model,
       num_heads=num_heads,
       dff=dff,
       input_vocab_size=input_vocab_size,       #tokenizers.pt.get_vocab_size().numpy(),

@@ -108,11 +108,13 @@ def CalculateEmbeddingDimensions(featureList):
     total_output_dimensions = 0
 
     for i, feature in enumerate(featureList):
-        if (feature["embedded"] == True):
+        if (feature["embedded"]):
             output_dimension = math.ceil(feature["vocab_size"]**0.25)
+            if output_dimension % 2 != 0:
+                output_dimension += 1  # Ensure depth is even
         else:
-            output_dimension = 1
-
+            output_dimension = 1  # Maybe change this from 1 to 2 because otherwhise the positional embedding does not work.
+            
         embeddingDimension.append(output_dimension)
         total_output_dimensions += output_dimension
     print("Embedding dimensions:")
@@ -144,7 +146,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
         for i, feature in enumerate(featureList):
 
             output_dimension = embeddingDimensionList[i]
-
+        
             if (feature["embedded"] == True):
                 input_layer = tf.keras.layers.Embedding(input_dim=feature["vocab_size"], output_dim=output_dimension, dtype=datatype)
             else:
@@ -173,32 +175,32 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
             self.output_layerList.append(dense_output_layer)  
 
-        def GetHashAtCreation(self):
-          return self.hashAtCreation.getHash()
-    
-        def get_config(self):
-            config = super().get_config()
-            config.update({
-                "featureList": self.featureList,
-                "rnn_units": self.rnn_units,
-                "return_sequences": self.return_sequences,
-                "datatype": self.datatype,
-                "sequence_length": self.sequence_length,
-                "hashAtCreation": self.hashAtCreation.getHash()
-            })
-            return config
+    def GetHashAtCreation(self):
+        return self.hashAtCreation.getHash()
 
-        @classmethod
-        def from_config(cls, config):
-            hashAtCreation = config.pop("hashAtCreation")
-            model = cls(
-                featureList=config['featureList'],
-                rnn_units=config['rnn_units'],
-                return_sequences=config['return_sequences'],
-                datatype=config['datatype'],
-                sequence_length=config['sequence_length'],
-                hashAtCreation=config['hashAtCreation'],
-            )
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "featureList": self.featureList,
+            "rnn_units": self.rnn_units,
+            "return_sequences": self.return_sequences,
+            "datatype": self.datatype,
+            "sequence_length": self.sequence_length,
+            "hashAtCreation": self.hashAtCreation.getHash()
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        hashAtCreation = config.pop("hashAtCreation")
+        model = cls(
+            featureList=config['featureList'],
+            rnn_units=config['rnn_units'],
+            return_sequences=config['return_sequences'],
+            datatype=config['datatype'],
+            sequence_length=config['sequence_length'],
+            hashAtCreation=config['hashAtCreation'],
+        )
 
     def call(self, inputs, training=False):
         input_outputs = []

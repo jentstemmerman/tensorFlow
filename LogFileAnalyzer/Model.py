@@ -190,12 +190,11 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
             import Transformer_DecoderOnly
             model = Transformer_DecoderOnly.Transformer(
                 num_layers=num_layers,
-                d_model=d_model,
+                featureList=modelFeatureList,
                 num_heads=num_heads,
                 dff=dff,
+                datatype=TrainingsParameter["DataTypeForTensors"],
                 input_vocab_size=input_vocab_size,       
-
-                featureList=modelFeatureList, 
                 seq_length=TrainingsParameter["Model"]["seq_length"],
                 dropout_rate=dropout_rate)
             

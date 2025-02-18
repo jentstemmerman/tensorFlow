@@ -10,6 +10,51 @@
 		"version": "0.2.0",
 		
 		"configurations": [
+
+			{
+				"name": "Python Debugger: Create training dataset from dir",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromDir.py",
+
+				"args": ["/home/jents/AI/TrainingSet4/Training", 
+				         "Itemfile.txt", 
+						 "/home/jents/AI/TrainingSet4/out/Training", 
+						 "/home/jents/AI/TrainingSet4/" ], 
+
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "Python Debugger: Create verification dataset from dir",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromDir.py",
+
+				"args": ["/home/jents/AI/TrainingSet4/Verification", 
+				         "Itemfile.txt", 
+						 "/home/jents/AI/TrainingSet4/out/Verification", 
+						 "/home/jents/AI/TrainingSet4/"], 
+
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "Python Debugger: Train dataset",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/CommandTrainOnDataSet.py",
+
+				"args": ["/home/jents/AI/TrainingSet4/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset",  
+						"/home/jents/AI/TrainingSet4/out/Verification/DirectoryDataSet/DataSetOfDirectory.dataset",  
+				         "Itemfile.txt", 
+						 "/home/jents/AI/TrainingSet4/",
+						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainingCheckPoints",
+						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel"], 
+
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
 			{
 				"name": "Python Debugger: Analyze",
 				"type": "debugpy",
@@ -27,51 +72,6 @@
 				"console": "integratedTerminal"
 			},
 			{
-				"name": "Python Debugger: Train dataset",
-				"type": "debugpy",
-				"request": "launch",
-				"program": "${workspaceFolder}/CommandTrainOnDataSet.py",
-
-				"args": ["/home/jents/AI/TrainingSet4/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset",  
-				         "Itemfile.txt", 
-						 "/home/jents/AI/TrainingSet4/",
-						 "32", 
-						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainingCheckPoints",
-						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel"], 
-
-				"cwd": "${workspaceFolder}",
-				"console": "integratedTerminal"
-			},
-			{
-				"name": "Python Debugger: Create dataset from dir",
-				"type": "debugpy",
-				"request": "launch",
-				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromDir.py",
-
-				"args": ["/home/jents/AI/TrainingSet4/Training", 
-				         "Itemfile.txt", 
-						 "/home/jents/AI/TrainingSet4/out/Training", 
-						 "/home/jents/AI/TrainingSet4/",
-						 "1", 
-						 "/home/jents/AI/TrainingSet4/out/dataset_dir"], 
-
-				"cwd": "${workspaceFolder}",
-				"console": "integratedTerminal"
-			},
-			{
-				"name": "Python Debugger: Create dataset from file",
-				"type": "debugpy",
-				"request": "launch",
-				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromFile.py",
-				"args": ["/home/jents/AI/TrainingSet3/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.log", 
-				         "Itemfile.txt",
-						 "/home/jents/AI/TrainingSet3/", 
-						 "1", 
-						 "/home/jents/AI/TrainingSet3/out/Training/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_ShortRun_drive_log.dataset"], 
-				"cwd": "${workspaceFolder}",
-				"console": "integratedTerminal"
-			},
-			{
 				"name": "Python Debugger: Old Model",
 				"type": "debugpy",
 				"request": "launch",
@@ -80,10 +80,18 @@
 				"cwd": "${workspaceFolder}",
 			},
 			{
-				"name": "Python Debugger: TransformerTest2",
+				"name": "Python Debugger: Transformer",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/TransformerModel2.py",
+				"program": "${workspaceFolder}/Transformer.py",
+				"console": "integratedTerminal",
+				"cwd": "${workspaceFolder}",
+			},
+			{
+				"name": "Python Debugger: TransformerPrediction",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/TransformerPredictionModel.py",
 				"console": "integratedTerminal",
 				"cwd": "${workspaceFolder}",
 			},
@@ -94,7 +102,16 @@
 				"program": "${workspaceFolder}/UnitTestMultiDimensionalModel.py",
 				"console": "integratedTerminal",
 				"cwd": "${workspaceFolder}",
+			},
+			{
+				"name": "Python Debugger: BinaryFileHandler",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder}/BinaryFileHandler.py",
+				"console": "integratedTerminal",
+				"cwd": "${workspaceFolder}",
 			}
+
 			
 		]
 	}

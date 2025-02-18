@@ -6,6 +6,7 @@ Make sure any samples with this marker anywhere is not used in the training!
 
 group the cathegoricals together and feed them into one embedding layer    NOT GOING TO DO THAT 
 
-Make the dataset generation and the training work from disk instead of memory
+Make the dataset generation and the training work from disk instead of memory DONE more or less
 
-Move to transformer instead of LSTM.
+Move to transformer instead of LSTM. 
+ONGOING

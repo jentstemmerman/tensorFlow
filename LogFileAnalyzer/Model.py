@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../LogFileAnalyzer')
+
 import time
 import tensorflow as tf
 import numpy as np
@@ -12,11 +15,14 @@ import worker
 import Logger
 import LogFileIterator
 import MultiDimensionalModel
+
 import ModelCallbacks
 import neptune
 from neptune.integrations.tensorflow_keras import NeptuneCallback
 import DefaultTrainingSettings
 import math
+
+
 
 def CrossReferenceTokens(OutputDirectoryTraining, OutputDirectoryVerification, VocabularyFile):
     CrossReferenceTokens = False
@@ -66,19 +72,28 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
+def AnalyzePrintfFile(model, inputFile, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
+    itemList = TokenParser.GetItemListToSearchFor(itemFile)
 
+    printfFileToProcess      = inputFile
+
+    LogfileAnalyzed = LogFileAnalyzedPath
+    
+    Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
 
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
-    verificationFileIterator = LogFileIterator.LogfileIterator(inputDirectory)
+    verificationFileIterator = LogFileIterator.FileIterator(inputDirectory, ".log")
     printfFileToProcess      = verificationFileIterator.get_first_tokenlogfile()
 
     while (printfFileToProcess is not None):
-        outputFile = Path(printfFileToProcess).name.replace(".log", "_analyzedprintf_" + str(temperature) + ".mdtxt")
-        LogfileAnalyzed = os.path.join(outputDirectory, outputFile)
-
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
+        
+        FileNameHumanReadablePooledVectors = os.path.join(outputDirectory, printfFileToProcess + "_HumanReadablePooledVectors")
+        FileNameMachineReadablePooledVectors = os.path.join(outputDirectory, printfFileToProcess + "_MachineReadablePooledVectors")
+        LogFileAnalyzedPath = os.path.join(outputDirectory, printfFileToProcess + "_LogFileAnalyzedPath")
+        
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogFileAnalyzedPath, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 
@@ -87,7 +102,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
     calculateAverage = 0
 
     if (calculateAverage):
-        verificationFileIterator = TokenParser.LogfileIterator(OutputDirectoryVerification)
+        verificationFileIterator = TokenParser.FileIterator(OutputDirectoryVerification)
         tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
 
         if (tokenLogfileToProcess == None):
@@ -95,7 +110,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
     
         TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
 
-        one_step_model = ModelClass.OneStep(model, token_from_idList, id_from_tokenList, temperature=temperature)
+        one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
         window_size = 8
         Accumulator = 0
         AccumulatorCount = 0
@@ -138,36 +153,80 @@ def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
             modelFeatureList.append({"embedded": False, "layer_name": name})
     return modelFeatureList
 
+             
+ 
 def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
 
-    if (modelSource["ModelType"] == "LSTM"):
+    if (modelSource["Network"] == "LSTMMultiModel"):
         model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
                                                                 TrainingsParameter["Model"]["rnn_units"],
                                                                 TrainingsParameter["Model"]["seq_length"], 
-                                                                dense_layer = TrainingsParameter["Model"]["dense_layer"], 
                                                                 return_sequences = TrainingsParameter["Model"]["return_states"] , 
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
-        
-        loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
+        optimizer = 'adam'
+    elif (modelSource["Network"] == "Transformer") or (modelSource["Network"] == "Transformer_DecoderOnly"):    
+        num_layers = 8
+        num_heads = 16
+        dropout_rate = 0.1
+        import Transformer
+        d_model=Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
+        dff = d_model * 4
+        # Parameters, only one feature supported yet (don't know whether it will ever be possible)
+        input_vocab_size = modelFeatureList[0]["vocab_size"]
+        target_vocab_size = modelFeatureList[0]["vocab_size"]
+
+        if (modelSource["Network"] == "Transformer"):
+            model = Transformer.Transformer(
+                num_layers=num_layers,
+                d_model=d_model,
+                num_heads=num_heads,
+                dff=dff,
+                input_vocab_size=input_vocab_size,       
+                target_vocab_size=target_vocab_size,    
+                featureList=modelFeatureList, 
+                seq_length=TrainingsParameter["Model"]["seq_length"],
+                dropout_rate=dropout_rate)
+        else:
+            import Transformer_DecoderOnly
+            model = Transformer_DecoderOnly.Transformer(
+                num_layers=num_layers,
+                featureList=modelFeatureList,
+                num_heads=num_heads,
+                dff=dff,
+                datatype=TrainingsParameter["DataTypeForTensors"],
+                input_vocab_size=input_vocab_size,       
+                seq_length=TrainingsParameter["Model"]["seq_length"],
+                dropout_rate=dropout_rate)
+            
+        optimizer = 'adam'
+        learning_rate = Transformer.CustomSchedule(d_model)
+
+        optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+    
+    loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
+
 
     if (modelSource["Source"] == "NewModel"):
-        model.compile(optimizer='adam', loss=loss_function)
+        model.compile(optimizer=optimizer, loss=loss_function)
 
     elif (modelSource["Source"]  == "FromCheckpoint"):
         checkpointPath        = modelSource["CheckpointPath"] + os.path.sep + "ckpt_" + str(modelSource["CheckpointNumber"])
-        model.compile(optimizer='adam', loss=loss_function)
+        model.compile(optimizer=optimizer, loss=loss_function)
         model.load_weights(checkpointPath)
 
     elif (modelSource["Source"]  == "FromFile"):
         ModelDirectory = modelSource["ModelDirectory"]
-        model = tf.keras.models.load_model(ModelDirectory, compile=False )
+        
+
+        custom_objects = None
+        model = tf.keras.models.load_model(ModelDirectory, custom_objects=custom_objects, compile=False )
         loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
-        model.compile(optimizer='adam', loss=loss_function)
+        model.compile(optimizer=optimizer, loss=loss_function)
 
    
     return model
 
-def TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpointDir, TrainingLogFile=None):
+def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParameter, TrainingCheckpointDir, TrainingLogFile=None):
 
     if (TrainingLogFile is not None): 
         sys.stdout = Logger.Logger(TrainingLogFile)
@@ -201,8 +260,14 @@ def TrainModel(model, datasetForTraining, TrainingsParameter, TrainingCheckpoint
 
     neptune_callback = NeptuneCallback(run=run) 
 
-    history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback, neptune_callback,TrainBatchEnd_callback ])
-    
+    #batch_x, batch_y = next(iter(datasetForTraining))
+    #input_shape = batch_x.shape[1:]  # Determine the input shape from the batch (exclude batch dimension)
+    #model.build(input_shape=(None, *input_shape))  
+
+
+    #history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback,  ])
+    history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])
+    #history = model.fit(datasetForTraining, validation_split=0.2, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])
     sys.stdout = sys.__stdout__
 
     return model
@@ -221,7 +286,7 @@ if __name__ == "__main__":
     loadCheckPoint        = 2
 
     tf.config.run_functions_eagerly(True)  
-    #tf.data.experimental.enable_debug_mode()    
+    tf.data.experimental.enable_debug_mode()    
 
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
 

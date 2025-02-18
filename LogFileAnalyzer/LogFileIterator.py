@@ -1,10 +1,12 @@
 import os
 
-class LogfileIterator():
-    def __init__(self, directory):
+class FileIterator():
+    
+    def __init__(self, directory, extention):
         self.directory = directory
         self.counter = 0
-
+        self.extention = extention
+        
     def get_first_tokenlogfile(self):
         self.counter = 0
         return self.get_tokenlogfile(self.counter)
@@ -17,7 +19,7 @@ class LogfileIterator():
         counter = 0
         for root, dirs, files in os.walk(self.directory):
             for filename in files:
-                if filename.endswith(".log"):
+                if filename.endswith(self.extention):
                     if (counter == requested_counter):
                         full_path = os.path.join(root, filename)
                         outputFile = full_path

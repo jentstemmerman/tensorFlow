@@ -9,7 +9,7 @@ import multiprocessing
 from multiprocessing import shared_memory
 import InferenceAssembly
 import InferenceOutput
-import sys
+import BinaryFileHandler
 
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     numberOfParallelExecutions  = maxNumberOfParallelExecutions
@@ -35,8 +35,11 @@ def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions
 
     return reducedParameters, numberOfParallelExecutions, numberOfThreads
 
-def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, id_from_tokenList, token_from_idList, temperature, seq_length):
+
+
+def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors, id_from_tokenList, token_from_idList, temperature, seq_length):
     with tf.device('/CPU:0'):
+
         numberOfIdenticals = 0
         averagePredictedTokenProbability = 0
         accumulatedNextTokenProbability = 0.0
@@ -51,7 +54,12 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         file.parent.mkdir(parents=True, exist_ok=True)
         LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
 
+
         LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
+
+        file = Path(FileNameHumanReadablePooledVectors)
+        file.parent.mkdir(parents=True, exist_ok=True)
+        FileHumanReadablePooledVectors  = open(FileNameHumanReadablePooledVectors, "w")
 
         inputTensor  = []
         nexttokenIds = []
@@ -63,7 +71,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         accumulatedNextTokenProbability      = 0
         accumulatedPredictedTokenProbability = 0
 
-        one_step_model = ModelClass.OneStep(model, token_from_idList, id_from_tokenList, temperature=temperature)
+        one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
 
         sharedTokenList  = []
         manager          = None
@@ -83,6 +91,13 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         TokenList  = None
 
         indexOfFirstPrediction  = window_size + 1
+        
+        hiddenVectorSize = GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, indexOfFirstPrediction)
+        
+        hashAtCreation = "aaaa" # model.GetHashAtCreation()
+         
+        binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=hashAtCreation)   
+        
         remainingNumberOfLines  = (numberOfLines - numberOfAnalyzedLines) - (window_size + 1)
         reducedParameters, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads)
         
@@ -114,6 +129,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 if (threadId == (numberOfThreads-1)):
                     print("   Assembly Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime))
 
+            print("stop")
+
             while (True):
                 cycleStartTime = time.time()
                                 
@@ -121,9 +138,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     break
 
                 numberOfAnalyzedLinesThisCycle = 0
-                nextPredictionsList        = []
-                probabilityOfPredictionsList     = []
-                probabilityOfActualsList    = []
+                nextPredictionsList            = []
+                probabilityOfPredictionsList   = []
+                probabilityOfActualsList       = []
+                crossEntropyOfActualsList      = []
+                pooledLogitsVectorDataList     = []
                 indexOfFirstPredictionTemp     = indexOfFirstPrediction
 
                 assemblySubmissionStartTime    = time.time()
@@ -138,7 +157,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 
                 for threadId in range(0, numberOfThreads):
 
-                    predictions, probabilityOfPredictions, probabilityOfActuals = one_step_model.generate_steps_optimized(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
+                    predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
                     
                     # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
                     nextPredictionsList.append(predictions)
@@ -149,6 +168,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
                     probabilityOfActualsList.append(probabilityOfActuals)
 
+                    # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                    crossEntropyOfActualsList.append(crossEntropyOfActuals)
+
+                    pooledLogitsVectorDataList.append(pooledLogitsVectorData)
+
                 generationTime = time.time() - generationStartTime
                 print("   Generation Time = {:2.3f}.".format(generationTime))
             
@@ -156,7 +180,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     inputQueue  = Workers[threadId]["inputQueue"]
                     if (threadId == 0):
                         outputStartTime = time.time()
-                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfActualsList[threadId], probabilityOfPredictionsList[threadId], )))
+                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], pooledLogitsVectorDataList[threadId],)))
                 
                 nexttokenIdsList            = []
                 nextTokensList              = []
@@ -176,7 +200,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 for threadId in range(0, numberOfThreads):
 
                     outputQueue = Workers[threadId]["outputQueue"]
-                    linesToWrite, numberOfIdenticalsInThisCycle, accumulatedActualProbability, accumulatedPredictedProbability = outputQueue.get(timeout=queueTimeout)
+                    linesToWrite, numberOfIdenticalsInThisCycle, accumulatedActualProbability, accumulatedPredictedProbability, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite= outputQueue.get(timeout=queueTimeout)
                     
                     if (threadId == (numberOfThreads-1)):
                         print("   Output thread Time = {:2.3f}.".format(time.time() - outputStartTime))
@@ -192,8 +216,17 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     indexOfFirstPrediction               += numberOfParallelExecutions
 
                     fileWriteStartTime = time.time()
+
                     for lineToWrite in linesToWrite:
                         LogfileAnalyzed.write(lineToWrite)
+
+                    for lineToWrite in pooledHumanReadableLogitsVectorlinesToWrite:
+                        FileHumanReadablePooledVectors.write(lineToWrite)
+                        
+                    for lineToWrite in pooledMachineReadableLogitsVectorlinesToWrite:
+                        binaryFileHandler.append(lineToWrite)
+                        
+                        
                     if (threadId == 0):
                         print("   fileWrite Time = {:2.3f}.".format(time.time() - fileWriteStartTime))        
 
@@ -243,7 +276,17 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         LogfileToAnalyze.close()
         LogfileAnalyzed.close()   
+        binaryFileHandler.close()
 
+def GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, indexOfFirstPrediction):
+    result = InferenceAssembly.AssembleInputsThread(id_from_tokenList, 0, DataTypeForTensors, indexOfFirstPrediction, 1, sharedTokenList, window_size)
+
+    inputTensor = result[1]   
+    nexttokenIds = result[2]     
+       
+    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, states=None)
+    numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
+    return numberOfVectors
       
 
 

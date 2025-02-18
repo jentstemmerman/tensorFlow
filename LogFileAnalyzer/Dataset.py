@@ -28,16 +28,15 @@ def GetMaskValue(featureIndex, id_from_tokenList):
 
 
 def CreateDataSetOfMarker(sample, id_from_tokenList, DataTypeForTensors):
-    input_shape     = sample[0].shape
-    numberOfeatures = sample[0].shape[1]
+    input_shape     = sample[-1].shape
+    numberOfeatures = sample[-1].shape[1]
     
     new_shape = tf.concat([[input_shape[0] + 1], input_shape[1:]], axis=0) # maak een shape die 1 meer is in de eerste dimensie
     
-    numberOfeatures = sample[0].shape[1] 
 
     assert(numberOfeatures == len(id_from_tokenList))
 
-    sequenceLength  = [sample[0].shape[0] + 1]
+    sequenceLength  = [sample[-1].shape[0] + 1]
     maskList        = []
 
     for featureIndex, id_from_token in enumerate(id_from_tokenList):
@@ -76,23 +75,25 @@ def PrepareDataSetForTraining(dataset, batch_size, shuffle=False, buffer_size=0)
     
     return dataset
 
-def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
-    FileIterator = LogFileIterator.LogfileIterator(InputDirectory)
-    InputFile   = FileIterator.get_first_tokenlogfile()
+def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, dual_input = False, verbose=False):
+    
+    
+    fileIterator = LogFileIterator.FileIterator(InputDirectory, ".log")
+    InputFile   = fileIterator.get_first_tokenlogfile()
 
     import concurrent.futures
     from concurrent.futures import ThreadPoolExecutor
 
     with ThreadPoolExecutor(max_workers=7) as executor:
-        InputFile = FileIterator.get_first_tokenlogfile()
+        InputFile = fileIterator.get_first_tokenlogfile()
         futureList = []
         while True:
             
             if InputFile is None:
                 break
-            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors)
+            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors)
             futureList.append(future)
-            InputFile = FileIterator.get_next_tokenlogfile()
+            InputFile = fileIterator.get_next_tokenlogfile()
         
         concurrent.futures.wait(futureList, return_when=concurrent.futures.ALL_COMPLETED)
         data_dir = OutputDirectory
@@ -121,7 +122,7 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             result = completed_future.result()
 
         
-def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors):
+def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors):
     print("process_file " + InputFile + "\n")
     IntermediateFile = None #OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".intermediate"
     outputDatasetFile = OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".dataset"
@@ -132,12 +133,13 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
                                     id_from_tokenList, 
                                     stride, 
                                     seq_length, 
+                                    dual_input,
                                     DataTypeForTensors, 
                                     ReductionInSamples=None, 
                                     removeDuplicates=False, 
                                     num_parallel_calls=10, 
                                     verbose=False)
-
+    # print("temporary disabled SetMarkerAtDataSetEdge because not compatible with transformer input, TODO: fix this Jents!")
     dataset = SetMarkerAtDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
     print("Saving dataset " + os.path.basename(InputFile) + "...\n")
     Dataset.SaveDataset(dataset, outputDatasetFile.strip())
@@ -145,7 +147,7 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
 
 
 # This function will not create an intermediate tokenfile
-def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
 
     print("Creating a dataset from  " + InputFile + ".\n")
     
@@ -189,12 +191,13 @@ def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenLi
     if (removeDuplicates):
         datasetfast = datasetfast.unique()
 
-    if (verbose):
-        PrintDataset(datasetfast, 10)
-
     datasetfast = datasetfast.map(lambda x: tf.cast(x, DataTypeForTensors))
-    datasetfast = datasetfast.map(TokenParser.split_input_target) 
-       
+    
+    if (dual_input):
+        datasetfast = datasetfast.map(TokenParser.split_input_target_transformer) 
+    else:
+        datasetfast = datasetfast.map(TokenParser.split_input_target_transformer_decoder_only)
+        
     return datasetfast
 
 def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
@@ -203,7 +206,7 @@ def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_fro
     print("Processing log files to tokens:\n")
     tokenListListList = TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
     
-    TraininglogFileIterator = LogFileIterator.LogfileIterator(OutputDirectory)
+    TraininglogFileIterator = FileIterator.FileIterator(OutputDirectory, ".log")
     dataset                 = None
     filesUsed               = []
     TrainingLogTensor       = None

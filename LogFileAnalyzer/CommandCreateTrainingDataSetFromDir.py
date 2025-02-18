@@ -20,6 +20,7 @@ def CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, mergeDat
                                            DataTypeForTensors = TrainingsParameter["DataTypeForTensors"], 
                                            removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                            num_parallel_calls = TrainingsParameter["num_parallel_calls"],
+                                           dual_input = TrainingsParameter["Model"]["Network"] == "Transformer",
                                            verbose = False)   
     
 
@@ -29,21 +30,16 @@ if __name__ == "__main__":
     print("Creating Dataset from directory...\n")
     parameters = sys.argv[1:]
 
-    if (len(parameters)==6):
+    if (len(parameters)==4):
         InputDirectory                     = parameters[0]
         itemFile                           = parameters[1]
         IntermediateDirectory              = parameters[2]
         OriginalTokenFileDirectory         = parameters[3]
-        Stride                             = int(parameters[4])
-        outputFile                         = parameters[5]
     else:
         print("Did not receive 5 parameters. Parameters received: ", len(parameters))
 
        
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
     
-    if (Stride is not None):
-        TrainingsParameter["stride_dataset"] = Stride
-
     CreateTrainingDatasetFromDir(InputDirectory=InputDirectory, IntermediateDirectory=IntermediateDirectory, mergeDatasets=True, itemFile=itemFile, OriginalTokenFileDirectory=OriginalTokenFileDirectory, TrainingsParameter=TrainingsParameter)
   

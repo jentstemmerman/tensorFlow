@@ -4,6 +4,8 @@ from tensorflow import keras
 import TokenParser
 import Dataset
 import math 
+import ModelHash
+
 
 def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
     verbose = False
@@ -18,7 +20,15 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
     embeddedList = tf.convert_to_tensor(embeddedList, dtype=tf.bool)
     print(embeddedList)
 
-    # we krijgen elke keer alle features van output true, maar maar 1 feature per call van output predicted. De totale loss wordt buiten deze functie berekend. 
+    # We krijgen elke keer alle features van output true, maar maar 1 feature per call van output predicted. De totale loss wordt buiten deze functie berekend. 
+    # Voor LSTM: 
+    # output_true.shape                = (32,32,4)
+    # feature_output_predicted.shape   = (32,32,12530)
+    #
+    # voor Transformer:
+    # output_true.shape                = (32,32,4)
+    # feature_output_predicted.shape   = (32, 12530)
+
     @tf.function
     def custom_multi_output_loss_jents(output_true, feature_output_predicted):
         nonlocal counterBadStuff
@@ -96,11 +106,13 @@ def CalculateEmbeddingDimensions(featureList):
     total_output_dimensions = 0
 
     for i, feature in enumerate(featureList):
-        if (feature["embedded"] == True):
+        if (feature["embedded"]):
             output_dimension = math.ceil(feature["vocab_size"]**0.25)
+            if output_dimension % 2 != 0:
+                output_dimension += 1  # Ensure depth is even
         else:
-            output_dimension = 1
-
+            output_dimension = 1  # Maybe change this from 1 to 2 because otherwhise the positional embedding does not work.
+            
         embeddingDimension.append(output_dimension)
         total_output_dimensions += output_dimension
     print("Embedding dimensions:")
@@ -108,9 +120,11 @@ def CalculateEmbeddingDimensions(featureList):
     return embeddingDimension
 
 class LSTMPrintfLogMultiModel(tf.keras.Model):
-    def __init__(self, featureList, rnn_units, sequence_length, dense_layer, return_sequences, datatype):
+    def __init__(self, featureList, rnn_units, sequence_length, return_sequences, datatype, hashAtCreation):
         super().__init__()
 
+        self.hashAtCreation = ModelHash.ModelHash(hashAtCreation) # if hashAtCreation is None, a new hash is created, else hashAtCreation is used
+            
         activationFunctionForDenseLayerAfterLstm = None #"elu"  ## half as slow as None
         self.numberOfFeatures = len(featureList)
         self.numberOfInputsToLstm = 0
@@ -118,6 +132,10 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
         self.return_states    = return_sequences
         self.featureList      = featureList
         self.datatype         = datatype
+        self.rnn_units        = rnn_units
+        self.sequence_length  = sequence_length
+        self.return_sequences = return_sequences
+        
         embeddingDimensionList = CalculateEmbeddingDimensions(featureList)
 
         self.input_layerList  = []
@@ -126,7 +144,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
         for i, feature in enumerate(featureList):
 
             output_dimension = embeddingDimensionList[i]
-
+        
             if (feature["embedded"] == True):
                 input_layer = tf.keras.layers.Embedding(input_dim=feature["vocab_size"], output_dim=output_dimension, dtype=datatype)
             else:
@@ -136,7 +154,10 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             
             self.input_layerList.append(input_layer)    
 
-
+     #   import Transformer_DecoderOnly
+     #   self.decoderOnlyTransformerLayer = Transformer_DecoderOnly.DecoderOnlyTransformerLayer(num_layers=num_layers, d_model=d_model, num_heads=num_heads, dff=dff,
+    #                         vocab_size=input_vocab_size, featureList=featureList, seq_length=seq_length, dropout_rate=0.1)
+    
         self.lstm_layer       = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfInputsToLstm), return_sequences=return_sequences, dropout=0.1)
         
         self.output_layerList  = []
@@ -152,7 +173,32 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
             self.output_layerList.append(dense_output_layer)  
 
+    def GetHashAtCreation(self):
+        return self.hashAtCreation.getHash()
 
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            "featureList": self.featureList,
+            "rnn_units": self.rnn_units,
+            "return_sequences": self.return_sequences,
+            "datatype": self.datatype,
+            "sequence_length": self.sequence_length,
+            "hashAtCreation": self.hashAtCreation.getHash()
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        hashAtCreation = config.pop("hashAtCreation")
+        model = cls(
+            featureList=config['featureList'],
+            rnn_units=config['rnn_units'],
+            return_sequences=config['return_sequences'],
+            datatype=config['datatype'],
+            sequence_length=config['sequence_length'],
+            hashAtCreation=config['hashAtCreation'],
+        )
 
     def call(self, inputs, training=False):
         input_outputs = []
@@ -173,7 +219,7 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
             layer_output = output_layer(lstm_out, training=training)
             output_List.append(layer_output)
         
-        return output_List
+        return output_List    
     
 if __name__ == '__main__':
     ##################### Settings ######################
@@ -191,7 +237,7 @@ if __name__ == '__main__':
     featureList.append({"embedded": False, "name": "output_2"})
     loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
     
-    model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, dense_layer = dense_layer, return_sequences = return_sequences, datatype = datatype)
+    model = LSTMPrintfLogMultiModel(featureList, rnn_units, sequence_length, return_sequences = return_sequences, datatype = datatype)
 
     name0 = featureList[0]["name"]
     name1 = featureList[1]["name"]
@@ -261,6 +307,7 @@ if __name__ == '__main__':
     modelPrediction = model(datasetInputData_tensor)
     print("modelPrediction: ")
     print(modelPrediction.shape)
+
 
 
 

@@ -71,6 +71,7 @@ with tf.device('/CPU:0'):
         return newWindow, newToken, newTokenId, nextTokenIdWindow
 
 
+
     def AssembleInputsThread(workerParameter, threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, window_size):
         with tf.device('/CPU:0'):
 
@@ -96,7 +97,7 @@ with tf.device('/CPU:0'):
                 if (threadId == 5) and (index == 20):
                     print("   AssembleInputsnextTokenBatchStartTime Time = {:2.3f}.".format((time.time() - AssembleInputsnextTokenBatchStartTime) * 8 * numberOfParallelExecutions))
                 
-                if (type(nextTokenBatch[1]) != str):
+                if (type(nextTokenBatch) != str):
                     exit
                 window, nextToken, nexttokenId, tokenIdWindow = GetNextSequenceData(nextTokenBatch, id_from_tokenList, window, tokenIdWindow, nextToken, nexttokenId, DataTypeForTensors)
                 

@@ -1,0 +1,32 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "WebServer.py debugger",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/WebServer.py",
+
+            "args": [], 
+
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+          //  "justMyCode": false 
+        },
+        {
+            "name": "AnnotationManager debugger",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/Server/AnnotationManager.py",
+
+            "args": [], 
+
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        ]
+   
+}

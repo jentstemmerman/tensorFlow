@@ -1,4 +1,3 @@
 [
-	{"Regex": "([0-9A-F]{2}(?:\\s[0-9A-F]{2}){3})", "Categorical": "True" ,  "VocabularyFile": "Tokens.dat"},
-	{"Regex": "W\\[([0-9A-Fa-f]+)\\]",              "Categorical": "True",   "Numerical": "Hex", "RangeMin": 0, "RangeMax": 2000}
+	{"Regex": "([0-9A-F]{2}(?:\\s[0-9A-F]{2}){3})", "Categorical": "True" ,  "VocabularyFile": "Tokens.dat"}
 ]

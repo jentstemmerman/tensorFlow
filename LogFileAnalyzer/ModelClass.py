@@ -216,7 +216,7 @@ class OneStep(tf.keras.Model):
       crossEntropyOfActuals    = None
       
       for index, Tokens_from_ids in enumerate(self.Tokens_from_idList):
-          predicted_logits = predicted_logits_list
+          predicted_logits = predicted_logits_list[index]
           predicted_logits = predicted_logits[:, -1, :]    # take the last logits, this is the one the model predicts
           predicted_logits = predicted_logits / self.temperature
  

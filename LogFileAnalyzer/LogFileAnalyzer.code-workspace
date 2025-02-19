@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "../Server"
 		}
 	],
 	"settings": {},
@@ -15,35 +18,35 @@
 				"name": "Python Debugger: Create training dataset from dir",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromDir.py",
+				"program": "${workspaceFolder:LogFileAnalyzer}/CommandCreateTrainingDataSetFromDir.py",
 
 				"args": ["/home/jents/AI/TrainingSet4/Training", 
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/out/Training", 
 						 "/home/jents/AI/TrainingSet4/" ], 
 
-				"cwd": "${workspaceFolder}",
+				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 				"console": "integratedTerminal"
 			},
 			{
 				"name": "Python Debugger: Create verification dataset from dir",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/CommandCreateTrainingDataSetFromDir.py",
+				"program": "${workspaceFolder:LogFileAnalyzer}/CommandCreateTrainingDataSetFromDir.py",
 
 				"args": ["/home/jents/AI/TrainingSet4/Verification", 
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/out/Verification", 
 						 "/home/jents/AI/TrainingSet4/"], 
 
-				"cwd": "${workspaceFolder}",
+				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 				"console": "integratedTerminal"
 			},
 			{
 				"name": "Python Debugger: Train dataset",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/CommandTrainOnDataSet.py",
+				"program": "${workspaceFolder:LogFileAnalyzer}/CommandTrainOnDataSet.py",
 
 				"args": ["/home/jents/AI/TrainingSet4/out/Training/DirectoryDataSet/DataSetOfDirectory.dataset",  
 						"/home/jents/AI/TrainingSet4/out/Verification/DirectoryDataSet/DataSetOfDirectory.dataset",  
@@ -52,14 +55,14 @@
 						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainingCheckPoints",
 						 "/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel"], 
 
-				"cwd": "${workspaceFolder}",
+				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 				"console": "integratedTerminal"
 			},
 			{
 				"name": "Python Debugger: Analyze",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/CommandAnalyzeDirectory.py",
+				"program": "${workspaceFolder:LogFileAnalyzer}/CommandAnalyzeDirectory.py",
 
 				"args": ["/home/jents/AI/TrainingSet4/out/TrainedModel/TrainedModel", 
 				         "Itemfile.txt", 
@@ -68,32 +71,32 @@
 						 "/home/jents/AI/TrainingSet4/",
 						 "1"], 
 
-				"cwd": "${workspaceFolder}",
+				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 				"console": "integratedTerminal"
 			},
 			{
 				"name": "Python Debugger: Old Model",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/Model.py",
+				"program": "${workspaceFolder:LogFileAnalyzer}/Model.py",
 				"console": "integratedTerminal",
-				"cwd": "${workspaceFolder}",
+				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 			},
 			{
 				"name": "Python Debugger: Transformer",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/Transformer.py",
+				"program": "${workspaceFolder:LogFileAnalyzer}/Transformer.py",
 				"console": "integratedTerminal",
-				"cwd": "${workspaceFolder}",
+				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 			},
 			{
 				"name": "Python Debugger: TransformerPrediction",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/TransformerPredictionModel.py",
+				"program": "${workspaceFolder:LogFileAnalyzer}/TransformerPredictionModel.py",
 				"console": "integratedTerminal",
-				"cwd": "${workspaceFolder}",
+				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 			},
 			{
 				"name": "Python Debugger: UnitTestMultiDimensionalModel",
@@ -101,15 +104,15 @@
 				"request": "launch",
 				"program": "${workspaceFolder}/UnitTestMultiDimensionalModel.py",
 				"console": "integratedTerminal",
-				"cwd": "${workspaceFolder}",
+				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 			},
 			{
 				"name": "Python Debugger: BinaryFileHandler",
 				"type": "debugpy",
 				"request": "launch",
-				"program": "${workspaceFolder}/BinaryFileHandler.py",
+				"program": "${workspaceFolder:LogFileAnalyzer}/BinaryFileHandler.py",
 				"console": "integratedTerminal",
-				"cwd": "${workspaceFolder}",
+				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 			}
 
 			

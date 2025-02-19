@@ -1,5 +1,7 @@
 import sys
-sys.path.append('../LogFileAnalyzer')
+sys.path.append('../Server')
+
+import Constants  # type: ignore
 
 import time
 import tensorflow as tf
@@ -89,10 +91,22 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
 
     while (printfFileToProcess is not None):
         
-        FileNameHumanReadablePooledVectors = os.path.join(outputDirectory, printfFileToProcess + "_HumanReadablePooledVectors")
-        FileNameMachineReadablePooledVectors = os.path.join(outputDirectory, printfFileToProcess + "_MachineReadablePooledVectors")
-        LogFileAnalyzedPath = os.path.join(outputDirectory, printfFileToProcess + "_LogFileAnalyzedPath")
+        userId = 0
+        temperature = 1
         
+        
+        FileNameMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(printfFileToProcess, userId, temperature)
+        FileNameHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(printfFileToProcess, userId, temperature)
+        FileNameAnalyzed = Constants.GetLogFileAnalyzedPath(printfFileToProcess, userId)
+
+        FileNameMachineReadablePooledVectors = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors)), os.path.basename(FileNameMachineReadablePooledVectors))
+        FileNameHumanReadablePooledVectors = os.path.join(os.path.basename(os.path.dirname(FileNameHumanReadablePooledVectors)), os.path.basename(FileNameHumanReadablePooledVectors))
+        FileNameAnalyzed = os.path.join(os.path.basename(os.path.dirname(FileNameAnalyzed)), os.path.basename(FileNameAnalyzed))
+                
+        FileNameMachineReadablePooledVectors = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors)
+        FileNameHumanReadablePooledVectors = os.path.join(outputDirectory, FileNameHumanReadablePooledVectors)
+        LogFileAnalyzedPath = os.path.join(outputDirectory, FileNameAnalyzed)
+       
         Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogFileAnalyzedPath, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()

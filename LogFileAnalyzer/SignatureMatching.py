@@ -11,7 +11,7 @@ import json
 import AnnotationManager
 import os
 import time
-
+import LogFileIterator
 
 def read_signature_from_file(filename):
     with open(filename, 'r') as file:
@@ -41,6 +41,14 @@ def CalculatePooledVectors(vectors):
     
     return pooledVector
 
+def CalculatePooledVectorsBatched(batchedvectors):
+    pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
+    pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
+    pooledAverageVector = tf.squeeze(pooledAverageVector, axis=0) # remove the batch dimension from the tensor
+    pooledVector = tf.concat([pooledAverageVector, pooledMaxVector], axis=-1)
+    
+    return pooledVector
+
 def CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors):
     binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type=DataTypeForTensors, numbers_per_line=None)
     
@@ -50,6 +58,8 @@ def CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, 
     signature = CalculatePooledVectors(vectors)
    
     return signature, modelHash
+
+
 
 """
 Reads hidden state vectors, computes a rolling mean-pooled vector using TensorFlow's 
@@ -121,6 +131,16 @@ def CalculateSimularity(signature, tensor, data_type):
     
     return similarity
 
+def CalculateSimularityBatched(signature, tensor, data_type):
+    signature_tensor = tf.convert_to_tensor(signature, dtype=tf.float32)
+    tensor = tf.convert_to_tensor(tensor, dtype=data_type)
+    
+    pooledVector = CalculatePooledVectorsBatched(tensor)
+    
+    similarity = tf.keras.losses.cosine_similarity(signature_tensor, pooledVector)
+    
+    return similarity
+
 def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile, humanReadableOutputFile, userId, dataType):
     
     if not os.path.exists(LogFileName):
@@ -157,6 +177,7 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1) # , modelHash=modelHash)
     
     index = 0
+    start_time = time.time()
     
     while True:
         
@@ -182,9 +203,141 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
         outputBinaryFileHandler.append(simularity)
         index += 1
         
+        if index % 1000 == 0:
+            elapsed_time = time.time() - start_time
+            print(f"Processed 1000 vectors in {elapsed_time:.2f} seconds")
+            start_time = time.time()
+        
+        
     outputBinaryFileHandler.close()
     humanReadableOutputFileHandler.close()
     
+
+def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, dataType):
+    
+    if not os.path.exists(LogFileName):
+        print(f"[CreateSimularitiesFile] LogFileName {LogFileName} does not exist.")
+        return False
+    
+    # first, create list of signature files
+    signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
+    
+    signatureLengths = []
+    signatureNames = []
+    signatureTensors = []
+    signatureFiles = []
+    machineReadableOutputFiles = []
+    humanReadableOutputFiles = []
+    humanReadableOutputFileHandlers = []
+    outputBinaryFileHandlers = []
+    signature_file = signatureIterator.get_first_tokenlogfile()
+    
+    if signature_file is not None:
+        hiddenVectorSize, _, _ = SignatureMatching.read_signature_from_file(signature_file)
+    
+    
+    temperature = 1
+    max_SignatureLength = 0
+    numberOfSignatureFiles = 0
+    
+    while (signature_file is not None):
+        
+        machineReadableOutputFile = Constants.GetMachineReadableSimularitiesFile(LogFileName, userId, signature_file)
+        humanReadableOutputFile = Constants.GetHumanReadableSimularitiesFile(LogFileName, userId, signature_file)
+        
+        # it is possible that this function already ran, and machineReadableOutputFile and humanReadableOutputFile already exist for the given LogFileName
+        # we can check that by checking the date. If the LogFileName is older than the machineReadableOutputFile and humanReadableOutputFile, we can skip this function
+        log_file_mtime = os.path.getmtime(LogFileName)
+        machine_readable_mtime = os.path.getmtime(machineReadableOutputFile) if os.path.exists(machineReadableOutputFile) else 0
+        human_readable_mtime = os.path.getmtime(humanReadableOutputFile) if os.path.exists(humanReadableOutputFile) else 0
+
+        if log_file_mtime < machine_readable_mtime and log_file_mtime < human_readable_mtime:
+            print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
+            signature_file = signatureIterator.get_next_tokenlogfile()
+            continue
+        
+        numberOfSignatureFiles += 1
+        
+        outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1) # , modelHash=modelHash)
+        outputBinaryFileHandlers.append(outputBinaryFileHandler)
+        
+        machineReadableOutputFiles.append(machineReadableOutputFile)
+        humanReadableOutputFiles.append(humanReadableOutputFile)
+        
+        signature_name = os.path.splitext(os.path.basename(signature_file))[0]
+        
+        signatureNames.append(signature_name)
+        signatureFiles.append(signature_file)
+        
+        numberOfHiddenVectors, _, signature_tensor = SignatureMatching.read_signature_from_file(signature_file)
+        max_SignatureLength = max(max_SignatureLength, numberOfHiddenVectors)
+        
+        signatureLengths.append(numberOfHiddenVectors)
+        signatureTensors.append(signature_tensor)
+        
+        humanReadableOutputFileHandler = open(humanReadableOutputFile, 'w')
+        humanReadableOutputFileHandlers.append(humanReadableOutputFileHandler)
+        
+        signature_file = signatureIterator.get_next_tokenlogfile()
+        
+        
+    if (numberOfSignatureFiles == 0):
+        return False    
+    
+    hiddenVectorsFile = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId, temperature)
+    
+    inputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(hiddenVectorsFile, data_type=dataType, numbers_per_line=hiddenVectorSize)
+    numberOfLines = inputBinaryFileHandler.get_recordCount()
+    
+    numberOfLinesPerRead = 128
+    numberOfSimularityCalculationsPerRead = numberOfLinesPerRead - max_SignatureLength + 1
+    numberOfReads = numberOfLines // numberOfSimularityCalculationsPerRead 
+    numberOfLinesAtLastRead = numberOfLines % numberOfSimularityCalculationsPerRead 
+    
+       
+    recordReadStart = 0
+    start_time = time.time()
+    simularityCalculationIndex = np.zeros(numberOfSignatureFiles, dtype=int)
+    
+    try:
+        for i in range(numberOfReads):
+            
+            if i == (numberOfReads - 1):
+                numberOfLinesToRead = numberOfLinesAtLastRead
+                if numberOfLinesToRead == 0:
+                    break
+            else:
+                numberOfLinesToRead = numberOfLinesPerRead
+            
+            inputTensor = inputBinaryFileHandler.read_records(recordReadStart, numberOfLinesToRead)
+
+            for signatureIndex in range(numberOfSignatureFiles):
+                signature_tensor = signatureTensors[signatureIndex]
+                signatureLength = signatureLengths[signatureIndex]
+                
+                for index in range(numberOfSimularityCalculationsPerRead):
+                    testTensor = inputTensor[index : index + signatureLength, :]
+                    
+                    simularity = CalculateSimularity(signature_tensor, testTensor, dataType).numpy()
+                    humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndex[signatureIndex]}\t{simularity}\n")
+                    outputBinaryFileHandlers[signatureIndex].append(simularity)
+                    print(f"index: {simularityCalculationIndex[signatureIndex]}   simularity: {simularity}")
+                    
+                    simularityCalculationIndex[signatureIndex] += 1
+                    
+                elapsed_time = time.time() - start_time
+                print(f"Processed {numberOfSimularityCalculationsPerRead}/{numberOfLines} vectors in {elapsed_time:.2f} seconds")
+                start_time = time.time()
+                
+            recordReadStart += numberOfSimularityCalculationsPerRead
+                
+        for signatureIndex in range(numberOfSignatureFiles):   
+            outputBinaryFileHandlers[signatureIndex].close()
+            humanReadableOutputFileHandlers[signatureIndex].close()
+    
+    except (IndexError) as e:
+        print(f"IndexError: {e}")
+        return False
 
 
 def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = 0, threshold = 0.5, comment = ""):

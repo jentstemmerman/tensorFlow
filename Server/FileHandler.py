@@ -137,7 +137,7 @@ def select_input_file(file):
         file_path,
         file_size,
     )
-
+    
 def async_preprocess_log_files(userId, DataTypeForTensors, similaritythreshold):
     import LogFileIterator    # type: ignore
     import SignatureMatching  # type: ignore     
@@ -181,6 +181,58 @@ def async_preprocess_log_files(userId, DataTypeForTensors, similaritythreshold):
             logFileName = logFileIterator.get_next_tokenlogfile()
         
 
+        print(f"Finished processing log files for user {userId}")
+    except Exception as e:
+        print(f"Error processing log files for user {userId}: {e}")
+        
+def async_preprocess_log_files_optimized(userId, DataTypeForTensors, similaritythreshold):
+    import LogFileIterator    # type: ignore
+    import SignatureMatching  # type: ignore     
+    
+    try:
+        # Your asynchronous processing logic here
+        print(f"async_preprocess_log_files user {userId}")
+        
+        logfileBaseDirectory = Constants.GetUserSpecificBaseDirectory("LogType", userId)
+        signatureDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
+        
+        logFileIterator = LogFileIterator.FileIterator(logfileBaseDirectory,  Constants.GetLogFilesExtention())
+                
+        logFileName      = logFileIterator.get_first_tokenlogfile()
+        
+        while (logFileName is not None):
+               
+            logFileName_name = os.path.splitext(os.path.basename(logFileName))[0]
+            
+            print(f"Start Creating SimularitiesFiles of logfile {logFileName_name}")
+            
+            SignatureMatching.CreateSimularitiesFilesOptimized(logFileName, signatureDirectory, userId, DataTypeForTensors)
+                                                                
+            print(f"Finished Creating SimularitiesFile of logfile {logFileName_name}")
+                
+            logFileName = logFileIterator.get_next_tokenlogfile()
+                
+        logFileName      = logFileIterator.get_first_tokenlogfile()
+        
+        signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
+        signature_file   = signatureIterator.get_first_tokenlogfile()
+        
+        while (logFileName is not None):
+            while (signature_file is not None):                
+                annotation_id = 0
+                annotationsOutputFile = AnnotationManager.AnnotationCacheManager.get_annotation_file_path(logFileName, annotation_id, userId)
+        
+                signature_name = os.path.splitext(os.path.basename(signature_file))[0]
+                simularitiesMachineReadableFileName = Constants.GetMachineReadableSimularitiesFile(logFileName, userId, signature_file)
+                
+                SignatureMatching.CreateAnnotationListFromSimularitiesFile(simularitiesMachineReadableFileName, annotationsOutputFile, DataTypeForTensors, annotationId = annotation_id, threshold = similaritythreshold, comment = signature_name)
+
+                print(f"Finished Creating AnnotationList of logfile {logFileName_name} for signature{signature_name}")
+                
+                signature_file = signatureIterator.get_next_tokenlogfile()
+
+            logFileName = logFileIterator.get_next_tokenlogfile()
+        
         print(f"Finished processing log files for user {userId}")
     except Exception as e:
         print(f"Error processing log files for user {userId}: {e}")

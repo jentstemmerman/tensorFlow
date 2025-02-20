@@ -485,7 +485,8 @@ def PreProcessLogFiles():
 
         def background_task(userId, DataTypeForTensors, similaritythreshold):
             try:
-                FileHandler.async_preprocess_log_files(userId, DataTypeForTensors, similaritythreshold)
+                FileHandler.async_preprocess_log_files_optimized(userId, DataTypeForTensors, similaritythreshold)
+                #FileHandler.async_preprocess_log_files(userId, DataTypeForTensors, similaritythreshold)
                 #socketio.emit('preprocess_complete', {'userId': userId})
             except Exception as e:
                 print(f"Error processing log files for user {userId}: {e}")

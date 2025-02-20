@@ -205,9 +205,9 @@ def async_preprocess_log_files_optimized(userId, DataTypeForTensors, similarityt
             logFileName_name = os.path.splitext(os.path.basename(logFileName))[0]
             
             print(f"Start Creating SimularitiesFiles of logfile {logFileName_name}")
+       
+            SignatureMatching.CreateSimularitiesFilesOptimized(logFileName, signatureDirectory, userId, DataTypeForTensors)                                                 
             
-            SignatureMatching.CreateSimularitiesFilesOptimized(logFileName, signatureDirectory, userId, DataTypeForTensors)
-                                                                
             print(f"Finished Creating SimularitiesFile of logfile {logFileName_name}")
                 
             logFileName = logFileIterator.get_next_tokenlogfile()

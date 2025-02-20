@@ -44,7 +44,7 @@ def CalculatePooledVectors(vectors):
 def CalculatePooledVectorsBatched(batchedvectors):
     pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
     pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
-    pooledAverageVector = tf.squeeze(pooledAverageVector, axis=0) # remove the batch dimension from the tensor
+
     pooledVector = tf.concat([pooledAverageVector, pooledMaxVector], axis=-1)
     
     return pooledVector
@@ -131,13 +131,11 @@ def CalculateSimularity(signature, tensor, data_type):
     
     return similarity
 
-def CalculateSimularityBatched(signature, tensor, data_type):
-    signature_tensor = tf.convert_to_tensor(signature, dtype=tf.float32)
-    tensor = tf.convert_to_tensor(tensor, dtype=data_type)
-    
+def CalculateSimularityBatched(signature, tensor):
+   
     pooledVector = CalculatePooledVectorsBatched(tensor)
     
-    similarity = tf.keras.losses.cosine_similarity(signature_tensor, pooledVector)
+    similarity = tf.keras.losses.cosine_similarity(signature, pooledVector)
     
     return similarity
 
@@ -289,7 +287,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     inputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(hiddenVectorsFile, data_type=dataType, numbers_per_line=hiddenVectorSize)
     numberOfLines = inputBinaryFileHandler.get_recordCount()
     
-    numberOfLinesPerRead = 128
+    numberOfLinesPerRead = 2048
     numberOfSimularityCalculationsPerRead = numberOfLinesPerRead - max_SignatureLength + 1
     numberOfReads = numberOfLines // numberOfSimularityCalculationsPerRead 
     numberOfLinesAtLastRead = numberOfLines % numberOfSimularityCalculationsPerRead 
@@ -308,6 +306,8 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                     break
             else:
                 numberOfLinesToRead = numberOfLinesPerRead
+                
+            numberOfSimularityCalculationsPerRead = numberOfLinesPerRead - max_SignatureLength + 1
             
             inputTensor = inputBinaryFileHandler.read_records(recordReadStart, numberOfLinesToRead)
 
@@ -315,18 +315,25 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 signature_tensor = signatureTensors[signatureIndex]
                 signatureLength = signatureLengths[signatureIndex]
                 
+                TestTensorList = []
+                
                 for index in range(numberOfSimularityCalculationsPerRead):
                     testTensor = inputTensor[index : index + signatureLength, :]
-                    
-                    simularity = CalculateSimularity(signature_tensor, testTensor, dataType).numpy()
-                    humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndex[signatureIndex]}\t{simularity}\n")
-                    outputBinaryFileHandlers[signatureIndex].append(simularity)
-                    print(f"index: {simularityCalculationIndex[signatureIndex]}   simularity: {simularity}")
-                    
+                    TestTensorList.append(testTensor)
+                
+                batchedTestTensor = tf.stack(TestTensorList, axis=0)
+                batched_signature_tensor = tf.stack([signature_tensor] * batchedTestTensor.shape[0], axis=0)
+
+                simularity = CalculateSimularityBatched(batched_signature_tensor, batchedTestTensor)
+                
+                for index in range(numberOfSimularityCalculationsPerRead):
+                    humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndex[signatureIndex]}\t{simularity[index]}\n")
+                    outputBinaryFileHandlers[signatureIndex].append(simularity[index])
                     simularityCalculationIndex[signatureIndex] += 1
                     
+                    
                 elapsed_time = time.time() - start_time
-                print(f"Processed {numberOfSimularityCalculationsPerRead}/{numberOfLines} vectors in {elapsed_time:.2f} seconds")
+                print(f"Processed {simularityCalculationIndex[signatureIndex]/numberOfLines:.2%} percent. {numberOfSimularityCalculationsPerRead/elapsed_time:.2f} lines per second")
                 start_time = time.time()
                 
             recordReadStart += numberOfSimularityCalculationsPerRead

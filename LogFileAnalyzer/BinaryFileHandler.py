@@ -174,12 +174,12 @@ class BinaryFileHandler:
 
         self.read_file_handler.seek(self.HEADER_SIZE + start_index * self.record_size)  # Adjust for header
         records = []
-        for _ in range(num_records):
-            data = self.read_file_handler.read(self.record_size)
-            if len(data) != self.record_size:
-                raise ValueError("Invalid index or file corruption.")
-            records.append(struct.unpack(self.fmt, data))
         
+        data = self.read_file_handler.read(self.record_size * num_records)
+        if len(data) != self.record_size * num_records:
+            raise ValueError("Invalid index or file corruption.")
+        
+        records = np.frombuffer(data, dtype=self.data_type).reshape(num_records, self.numbers_per_line)
         return tf.convert_to_tensor(records, dtype=tf.float32)
 
     def close(self):

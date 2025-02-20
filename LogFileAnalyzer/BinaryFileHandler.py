@@ -70,6 +70,11 @@ class BinaryFileHandler:
         self.modelHash = header.get("modelHash", 0)
         
         return self.modelHash
+    
+    def get_recordCount(self):
+        header = self._get_header()
+       
+        return header.get("record_count", 0)
 
 
     def get_numbersPerLine(self):

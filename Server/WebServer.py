@@ -167,7 +167,7 @@ def get_file_lines(file_name):
 
         if not os.path.exists(file_path):
             return jsonify({"error": "File not found"}), 404
-
+        
         content = FileHandler.read_file_lines(
             file_path, userId, lineOffset, numberOfLines
         )
@@ -232,7 +232,8 @@ def analyze_file(file_name):
         
         
         CommandAnalyzeFile.AnalyzeFile(modelDirectory, file_path, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature=1)
-
+        
+        analyze_file_busy = False
         # print("get_file_lines file_name: ", file_name, ", lineOffset: ", lineOffset, "numberOfLines: ", numberOfLines, "offset_file_path: ", offset_file_path, "file_path: ", file_path)
 
         return jsonify(

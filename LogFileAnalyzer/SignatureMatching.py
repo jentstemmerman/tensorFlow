@@ -291,7 +291,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     numberOfLines = inputBinaryFileHandler.get_recordCount()
     
     maxNumberOfLinesPerRead = 2048
-    numberOfSimularityCalculationsPerRead = maxNumberOfLinesPerRead - max_SignatureLength + 1
+    numberOfSimularityCalculationsPerRead = maxNumberOfLinesPerRead - max_SignatureLength + 1   # we moeten voor het einde van de read stoppen, omdat we anders niet genoeg data hebben om de signature te vergelijken. Stel: read is 6 groot en signaturelength is 5 -> je kan er maar 2 berekenen
     numberOfReads = math.ceil(numberOfLines / numberOfSimularityCalculationsPerRead)
     
     numberOfLinesAtLastRead = numberOfLines % numberOfSimularityCalculationsPerRead 
@@ -299,7 +299,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
        
     recordReadStart = 0
     start_time = time.time()
-    simularityCalculationIndex = np.zeros(numberOfSignatureFiles, dtype=int)
+    simularityCalculationIndexes = np.zeros(numberOfSignatureFiles, dtype=int)
     
     try:
         for i in range(numberOfReads):
@@ -331,13 +331,15 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 simularity = CalculateSimularityBatched(batched_signature_tensor, batchedTestTensor)
                 
                 for index in range(numberOfSimularityCalculationsPerRead):
-                    humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndex[signatureIndex]}\t{simularity[index]}\n")
+                    humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
                     outputBinaryFileHandlers[signatureIndex].append(simularity[index])
-                    simularityCalculationIndex[signatureIndex] += 1
+                    simularityCalculationIndexes[signatureIndex] += 1
                     
                     
                 elapsed_time = time.time() - start_time
-                print(f"Processed {simularityCalculationIndex[signatureIndex]/numberOfLines:.2%} percent. {numberOfSimularityCalculationsPerRead/elapsed_time:.2f} lines per second")
+                
+                if (signatureIndex == 0):
+                    print(f"Processed {simularityCalculationIndexes[signatureIndex]/numberOfLines:.2%} percent. {numberOfSimularityCalculationsPerRead/elapsed_time:.2f} lines per second")
                 start_time = time.time()
                 
             recordReadStart += numberOfSimularityCalculationsPerRead

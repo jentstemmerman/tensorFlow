@@ -15,7 +15,7 @@ def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions
     
     numberOfParallelExecutions  = maxNumberOfParallelExecutions
     numberOfLinesPerCycle       = numberOfThreads * maxNumberOfParallelExecutions
-    done         = False
+    done                        = False
     reduced                     = False
     
     if (remainingNumberOfLines < numberOfLinesPerCycle):
@@ -34,7 +34,7 @@ def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions
 
     newNumberOfLinesPerCycle       = numberOfThreads * numberOfParallelExecutions
     
-    if (remainingNumberOfLines == newNumberOfLinesPerCycle):
+    if (remainingNumberOfLines == 0):
         print(f"reduced Parameters remainingNumberOfLines = {remainingNumberOfLines} newNumberOfLinesPerCycle = {newNumberOfLinesPerCycle}")
         done = True
         
@@ -155,7 +155,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             if (numberOfParallelExecutions == 0):
                 break
             
-            remainingNumberOfLines = (numberOfLines - indexOfFirstPrediction) - (window_size + 1)
+            remainingNumberOfLines = (numberOfLines - indexOfFirstPrediction)
             noMoreReductionPossible, reduced, newNumberOfParallelExecutions, newNumberOfThreads = GetInferenceParameters(remainingNumberOfLines, numberOfParallelExecutions, numberOfThreads)
 
             if (reduced):
@@ -170,12 +170,14 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             probabilityOfActualsList       = []
             crossEntropyOfActualsList      = []
             pooledLogitsVectorDataList     = []
-            indexOfFirstPredictionTemp     = indexOfFirstPrediction
+            
 
 
             # Assemble inputs for the next cycle
             print(f"Start creating input data indexOfFirstPrediction: {indexOfFirstPrediction} numberOfThreads: {newNumberOfThreads}, numberOfParallelExecutions {newNumberOfParallelExecutions}") 
             if (not noMoreReductionPossible):
+                indexOfFirstPredictionTemp = indexOfFirstPrediction
+                
                 for threadId in range(0, newNumberOfThreads):
                     inputQueue  = Workers[threadId]["inputQueue"]
                     inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPredictionTemp, newNumberOfParallelExecutions, sharedTokenList, origPrintfList, window_size,)))

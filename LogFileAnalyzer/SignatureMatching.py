@@ -12,7 +12,9 @@ import AnnotationManager
 import os
 import time
 import LogFileIterator
-
+import math
+ 
+ 
 def read_signature_from_file(filename):
     with open(filename, 'r') as file:
         signature_data = json.load(file)    
@@ -245,6 +247,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         
         # it is possible that this function already ran, and machineReadableOutputFile and humanReadableOutputFile already exist for the given LogFileName
         # we can check that by checking the date. If the LogFileName is older than the machineReadableOutputFile and humanReadableOutputFile, we can skip this function
+       
         log_file_mtime = os.path.getmtime(LogFileName)
         machine_readable_mtime = os.path.getmtime(machineReadableOutputFile) if os.path.exists(machineReadableOutputFile) else 0
         human_readable_mtime = os.path.getmtime(humanReadableOutputFile) if os.path.exists(humanReadableOutputFile) else 0
@@ -281,15 +284,16 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         
     if (numberOfSignatureFiles == 0):
         return False    
-    
+   
     hiddenVectorsFile = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId, temperature)
     
     inputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(hiddenVectorsFile, data_type=dataType, numbers_per_line=hiddenVectorSize)
     numberOfLines = inputBinaryFileHandler.get_recordCount()
     
-    numberOfLinesPerRead = 2048
-    numberOfSimularityCalculationsPerRead = numberOfLinesPerRead - max_SignatureLength + 1
-    numberOfReads = numberOfLines // numberOfSimularityCalculationsPerRead 
+    maxNumberOfLinesPerRead = 2048
+    numberOfSimularityCalculationsPerRead = maxNumberOfLinesPerRead - max_SignatureLength + 1
+    numberOfReads = math.ceil(numberOfLines / numberOfSimularityCalculationsPerRead)
+    
     numberOfLinesAtLastRead = numberOfLines % numberOfSimularityCalculationsPerRead 
     
        
@@ -305,9 +309,9 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 if numberOfLinesToRead == 0:
                     break
             else:
-                numberOfLinesToRead = numberOfLinesPerRead
+                numberOfLinesToRead = maxNumberOfLinesPerRead
                 
-            numberOfSimularityCalculationsPerRead = numberOfLinesPerRead - max_SignatureLength + 1
+            numberOfSimularityCalculationsPerRead = numberOfLinesToRead - max_SignatureLength + 1
             
             inputTensor = inputBinaryFileHandler.read_records(recordReadStart, numberOfLinesToRead)
 

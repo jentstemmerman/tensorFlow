@@ -40,12 +40,22 @@ def ComposeDensePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogits
             vectorsToWrite.append(vector)
         return vectorsToWrite
 
-def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, actuals, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions, pooledLogitsVector):
+def ComposeLineList(numberOfParallelExecutions, 
+                    id_from_tokenList, 
+                    predictions, 
+                    actuals, 
+                    PrintfList, 
+                    probabilityOfActuals, 
+                    crossEntropyOfActuals, 
+                    probabilityOfPredictions, 
+                    pooledLogitsVector):
+    
     with tf.device('/CPU:0'):
         string_length = 17
         number_string_length = 6
         numberOfFeatures = len(id_from_tokenList)
         linesToWrite = []
+        localPrintfList = []
         numberOfIdenticals = 0
         accumulatedActualProbability = 0
         accumulatedPredictedProbability = 0
@@ -110,11 +120,19 @@ def ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, 
 
             SimilarityString = " Simul: " + TranslateToString(pooledLogitsVector['similarity'][executionIndex].numpy()) + "  "
             
-
-            lineToWrite = AccuracyOfPredictionString + SimilarityString + actualsString + predictionsString + ProbabilityOfActualsString + crossEntropyOfActualString + "  "  + ProbabilityOfPredictionsString + PrintfList[executionIndex]
+            #print(f"PrintfList[{executionIndex}], numberOfParallelExecutions = {numberOfParallelExecutions} len(PrintfList) = {len(PrintfList)}")
+            
+            if (executionIndex >= len(PrintfList)):
+                print(f"Error")
+            
+            
+            printf = PrintfList[executionIndex]
+            lineToWrite = AccuracyOfPredictionString + SimilarityString + actualsString + predictionsString + ProbabilityOfActualsString + crossEntropyOfActualString + "  "  + ProbabilityOfPredictionsString + printf
+ 
+            localPrintfList.append(printf)
             linesToWrite.append(lineToWrite)
 
-        return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
+        return linesToWrite, localPrintfList, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
 
 
 
@@ -151,13 +169,32 @@ def ComposeLineListColored(numberOfParallelExecutions, nextPredictedTokens, next
         return linesToWrite, numberOfIdenticals, accumulatedNextTokenProbability, accumulatedPredictedTokenProbability
      
     
-def InferenceOutputThread(workerParameter, threadId, numberOfParallelExecutions, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions, pooledLogitsVector):
+def InferenceOutputThread(workerParameter, 
+                          threadId, 
+                          numberOfParallelExecutions, 
+                          predictions, 
+                          nextTokens, 
+                          PrintfList, 
+                          probabilityOfActuals, 
+                          crossEntropyOfActuals, 
+                          probabilityOfPredictions, 
+                          pooledLogitsVector):
+    
     with tf.device('/CPU:0'):
         id_from_tokenList = workerParameter
-        linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions, id_from_tokenList, predictions, nextTokens, PrintfList, probabilityOfActuals, crossEntropyOfActuals, probabilityOfPredictions, pooledLogitsVector)
+        linesToWrite, printfList, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions=numberOfParallelExecutions, 
+                                                                                                                                      id_from_tokenList=id_from_tokenList, 
+                                                                                                                                      predictions=predictions, 
+                                                                                                                                      actuals=nextTokens, 
+                                                                                                                                      PrintfList=PrintfList, 
+                                                                                                                                      probabilityOfActuals=probabilityOfActuals, 
+                                                                                                                                      crossEntropyOfActuals=crossEntropyOfActuals, 
+                                                                                                                                      probabilityOfPredictions=probabilityOfPredictions, 
+                                                                                                                                      pooledLogitsVector=pooledLogitsVector)
+        
         pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
         pooledMachineReadableLogitsVectorlinesToWrite = ComposeDensePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
         
-        return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite
+        return linesToWrite, printfList, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite
 
 

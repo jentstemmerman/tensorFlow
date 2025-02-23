@@ -12,28 +12,33 @@ import InferenceOutput
 import BinaryFileHandler
 
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
+    
     numberOfParallelExecutions  = maxNumberOfParallelExecutions
     numberOfLinesPerCycle       = numberOfThreads * maxNumberOfParallelExecutions
-    reducedParameters           = False
-
+    done         = False
+    reduced                     = False
+    
     if (remainingNumberOfLines < numberOfLinesPerCycle):
         while(remainingNumberOfLines < numberOfLinesPerCycle):
             if (numberOfParallelExecutions > 1):
                 numberOfParallelExecutions -= 1
-                reducedParameters = True
+                reduced = True
             elif (numberOfThreads > 1):
                 numberOfThreads -= 1
-                reducedParameters = True
+                reduced = True
             else:
                 break
-            numberOfLinesPerCycle   = numberOfThreads * numberOfParallelExecutions
+            numberOfLinesPerCycle  = numberOfThreads * numberOfParallelExecutions
     else:
         numberOfParallelExecutions = maxNumberOfParallelExecutions
 
-    if (reducedParameters):
-        print("reduced Parameters numberOfParallelExecutions = ", numberOfParallelExecutions, " numberOfThreads = ", numberOfThreads)
-
-    return reducedParameters, numberOfParallelExecutions, numberOfThreads
+    newNumberOfLinesPerCycle       = numberOfThreads * numberOfParallelExecutions
+    
+    if (remainingNumberOfLines == newNumberOfLinesPerCycle):
+        print(f"reduced Parameters remainingNumberOfLines = {remainingNumberOfLines} newNumberOfLinesPerCycle = {newNumberOfLinesPerCycle}")
+        done = True
+        
+    return done, reduced, numberOfParallelExecutions, numberOfThreads
 
 
 
@@ -52,8 +57,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         from pathlib import Path
         file = Path(FileNameAnalyzed)
         file.parent.mkdir(parents=True, exist_ok=True)
+        
+        
+        
         LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
-
+        LogfileCompared  = open(FileNameAnalyzed + "_OnlyPrintf",    "w")
 
         LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
 
@@ -90,7 +98,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         print("Creating shared memory manager Done")
         TokenList  = None
 
-        indexOfFirstPrediction  = window_size + 1
+        indexOfFirstPrediction  = window_size
         
         hiddenVectorSize = GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, indexOfFirstPrediction)
         
@@ -98,172 +106,189 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
          
         binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=hashAtCreation)   
         
-        remainingNumberOfLines  = (numberOfLines - numberOfAnalyzedLines) - (window_size + 1)
-        reducedParameters, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads)
         
-        generationStartTime        = 0
-        outputStartTime            = 0
-        analyzeStartTime           = time.time()
+        numberOfParallelExecutions = maxNumberOfParallelExecutions
+        
+        remainingNumberOfLines  = (numberOfLines - numberOfAnalyzedLines) - (window_size + 1)
+        noMoreReductionPossible, reduced, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, numberOfParallelExecutions, numberOfThreads)
+        
+        if (reduced):
+            print("reduced parameters 1")
+        
+        newNumberOfParallelExecutions = numberOfParallelExecutions
+        newNumberOfThreads = numberOfThreads
+        analyzeStartTime   = time.time()
     
-        with tf.device('/CPU:0'):
-            printfList       = []
-            nexttokenIdsList = []
-            nextTokensList   = []
-            inputTensorList  = []
-
-            for threadId in range(0,numberOfThreads):
-                inputQueue  = Workers[threadId]["inputQueue"]
-                inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, window_size,)))
-                newPrint = origPrintfList[indexOfFirstPrediction - 1:indexOfFirstPrediction + numberOfParallelExecutions - 1]
-                printfList.append(newPrint)
-                if (threadId == 0):
-                    assemblySubmissionStartTime = time.time()  
-                indexOfFirstPrediction += numberOfParallelExecutions
-
-            for threadId in range(0,numberOfThreads):
-                outputQueue = Workers[threadId]["outputQueue"]
-                nextTokens, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
-                nexttokenIdsList.append(nexttokenIds)
-                nextTokensList.append(nextTokens)
-                inputTensorList.append(inputTensor)
-                if (threadId == (numberOfThreads-1)):
-                    print("   Assembly Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime))
-
-            print("stop")
-
-            while (True):
-                cycleStartTime = time.time()
-                                
-                if (numberOfParallelExecutions == 0):
-                    break
-
-                numberOfAnalyzedLinesThisCycle = 0
-                nextPredictionsList            = []
-                probabilityOfPredictionsList   = []
-                probabilityOfActualsList       = []
-                crossEntropyOfActualsList      = []
-                pooledLogitsVectorDataList     = []
-                indexOfFirstPredictionTemp     = indexOfFirstPrediction
-
-                assemblySubmissionStartTime    = time.time()
-
-                if (not reducedParameters):
-                    for threadId in range(0,numberOfThreads):
-                        inputQueue  = Workers[threadId]["inputQueue"]
-                        inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPredictionTemp, numberOfParallelExecutions, sharedTokenList, window_size,)))
-                        indexOfFirstPredictionTemp  += numberOfParallelExecutions
-                
-                generationStartTime = time.time()
-                
-                for threadId in range(0, numberOfThreads):
-
-                    predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
-                    
-                    # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
-                    nextPredictionsList.append(predictions)
-
-                    # probabilityPredictionsList is a tensor of shape (numberOfParallelExecutions, number of features)
-                    probabilityOfPredictionsList.append(probabilityOfPredictions)
-
-                    # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
-                    probabilityOfActualsList.append(probabilityOfActuals)
-
-                    # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
-                    crossEntropyOfActualsList.append(crossEntropyOfActuals)
-
-                    pooledLogitsVectorDataList.append(pooledLogitsVectorData)
-
-                generationTime = time.time() - generationStartTime
-                print("   Generation Time = {:2.3f}.".format(generationTime))
+        printfList       = []
+        nexttokenIdsList = []
+        nextTokensList   = []
+        inputTensorList  = []
+        
+        print(f"Start creating input data numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
+        
+        for threadId in range(0,numberOfThreads):
+            inputQueue  = Workers[threadId]["inputQueue"]
+          
+            inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, origPrintfList, window_size,)))
             
-                for threadId in range(0, numberOfThreads):
+           # for line in newPrint:
+           #     LogfileCompared.write(f"{line}")
+
+            indexOfFirstPrediction += numberOfParallelExecutions
+
+        LogfileCompared.flush()
+        print(f"Start retrieving input data numberOfThreads: {numberOfThreads}") 
+        
+        for threadId in range(0,numberOfThreads):
+            outputQueue = Workers[threadId]["outputQueue"]
+            nextTokens, inputTensor, nexttokenIds, nextLogs = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+            nexttokenIdsList.append(nexttokenIds)
+            nextTokensList.append(nextTokens)
+            inputTensorList.append(inputTensor)
+            printfList.append(nextLogs)
+            
+        ########################################################## Main loop starts here ##################################################	    
+            
+        while (True):
+            cycleStartTime = time.time()
+                            
+            if (numberOfParallelExecutions == 0):
+                break
+            
+            remainingNumberOfLines = (numberOfLines - indexOfFirstPrediction) - (window_size + 1)
+            noMoreReductionPossible, reduced, newNumberOfParallelExecutions, newNumberOfThreads = GetInferenceParameters(remainingNumberOfLines, numberOfParallelExecutions, numberOfThreads)
+
+            if (reduced):
+                print(f"reduced parameters: newNumberOfThreads: {newNumberOfThreads}, newNumberOfParallelExecutions {newNumberOfParallelExecutions}")
+            
+            if (noMoreReductionPossible):
+                print("noMoreReductionPossible")
+
+            numberOfAnalyzedLinesThisCycle = 0
+            nextPredictionsList            = []
+            probabilityOfPredictionsList   = []
+            probabilityOfActualsList       = []
+            crossEntropyOfActualsList      = []
+            pooledLogitsVectorDataList     = []
+            indexOfFirstPredictionTemp     = indexOfFirstPrediction
+
+
+            # Assemble inputs for the next cycle
+            print(f"Start creating input data indexOfFirstPrediction: {indexOfFirstPrediction} numberOfThreads: {newNumberOfThreads}, numberOfParallelExecutions {newNumberOfParallelExecutions}") 
+            if (not noMoreReductionPossible):
+                for threadId in range(0, newNumberOfThreads):
                     inputQueue  = Workers[threadId]["inputQueue"]
-                    if (threadId == 0):
-                        outputStartTime = time.time()
-                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], pooledLogitsVectorDataList[threadId],)))
+                    inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPredictionTemp, newNumberOfParallelExecutions, sharedTokenList, origPrintfList, window_size,)))
+                    indexOfFirstPredictionTemp  += newNumberOfParallelExecutions
+            
+            
+            # Generate inference
+            print(f"generate_steps_optimized numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
+            for threadId in range(0, numberOfThreads):
+
+                predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensorList[threadId], nexttokenIdsList[threadId], states=None)
                 
-                nexttokenIdsList            = []
-                nextTokensList              = []
-                inputTensorList             = []
+                # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
+                nextPredictionsList.append(predictions)
 
-                if (not reducedParameters):
-                    for threadId in range(0,numberOfThreads):
-                        outputQueue = Workers[threadId]["outputQueue"]
-                        nextTokens, inputTensor, nexttokenIds = outputQueue.get(timeout=queueTimeout)
-                        nexttokenIdsList.append(nexttokenIds)
-                        nextTokensList.append(nextTokens)
-                        inputTensorList.append(inputTensor)
-                    
-                print("   assembly Time = {:2.3f}.".format(time.time() - assemblySubmissionStartTime - generationTime))
-                printfList = []
+                # probabilityPredictionsList is a tensor of shape (numberOfParallelExecutions, number of features)
+                probabilityOfPredictionsList.append(probabilityOfPredictions)
 
-                for threadId in range(0, numberOfThreads):
+                # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                probabilityOfActualsList.append(probabilityOfActuals)
 
+                # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                crossEntropyOfActualsList.append(crossEntropyOfActuals)
+
+                pooledLogitsVectorDataList.append(pooledLogitsVectorData)
+
+        
+            # Start output generation
+            print(f"Start output generation numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
+            for threadId in range(0, numberOfThreads):
+                inputQueue  = Workers[threadId]["inputQueue"]
+                inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextTokensList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], pooledLogitsVectorDataList[threadId],)))
+            
+            nexttokenIdsList            = []
+            nextTokensList              = []
+            inputTensorList             = []
+            printfList                  = []
+            
+            # Get inputs for the next inference cycle
+            print(f"Start retrieving input data numberOfThreads: {newNumberOfThreads}") 
+            if (not noMoreReductionPossible):
+                for threadId in range(0,  newNumberOfThreads):
                     outputQueue = Workers[threadId]["outputQueue"]
-                    linesToWrite, numberOfIdenticalsInThisCycle, accumulatedActualProbability, accumulatedPredictedProbability, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite= outputQueue.get(timeout=queueTimeout)
+                    nextTokens, inputTensor, nexttokenIds, nextLogs = outputQueue.get(timeout=queueTimeout)
+                    nexttokenIdsList.append(nexttokenIds)
+                    nextTokensList.append(nextTokens)
+                    inputTensorList.append(inputTensor)
+                    printfList.append(nextLogs)
                     
-                    if (threadId == (numberOfThreads-1)):
-                        print("   Output thread Time = {:2.3f}.".format(time.time() - outputStartTime))
 
-                    newPrint = origPrintfList[indexOfFirstPrediction - 1:indexOfFirstPrediction + numberOfParallelExecutions - 1]
-                    printfList.append(newPrint)
+            # Get outputs to write to file
+            print(f"Get output generation numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
+            for threadId in range(0, numberOfThreads):
 
-                    accumulatedNextTokenProbability      += accumulatedActualProbability
-                    accumulatedPredictedTokenProbability += accumulatedPredictedProbability
-                    numberOfIdenticals                   += numberOfIdenticalsInThisCycle
-                    numberOfAnalyzedLines                += numberOfParallelExecutions
-                    numberOfAnalyzedLinesThisCycle       += numberOfParallelExecutions
-                    indexOfFirstPrediction               += numberOfParallelExecutions
-
-                    fileWriteStartTime = time.time()
-
-                    for lineToWrite in linesToWrite:
-                        LogfileAnalyzed.write(lineToWrite)
-
-                    for lineToWrite in pooledHumanReadableLogitsVectorlinesToWrite:
-                        FileHumanReadablePooledVectors.write(lineToWrite)
-                        
-                    for lineToWrite in pooledMachineReadableLogitsVectorlinesToWrite:
-                        binaryFileHandler.append(lineToWrite)
-                        
-                        
-                    if (threadId == 0):
-                        print("   fileWrite Time = {:2.3f}.".format(time.time() - fileWriteStartTime))        
-
-                inputTensor  = []
-                nextTokens   = []
-                nexttokenIds = []
+                outputQueue = Workers[threadId]["outputQueue"]
+                linesToWrite, printfsToWrite, numberOfIdenticalsInThisCycle, accumulatedActualProbability, accumulatedPredictedProbability, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
                 
-                Endtime = time.time()
-                remainingNumberOfLines           = (numberOfLines - indexOfFirstPrediction) - (window_size + 1)
-                averageNextTokenProbabilities    = accumulatedNextTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
+                accumulatedNextTokenProbability      += accumulatedActualProbability
+                accumulatedPredictedTokenProbability += accumulatedPredictedProbability
+                numberOfIdenticals                   += numberOfIdenticalsInThisCycle
+                numberOfAnalyzedLines                += numberOfParallelExecutions
+                numberOfAnalyzedLinesThisCycle       += numberOfParallelExecutions
                 
-                averageNextTokenProbabilities = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
+                for line in printfsToWrite:
+                    LogfileCompared.write(f"{line}")
+                
+                LogfileCompared.flush()
+                
+                for lineToWrite in linesToWrite:
+                    LogfileAnalyzed.write(''.join(lineToWrite))
 
-                averagePredictedTokenProbability = accumulatedPredictedTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
-                analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
-                remainingTimeInMinutes           = remainingNumberOfLines/(numberOfAnalyzedLines/(time.time() - analyzeStartTime)) / 60
-                
-                reducedParameters, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads)
-                
-                print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100)/numberOfLines) +
-                    ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
-                    "  Nr Of Identicals: " + str(numberOfIdenticals) + 
-                    ".".join("  Av next token probab = {:2.3f}.".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +
-                     "  Av pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
-                    "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
-                #if (analysedLinesPerSecond < 2000):
-                #    print("Too long")        
+                for lineToWrite in pooledHumanReadableLogitsVectorlinesToWrite:
+                    FileHumanReadablePooledVectors.write(lineToWrite)
                     
-                if(reducedParameters):
-                    break
+                for lineToWrite in pooledMachineReadableLogitsVectorlinesToWrite:
+                    binaryFileHandler.append(lineToWrite)
+                    
+
+            inputTensor  = []
+            nextTokens   = []
+            nexttokenIds = []
+            
+            Endtime = time.time()
+            averageNextTokenProbabilities    = accumulatedNextTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
+            
+            averageNextTokenProbabilities    = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
+
+            averagePredictedTokenProbability = accumulatedPredictedTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
+            analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
+            remainingTimeInMinutes           = remainingNumberOfLines / (numberOfAnalyzedLines / (time.time() - analyzeStartTime)) / 60
+            
+                            
+            print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) +
+                ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
+                "  Nr Of Ids: " + str(numberOfIdenticals) + 
+                ".".join("  Next token prob = {:2.3f}.".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +
+                    " Pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
+                "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
+                
+            
+            indexOfFirstPrediction    += (newNumberOfParallelExecutions * newNumberOfThreads)    
+            numberOfParallelExecutions = newNumberOfParallelExecutions
+            numberOfThreads = newNumberOfThreads
+            
+            
+            
+            if (noMoreReductionPossible):
+                break
 
         averageNextTokenProbabilities    = accumulatedNextTokenProbability      / numberOfAnalyzedLines
         averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
         IdenticalsToNumberOfLinesRatio   = numberOfIdenticals                   / numberOfAnalyzedLines
-
-        if(reducedParameters):
-            print("\n\nEnded inference almost at end of file")
+           
         averageNextTokenProbabilities = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
         Result = "Total number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) +                \
                     " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) + ".\n Number Of Identicals: " +      \
@@ -278,8 +303,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileAnalyzed.close()   
         binaryFileHandler.close()
 
-def GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, indexOfFirstPrediction):
-    result = InferenceAssembly.AssembleInputsThread(id_from_tokenList, 0, DataTypeForTensors, indexOfFirstPrediction, 1, sharedTokenList, window_size)
+def GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, startIndex):
+    result = InferenceAssembly.AssembleInputsThread(id_from_tokenList, 0, DataTypeForTensors, startIndex, 1, sharedTokenList, None, window_size)
 
     inputTensor = result[1]   
     nexttokenIds = result[2]     

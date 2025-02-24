@@ -152,7 +152,7 @@ class AnnotationCacheManager:
             raise
     
     @staticmethod
-    def get_annotation_file_path(fileName: str, annotation_id: int, userId: int) -> str:
+    def get_annotation_file_path(fileName: str, annotation_id: str, userId: int) -> str:
         import Constants
 
         annotationFilePath = Constants.GetAnnotationsDirectoryPath(
@@ -163,7 +163,7 @@ class AnnotationCacheManager:
 
         return os.path.join(
             annotationFilePath,
-            fileNameWithoutExtension, "annotations_" + str(annotation_id),
+            fileNameWithoutExtension, "annotations_" + annotation_id + ".json",
         )
 
 

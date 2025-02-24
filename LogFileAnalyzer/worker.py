@@ -13,7 +13,6 @@ def Worker(cpu, inputQueue, outputQueue, parameters):
                 func, args = inputQueue.get(timeout=1000)  
 
                 if (func == 'exit'):
-                    print("End worker ", cpu, "")
                     break
 
                 result = func(parameters, *args)

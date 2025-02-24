@@ -10,6 +10,8 @@ from multiprocessing import shared_memory
 import InferenceAssembly
 import InferenceOutput
 import BinaryFileHandler
+import Model
+
 
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     
@@ -58,17 +60,21 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         file = Path(FileNameAnalyzed)
         file.parent.mkdir(parents=True, exist_ok=True)
         
-        
-        
         LogfileAnalyzed  = open(FileNameAnalyzed,    "w")
         LogfileCompared  = open(FileNameAnalyzed + "_OnlyPrintf",    "w")
 
         LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
+        LogfileCompared.write("Analyzed file at temperature " + str(temperature) + "\n")
 
         file = Path(FileNameHumanReadablePooledVectors)
         file.parent.mkdir(parents=True, exist_ok=True)
         FileHumanReadablePooledVectors  = open(FileNameHumanReadablePooledVectors, "w")
 
+        modelHash = Model.GetHashFromModel(model)
+        LogfileAnalyzed.write("Model hash: " + modelHash + "\n")
+        LogfileCompared.write("Model hash: " + modelHash + "\n")
+        FileHumanReadablePooledVectors.write("Model hash: " + modelHash + "\n")
+        
         inputTensor  = []
         nexttokenIds = []
         nextTokens   = []
@@ -101,12 +107,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         indexOfFirstPrediction  = window_size
         
         hiddenVectorSize = GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, indexOfFirstPrediction)
-        
-        hashAtCreation = "aaaa" # model.GetHashAtCreation()
-         
-        binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=hashAtCreation)   
-        
-        
+                
+        binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
+                
         numberOfParallelExecutions = maxNumberOfParallelExecutions
         
         remainingNumberOfLines  = (numberOfLines - numberOfAnalyzedLines) - (window_size + 1)

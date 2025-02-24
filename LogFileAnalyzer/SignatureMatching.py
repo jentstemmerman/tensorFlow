@@ -22,16 +22,16 @@ def read_signature_from_file(filename):
     signature_text = signature_data['signature_text']
     logFileName = signature_data['logFileName']
     modelDirectory = signature_data['modelDirectory']
-    # modelHash = signature_data['modelHash']
+    modelHash = signature_data['modelHash']
     startLine = signature_data['startLine']
     endLine = signature_data['endLine']
     DataTypeForTensors = signature_data['DataTypeForTensors']
     signature = signature_data['signature']
     
-    numberOfHiddenVectors = endLine - startLine + 1
+    numberOfPooledVectors = endLine - startLine + 1
     signature_tensor = tf.convert_to_tensor(signature, dtype=DataTypeForTensors)
  
-    return numberOfHiddenVectors, DataTypeForTensors, signature_tensor
+    return numberOfPooledVectors, DataTypeForTensors, signature_tensor, modelHash
 
 def CalculatePooledVectors(vectors):
     batchedvectors = tf.expand_dims(vectors, axis=0) # Add a bactch dimension. Will be removed in the squeeze
@@ -44,9 +44,9 @@ def CalculatePooledVectors(vectors):
     return pooledVector
 
 def CalculatePooledVectorsBatched(batchedvectors):
+    
     pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
     pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
-
     pooledVector = tf.concat([pooledAverageVector, pooledMaxVector], axis=-1)
     
     return pooledVector
@@ -55,6 +55,8 @@ def CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, 
     binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type=DataTypeForTensors, numbers_per_line=None)
     
     modelHash = binaryFileHandler.get_modelHash()
+    print(f"[CalculateSignature] ModelHash from pooled vector file: {modelHash}")
+    
     vectors = binaryFileHandler.read_records(startVectorOffset, numberOfHiddenVectors)
         
     signature = CalculatePooledVectors(vectors)
@@ -165,16 +167,22 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     temperature = 1
     hiddenVectorsFile = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId, temperature)
     
-    numberOfHiddenVectors, DataType, signature_tensor = SignatureMatching.read_signature_from_file(signatureFile)
-    num_vectors_to_pool = numberOfHiddenVectors
+    numberOfPooledVectors, DataType, signature_tensor, modelHashFromSignature = SignatureMatching.read_signature_from_file(signatureFile)
+    num_vectors_to_pool = numberOfPooledVectors
     
     humanReadableOutputFileHandler = open(humanReadableOutputFile, 'w')
+    humanReadableOutputFileHandler.write(f"The following simularities were calculated starting from line number {num_vectors_to_pool}\n")
+    humanReadableOutputFileHandler.write(f"Model hash used to create signature: {modelHashFromSignature}\n")
     
     inputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(hiddenVectorsFile, data_type=dataType, numbers_per_line=num_vectors_to_pool)
+    modelHashFromHiddenVectorsFile = inputBinaryFileHandler.get_modelHash()    
+    humanReadableOutputFileHandler.write(f"Model hash from pooled vector file: {modelHashFromHiddenVectorsFile}\n")
     
-    #modelHash = inputBinaryFileHandler.get_modelHash()
-    
-    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1) # , modelHash=modelHash)
+    if (modelHashFromSignature != modelHashFromHiddenVectorsFile):
+        print(f"WARNING! Model hashes from signature file {modelHashFromSignature} and hidden vectors file {modelHashFromHiddenVectorsFile} do not match.")
+        
+        
+    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1, modelHash=modelHashFromSignature)
     
     index = 0
     start_time = time.time()
@@ -182,8 +190,8 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     while True:
         
         try:
-            inputTensor = inputBinaryFileHandler.read_records(index, numberOfHiddenVectors)
-            inputTensor2 = inputBinaryFileHandler.read_records_optimised(index, numberOfHiddenVectors)
+            inputTensor = inputBinaryFileHandler.read_records(index, numberOfPooledVectors)
+            inputTensor2 = inputBinaryFileHandler.read_records_optimised(index, numberOfPooledVectors)
             
             if not tf.reduce_all(tf.equal(inputTensor, inputTensor2)):
                 print(f"Tensors are not equal at index {index}")
@@ -212,7 +220,8 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     outputBinaryFileHandler.close()
     humanReadableOutputFileHandler.close()
     
-
+# limitation: the output of this file starts at linenumber 0 + max signature length - 1, so a very large signature length will cause a lot of empty lines at the start of the file
+#tf.function
 def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, dataType):
     
     if not os.path.exists(LogFileName):
@@ -222,7 +231,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     # first, create list of signature files
     signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
     
-    signatureLengths = []
+    numberOfPooledVectorsList = []
     signatureNames = []
     signatureTensors = []
     signatureFiles = []
@@ -233,7 +242,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     signature_file = signatureIterator.get_first_tokenlogfile()
     
     if signature_file is not None:
-        hiddenVectorSize, _, _ = SignatureMatching.read_signature_from_file(signature_file)
+        numberOfPooledVectors, _, _, modelHashOfFirstSignatureFile = SignatureMatching.read_signature_from_file(signature_file)
     
     
     temperature = 1
@@ -270,10 +279,10 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         signatureNames.append(signature_name)
         signatureFiles.append(signature_file)
         
-        numberOfHiddenVectors, _, signature_tensor = SignatureMatching.read_signature_from_file(signature_file)
-        max_SignatureLength = max(max_SignatureLength, numberOfHiddenVectors)
+        numberOfPooledVectors, _, signature_tensor, modelHash = SignatureMatching.read_signature_from_file(signature_file)
+        max_SignatureLength = max(max_SignatureLength, numberOfPooledVectors)
         
-        signatureLengths.append(numberOfHiddenVectors)
+        numberOfPooledVectorsList.append(numberOfPooledVectors)
         signatureTensors.append(signature_tensor)
         
         humanReadableOutputFileHandler = open(humanReadableOutputFile, 'w')
@@ -287,7 +296,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
    
     hiddenVectorsFile = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId, temperature)
     
-    inputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(hiddenVectorsFile, data_type=dataType, numbers_per_line=hiddenVectorSize)
+    inputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(hiddenVectorsFile, data_type=dataType, numbers_per_line=numberOfPooledVectors)
     numberOfLines = inputBinaryFileHandler.get_recordCount()
     
     maxNumberOfLinesPerRead = 2048
@@ -296,7 +305,13 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     
     numberOfLinesAtLastRead = numberOfLines % numberOfSimularityCalculationsPerRead 
     
-       
+    for signatureIndex in range(numberOfSignatureFiles):
+        humanReadableOutputFileHandlers[signatureIndex].write(f"The following simularities were calculated starting from line number {max_SignatureLength}\n")
+        humanReadableOutputFileHandlers[signatureIndex].write(f"  numberOfPooledVectors {numberOfPooledVectorsList[signatureIndex]}\n")
+        humanReadableOutputFileHandlers[signatureIndex].write(f"  SignatureTensor {signatureTensors[signatureIndex]}\n")
+        humanReadableOutputFileHandlers[signatureIndex].write(f"  SignatureTensor shape {signatureTensors[signatureIndex].shape}\n")
+        humanReadableOutputFileHandlers[signatureIndex].write("\n")
+        
     recordReadStart = 0
     start_time = time.time()
     simularityCalculationIndexes = np.zeros(numberOfSignatureFiles, dtype=int)
@@ -317,7 +332,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
 
             for signatureIndex in range(numberOfSignatureFiles):
                 signature_tensor = signatureTensors[signatureIndex]
-                signatureLength = signatureLengths[signatureIndex]
+                signatureLength = numberOfPooledVectorsList[signatureIndex]
                 
                 TestTensorList = []
                 

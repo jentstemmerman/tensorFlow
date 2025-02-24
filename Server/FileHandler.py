@@ -219,10 +219,11 @@ def async_preprocess_log_files_optimized(userId, DataTypeForTensors, similarityt
         
         while (logFileName is not None):
             while (signature_file is not None):                
-                annotation_id = 0
-                annotationsOutputFile = AnnotationManager.AnnotationCacheManager.get_annotation_file_path(logFileName, annotation_id, userId)
-        
                 signature_name = os.path.splitext(os.path.basename(signature_file))[0]
+                annotation_id = signature_name
+                
+                annotationsOutputFile = AnnotationManager.AnnotationCacheManager.get_annotation_file_path(logFileName, annotation_id, userId)
+                        
                 simularitiesMachineReadableFileName = Constants.GetMachineReadableSimularitiesFile(logFileName, userId, signature_file)
                 
                 SignatureMatching.CreateAnnotationListFromSimularitiesFile(simularitiesMachineReadableFileName, annotationsOutputFile, DataTypeForTensors, annotationId = annotation_id, threshold = similaritythreshold, comment = signature_name)

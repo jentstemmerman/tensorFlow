@@ -592,7 +592,7 @@ class Transformer(tf.keras.Model):
     total_output_dimensions = 0
 
     for i, feature in enumerate(featureList):
-        if (feature["embedded"] == True):
+        if (feature["embedded"]):
             import math
             output_dimension = math.ceil(feature["vocab_size"]**0.25)
         else:
@@ -604,8 +604,7 @@ class Transformer(tf.keras.Model):
         
         embeddingDimension.append(output_dimension)
         total_output_dimensions += output_dimension
-    print("Embedding dimensions:")
-    print(embeddingDimension)
+
     return embeddingDimension
   
   @tf.function

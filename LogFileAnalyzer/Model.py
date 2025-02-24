@@ -222,12 +222,13 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
 
     if (modelSource["Source"] == "NewModel"):
         model.compile(optimizer=optimizer, loss=loss_function)
-
+        hash = None
+        
     elif (modelSource["Source"]  == "FromCheckpoint"):
         checkpointPath        = modelSource["CheckpointPath"] + os.path.sep + "ckpt_" + str(modelSource["CheckpointNumber"])
         model.compile(optimizer=optimizer, loss=loss_function)
         model.load_weights(checkpointPath)
-
+        hash = GetHashFromModel(model)
     elif (modelSource["Source"]  == "FromFile"):
         ModelDirectory = modelSource["ModelDirectory"]
         
@@ -236,9 +237,19 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
         model = tf.keras.models.load_model(ModelDirectory, custom_objects=custom_objects, compile=False )
         loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
         model.compile(optimizer=optimizer, loss=loss_function)
-
-   
+        hash = GetHashFromModel(model)
+    
+    print("Model hash: ", hash)
+    
     return model
+
+def GetHashFromModel(model):
+    import hashlib
+    model_hash = hashlib.md5(model.to_json().encode('utf-8')).hexdigest()
+    return model_hash
+
+
+
 
 def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParameter, TrainingCheckpointDir, TrainingLogFile=None):
 

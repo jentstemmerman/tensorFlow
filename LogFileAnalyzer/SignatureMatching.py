@@ -268,7 +268,8 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         
         numberOfSignatureFiles += 1
         
-        outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1) # , modelHash=modelHash)
+        outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1, modelHash=modelHashOfFirstSignatureFile)
+        
         outputBinaryFileHandlers.append(outputBinaryFileHandler)
         
         machineReadableOutputFiles.append(machineReadableOutputFile)
@@ -307,9 +308,11 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     
     for signatureIndex in range(numberOfSignatureFiles):
         humanReadableOutputFileHandlers[signatureIndex].write(f"The following simularities were calculated starting from line number {max_SignatureLength}\n")
-        humanReadableOutputFileHandlers[signatureIndex].write(f"  numberOfPooledVectors {numberOfPooledVectorsList[signatureIndex]}\n")
-        humanReadableOutputFileHandlers[signatureIndex].write(f"  SignatureTensor {signatureTensors[signatureIndex]}\n")
-        humanReadableOutputFileHandlers[signatureIndex].write(f"  SignatureTensor shape {signatureTensors[signatureIndex].shape}\n")
+        humanReadableOutputFileHandlers[signatureIndex].write(f"Model hash from signature file: {modelHashOfFirstSignatureFile}\n")
+        humanReadableOutputFileHandlers[signatureIndex].write(f"numberOfPooledVectors:          {numberOfPooledVectorsList[signatureIndex]}. ( This can be different for every signature )\n")
+        humanReadableOutputFileHandlers[signatureIndex].write(f"SignatureTensor shape:          {signatureTensors[signatureIndex].shape}\n")
+        humanReadableOutputFileHandlers[signatureIndex].write(f"SignatureTensor:                {signatureTensors[signatureIndex]}\n")
+
         humanReadableOutputFileHandlers[signatureIndex].write("\n")
         
     recordReadStart = 0

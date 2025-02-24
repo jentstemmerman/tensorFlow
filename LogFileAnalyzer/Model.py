@@ -95,7 +95,6 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         userId = 0
         temperature = 1
         
-        
         FileNameMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(printfFileToProcess, userId, temperature)
         FileNameHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(printfFileToProcess, userId, temperature)
         FileNameAnalyzed = Constants.GetLogFileAnalyzedPath(printfFileToProcess, userId)

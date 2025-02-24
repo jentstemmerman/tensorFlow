@@ -250,8 +250,10 @@ def analyze_file(file_name):
 def check_file_annotations(file_name):
     try:
         userId = request.args.get("userId", None)
-        annotation_id = int(request.args.get("annotation_id", 0))
+        annotation_id = str(request.args.get("annotation_id", "0"))
 
+        annotation_id = os.path.splitext(annotation_id)[0]
+        
         annotations_exists = FileHandler.CheckAnnotations(
             file_name, userId, annotation_id
         )
@@ -269,8 +271,10 @@ def get_file_annotations(file_name):
         lineOffset = int(request.args.get("start", 0))  # 0 means the default value
         userId = request.args.get("userId", None)
         numberOfLines = int(request.args.get("size", 1024))
-        annotation_id = int(request.args.get("annotation_id", 0))
-
+        annotation_id = str(request.args.get("annotation_id", "0"))
+        
+        annotation_id = os.path.splitext(annotation_id)[0]
+        
         print(
             "[App.py] get_file_annotations file_name: ",
             file_name,

@@ -29,7 +29,7 @@ class AnnotationCacheManager:
         list: A list of annotations, each represented as a dictionary.
     """
 
-    def read_annotation_file(self, file_path: str, annotation_id: int) -> list:
+    def read_annotation_file(self, file_path: str, annotation_id: str) -> list:
         annotation_file_path = AnnotationCacheManager.get_annotation_file_path(file_path, annotation_id, self.userId)
 
         annotations = []
@@ -51,7 +51,7 @@ class AnnotationCacheManager:
     """
 
     def write_annotation_file(
-        self, file_path: str, annotations: list, annotation_id: int
+        self, file_path: str, annotations: list, annotation_id: str
     ):
         fileName = os.path.basename(file_path)
         annotation_file_path = AnnotationCacheManager.get_annotation_file_path(fileName, annotation_id, self.userId)
@@ -80,7 +80,7 @@ class AnnotationCacheManager:
     """
 
     def get_annotations(
-        self, file_path: str, startLine: int, numberOfLines: int, annotation_id: int
+        self, file_path: str, startLine: int, numberOfLines: int, annotation_id: str
     ) -> list:
         annotation_file_path = AnnotationCacheManager.get_annotation_file_path(file_path, annotation_id, self.userId)
 

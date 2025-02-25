@@ -112,7 +112,7 @@ class AnnotationCacheManager:
         annotationTemp = None
         filtered_annotations = []
 
-        for annotationTemp in annotations:
+        for annotationTemp in annotations["annotationList"]:
             startLineAnnotation = annotationTemp["lineNumber"]
             numberOfLinesAnnotation = annotationTemp["lineCount"]
             endOfAnnotation = startLineAnnotation + numberOfLinesAnnotation - 1
@@ -133,7 +133,7 @@ class AnnotationCacheManager:
                 if startLineAnnotation > startLine:
                     break
 
-        return filtered_annotations
+        return filtered_annotations, annotations["annotationHeader"]
 
     def generate_file_hash(self, file_path: str) -> str:
         try:

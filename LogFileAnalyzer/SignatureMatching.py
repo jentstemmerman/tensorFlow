@@ -385,8 +385,12 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
 def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = 0, threshold = 0.5, comment = ""):
     
     inputFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableSimularityFile, data_type=data_type, numbers_per_line=1)
-    
+    modelHashFromSimularityFile = inputFileHandler.get_modelHash()
+    annotationHeader = { "annotationId": annotationId, "threshold": threshold, "modelHashFromSimularityFile": modelHashFromSimularityFile, "comment": comment}
     annotationList = []
+    
+    annotationInformation = { "annotationHeader" :annotationHeader, "annotationList": annotationList}
+      
     lineNumber = 0
     annotationStart = 0
     annotationLineCount = 0
@@ -409,8 +413,8 @@ def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outp
                 withinAnnotation = True
         else:
             if withinAnnotation:
-                annotation = { "lineNumber": annotationStart,  "lineCount": annotationLineCount, "simularity": simularity, "AnnotationId": annotationId,  "Comment": comment}
-                annotationList.append(annotation)
+                annotation = { "lineNumber": annotationStart,  "lineCount": annotationLineCount, "simularity": simularity, "AnnotationId": annotationId}
+                annotationInformation["annotationList"].append(annotation)
                 withinAnnotation = False
                 annotationLineCount = 0
 
@@ -422,7 +426,7 @@ def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outp
             os.makedirs(output_dir)
                 
         with open(outputFile, 'w') as f:
-            json.dump(annotationList, f, indent=4)
+            json.dump(annotationInformation, f, indent=4)
                       
     print("CreateAnnotationListFromSimularitiesFile DONE")
 

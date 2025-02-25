@@ -107,11 +107,11 @@ def GetOffsetsArray(file_path, userId):
 def GetAnnotations(file_path, userId, startLine, numberOfLines, annotation_id):
     annotationManager = GetAnnotationManager(userId)
 
-    annotations = annotationManager.get_annotations(
+    annotations, annotationHeader = annotationManager.get_annotations(
         file_path, startLine, numberOfLines, annotation_id
     )
 
-    return annotations
+    return annotations, annotationHeader
 
 
 def CheckAnnotations(file_path, userId, annotation_id):
@@ -183,7 +183,7 @@ def async_preprocess_log_files(userId, DataTypeForTensors, similaritythreshold):
 
         print(f"Finished processing log files for user {userId}")
     except Exception as e:
-        print(f"Error processing log files for user {userId}: {e}")
+        print(f"Error processing log files for  user {userId}: {e}")
         
 def async_preprocess_log_files_optimized(userId, DataTypeForTensors, similaritythreshold):
     import LogFileIterator    # type: ignore

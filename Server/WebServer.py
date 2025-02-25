@@ -291,7 +291,7 @@ def get_file_annotations(file_name):
         # if not os.path.exists(file_path):
         #    return jsonify({"error": "File not found"}), 404
 
-        annotations = FileHandler.GetAnnotations(
+        annotations, annotationHeader = FileHandler.GetAnnotations(
             file_name, userId, lineOffset, numberOfLines, annotation_id
         )
 

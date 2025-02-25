@@ -131,9 +131,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         for threadId in range(0,numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]
-          
+            print("Before inputQueue.put AssembleInputsThread ", threadId)
             inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, origPrintfList, window_size,)))
-            
+            print("After inputQueue.put AssembleInputsThread ", threadId)
            # for line in newPrint:
            #     LogfileCompared.write(f"{line}")
 

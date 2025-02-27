@@ -74,14 +74,28 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-def AnalyzePrintfFile(model, inputFile, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
+def AnalyzePrintfFile(model, 
+                      inputFile, 
+                      inferenceDataSetFile, 
+                      LogFileAnalyzedPath, 
+                      FileNameMachineReadablePooledVectors, 
+                      FileNameHumanReadablePooledVectors, 
+                      itemFile, 
+                      temperature, 
+                      seq_length, 
+                      id_from_tokenList, 
+                      token_from_idList,
+                      numberOfThreads, 
+                      Workers, 
+                      DataTypeForTensors):
+    
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
 
     printfFileToProcess      = inputFile
 
     LogfileAnalyzed = LogFileAnalyzedPath
     
-    Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogfileAnalyzed, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
+    Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, inferenceDataSetFile=inferenceDataSetFile, FileNameAnalyzed=LogfileAnalyzed, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
     print("Done analyzing ", os.path.basename(printfFileToProcess), ".")
 
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
@@ -98,16 +112,19 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         FileNameMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(printfFileToProcess, userId, temperature)
         FileNameHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(printfFileToProcess, userId, temperature)
         FileNameAnalyzed = Constants.GetLogFileAnalyzedPath(printfFileToProcess, userId)
-
+        inferenceDataSetFile = Constants.GetInferenceDataSetPath(printfFileToProcess, userId, temperature)
+        
         FileNameMachineReadablePooledVectors = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors)), os.path.basename(FileNameMachineReadablePooledVectors))
         FileNameHumanReadablePooledVectors = os.path.join(os.path.basename(os.path.dirname(FileNameHumanReadablePooledVectors)), os.path.basename(FileNameHumanReadablePooledVectors))
         FileNameAnalyzed = os.path.join(os.path.basename(os.path.dirname(FileNameAnalyzed)), os.path.basename(FileNameAnalyzed))
-                
+        FileNameAnalyzed = os.path.join(os.path.basename(os.path.dirname(inferenceDataSetFile)), os.path.basename(inferenceDataSetFile))     
+        
         FileNameMachineReadablePooledVectors = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors)
         FileNameHumanReadablePooledVectors = os.path.join(outputDirectory, FileNameHumanReadablePooledVectors)
         LogFileAnalyzedPath = os.path.join(outputDirectory, FileNameAnalyzed)
+        inferenceDataSetFilePath = os.path.join(outputDirectory, FileNameAnalyzed)
        
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, FileNameAnalyzed=LogFileAnalyzedPath, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, inferenceDataSetFile=inferenceDataSetFilePath, FileNameAnalyzed=LogFileAnalyzedPath, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 

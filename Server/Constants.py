@@ -103,6 +103,16 @@ def GetLogFileHumanReadableVectorsPath(logFilename, userId, temperature):
 
     return FileNameHumanReadablePooledVectors
 
+def GetInferenceDataSetPath(logFilename, userId, temperature):
+    userId = str(userId)
+    logFilenameWithoughExtention = os.path.splitext(os.path.basename(logFilename))[0]
+            
+    baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
+    
+    FileNameMachineReadablePooledVectors = os.path.join(baseDirectory, logFilenameWithoughExtention, "InferenceDataset")
+
+    return FileNameMachineReadablePooledVectors
+
 def GetItemFilesPath():
     return GetNonUserSpecificBaseDirectory("ItemFiles")
 

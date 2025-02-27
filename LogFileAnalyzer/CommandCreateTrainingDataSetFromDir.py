@@ -21,6 +21,7 @@ def CreateTrainingDatasetFromDir(InputDirectory, IntermediateDirectory, mergeDat
                                            removeDuplicates=TrainingsParameter["removeDuplicates"], 
                                            num_parallel_calls = TrainingsParameter["num_parallel_calls"],
                                            dual_input = TrainingsParameter["Model"]["Network"] == "Transformer",
+                                           forTraining = True,
                                            verbose = False)   
     
 

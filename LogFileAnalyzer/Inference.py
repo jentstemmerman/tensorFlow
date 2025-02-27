@@ -42,17 +42,50 @@ def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions
         
     return done, reduced, numberOfParallelExecutions, numberOfThreads
 
+def CreateDataSetFromVerificationFile(LogfileVerification, dataSetFile, itemList, id_from_tokenList, seq_length, DataTypeForTensors, dual_input):
+    stride = 1
+    import Dataset
+    
+    dataset = Dataset.CreateInferenceDatasetFromFile(   LogfileVerification, 
+                                                        None, 
+                                                        itemList, 
+                                                        id_from_tokenList, 
+                                                        stride, 
+                                                        seq_length, 
+                                                        DataTypeForTensors)
+          
+    try:
+        Dataset.SaveDataset(dataset, dataSetFile)
+    except Exception as e:
+        print("Error in saving dataset: ", e)
+        
+    print(f"Dataset from file  {os.path.basename(LogfileVerification)} saved. to {dataSetFile}\n")
 
 
-def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors, id_from_tokenList, token_from_idList, temperature, seq_length):
+def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, inferenceDataSetFile, FileNameAnalyzed, FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors, id_from_tokenList, token_from_idList, temperature, seq_length):
+    numberOfFeatures = len(id_from_tokenList)
+    
+    import StreamingDataSet
+    
+    try:
+        StreamingDataSet.StreamDataSet(LogfileVerification, inferenceDataSetFile, itemList, id_from_tokenList, DataTypeForTensors, seq_length, stride=1)
+    except Exception as e:
+        print("Error in StreamDataSet: ", e)
+        exit()
+    
+    # CreateDataSetFromVerificationFile(LogfileVerification=LogfileVerification, dataSetFile=inferenceDataSetFile, itemList=itemList, id_from_tokenList=id_from_tokenList, seq_length=seq_length, DataTypeForTensors=DataTypeForTensors, dual_input=False)
+
+
     with tf.device('/CPU:0'):
+        
+        
         numberOfThreads = 2
         
         numberOfIdenticals = 0
         averagePredictedTokenProbability = 0
         accumulatedNextTokenProbability = 0.0
         accumulatedPredictedTokenProbability = 0.0
-        numberOfFeatures = len(id_from_tokenList)
+        
         window_size = seq_length
         
         LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
@@ -96,7 +129,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         LogfileVerificationTemp = os.path.splitext(LogfileVerification)[0] + ".temp"
                 
-        TokenList, origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, LogfileVerificationTemp)
+        TokenList, origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, human_readable_output_file=LogfileVerificationTemp)
         print("Retrieving tokens from files Done")
 
         print("Creating shared memory manager...")
@@ -137,6 +170,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         for threadId in range(0,numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]
             print("Before inputQueue.put AssembleInputsThread ", threadId)
+            
+            
+            
             inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, origPrintfList, window_size,)))
             print("After inputQueue.put AssembleInputsThread ", threadId)
            # for line in newPrint:

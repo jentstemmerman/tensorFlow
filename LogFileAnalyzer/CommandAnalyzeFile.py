@@ -5,14 +5,14 @@ import worker
 import TokenParser
 import Dataset
 
-def AnalyzeFile(modelDirectory, inputFile, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
+def AnalyzeFile(modelDirectory, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
     
     #tf.config.run_functions_eagerly(True)  
     #tf.data.experimental.enable_debug_mode() 
       
     with tf.device('/CPU:0'):
         success = False
-        numberOfThreads = 7  # 1 for the main process
+        numberOfThreads = 5  # 1 for the main process
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
@@ -29,8 +29,9 @@ def AnalyzeFile(modelDirectory, inputFile, LogFileAnalyzedPath, FileNameMachineR
         if (Workers == None):
             print("Could not start workers. END")
         else:
-            Model.AnalyzePrintfFile(    model, 
+            Model.AnalyzePrintfFile(    model=model, 
                                         inputFile=inputFile, 
+                                        inferenceDataSetFile=inferenceDataSetFile,
                                         LogFileAnalyzedPath=LogFileAnalyzedPath,
                                         FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, 
                                         FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors,

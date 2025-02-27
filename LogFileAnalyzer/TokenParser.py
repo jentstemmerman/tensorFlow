@@ -166,7 +166,7 @@ def process_log_files_to_tokens_recursive(directory, outputDirectory, itemList):
                 # Do something with the content of the log file
                 outputFile = outputDirectory + "/" + filename.replace(".log", "") + "_onlyTokens.log" 
                 #if (not os.path.exists(outputFile)):
-                tokenListList, _, _ = process_file_to_tokenFile(itemList, full_path, outputFile)
+                tokenListList, _, _ = process_file_to_tokenFile(itemList, full_path, human_readable_output_file=outputFile)
                 tokenListListList.append(tokenListList)
     return tokenListListList
 

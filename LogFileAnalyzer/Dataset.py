@@ -75,8 +75,7 @@ def PrepareDataSetForTraining(dataset, batch_size, shuffle=False, buffer_size=0)
     
     return dataset
 
-def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, dual_input = False, verbose=False):
-    
+def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, dual_input = False, forTraining=True, verbose=False):
     
     fileIterator = LogFileIterator.FileIterator(InputDirectory, ".log")
     InputFile   = fileIterator.get_first_tokenlogfile()
@@ -91,7 +90,8 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             
             if InputFile is None:
                 break
-            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors)
+            forTraining=True
+            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, forTraining)
             futureList.append(future)
             InputFile = fileIterator.get_next_tokenlogfile()
         
@@ -122,40 +122,55 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             result = completed_future.result()
 
         
-def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors):
-    print("process_file " + InputFile + "\n")
+def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, forTraining):
+    if (forTraining):
+        print("process_file " + InputFile + " into a dataset... \n")
+    else:
+        print("process_file " + InputFile + " into an inference dataset... \n")
+        
     IntermediateFile = None #OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".intermediate"
     outputDatasetFile = OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".dataset"
 
-    dataset = CreateTrainingDatasetFromFile(InputFile, 
-                                    IntermediateFile, 
-                                    itemList, 
-                                    id_from_tokenList, 
-                                    stride, 
-                                    seq_length, 
-                                    dual_input,
-                                    DataTypeForTensors, 
-                                    ReductionInSamples=None, 
-                                    removeDuplicates=False, 
-                                    num_parallel_calls=10, 
-                                    verbose=False)
-    # print("temporary disabled SetMarkerAtDataSetEdge because not compatible with transformer input, TODO: fix this Jents!")
-    dataset = SetMarkerAtDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
-    print("Saving dataset " + os.path.basename(InputFile) + "...\n")
+    if (forTraining):
+        dataset = CreateTrainingDatasetFromFile(InputFile, 
+                                                IntermediateFile, 
+                                                itemList, 
+                                                id_from_tokenList, 
+                                                stride, 
+                                                seq_length, 
+                                                dual_input,
+                                                DataTypeForTensors, 
+                                                ReductionInSamples=None, 
+                                                removeDuplicates=False, 
+                                                num_parallel_calls=10, 
+                                                verbose=False)
+        
+        dataset = SetMarkerAtDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
+        print("Saving training dataset " + os.path.basename(InputFile) + "...\n")
+    else:
+        dataset = CreateInferenceDatasetFromFile(InputFile, 
+                                                 IntermediateFile, 
+                                                 itemList, 
+                                                 id_from_tokenList, 
+                                                 stride, 
+                                                 seq_length, 
+                                                 DataTypeForTensors)
+        print("Saving inference dataset " + os.path.basename(InputFile) + "...\n")
+        
     Dataset.SaveDataset(dataset, outputDatasetFile.strip())
     print("Dataset " + os.path.basename(InputFile) + " saved.\n")
 
 
 # This function will not create an intermediate tokenfile
-def CreateInferenceDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateInferenceDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors):
 
-    print("Creating an inference dataset from  " + InputFile + ".\n")
+    #print("Creating an inference dataset from  " + InputFile + ".\n")
     
-    if(IntermediateFile is not None):
-        print(" Intermediate file: " + IntermediateFile + ".\n")
+    #if(IntermediateFile is not None):
+    #    print(" Intermediate file: " + IntermediateFile + ".\n")
 
-    tokenListList, _, numberOfLines = TokenParser.process_file_to_tokenFile(itemList=itemList, input_file=InputFile, human_readable_output_file=IntermediateFile)
-    print(" Number Of Lines in the file: " + str(numberOfLines) + "\n" )
+    tokenListList, _, _ = TokenParser.process_file_to_tokenFile(itemList=itemList, input_file=InputFile, human_readable_output_file=IntermediateFile)
+   #print(" Number Of Lines in the file: " + str(numberOfLines) + "\n" )
     
     TensorOfThisFile = []
     
@@ -167,7 +182,7 @@ def CreateInferenceDatasetFromFile(InputFile, IntermediateFile, itemList, id_fro
         if (id_from_token is not None):
             TransformedItemTensor = id_from_token(column)  # next todo
         else:
-            TransformedItemTensor = tf.convert_to_tensor(column)
+            TransformedItemTensor = tf.convert_to_tensor(column, dtype=DataTypeForTensors)
         
         TensorOfThisFile.append(TransformedItemTensor)
     
@@ -176,32 +191,22 @@ def CreateInferenceDatasetFromFile(InputFile, IntermediateFile, itemList, id_fro
     datasetfast = tf.data.Dataset.from_tensor_slices(TensorOfThisFile)
     
     try:
-        datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
+        datasetfast2 = datasetfast.window(seq_length, shift=stride, drop_remainder=True)
     except TypeError as e:
-        print("Error: {e}")
+        print(f"Error: {e}")
         print(InputFile  + "\n")
 
     except OSError as e:
         print(f"Error: {e}")
         print(InputFile  + "\n")
-
-    datasetfast = datasetfast.flat_map(lambda window2: window2)
-    datasetfast = datasetfast.batch(seq_length + 1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
-    
-    if (removeDuplicates):
-        datasetfast = datasetfast.unique()
-
-    datasetfast = datasetfast.map(lambda x: tf.cast(x, DataTypeForTensors))
-    
-    if (dual_input):
-        datasetfast = datasetfast.map(TokenParser.split_input_target_transformer) 
-    else:
-        datasetfast = datasetfast.map(TokenParser.split_input_target_transformer_decoder_only)
         
-    return datasetfast
+    
+    datasetfast3 = datasetfast2.flat_map(lambda window: window.batch(seq_length))    # datasetfast = datasetfast.batch(seq_length + 1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
+
+    return datasetfast3
 
 # This function will not create an intermediate tokenfile
-def CreateTrainingDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateTrainingDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, removeDuplicates=False, num_parallel_calls=10,  verbose=False):
 
     print("Creating a dataset from  " + InputFile + ".\n")
     

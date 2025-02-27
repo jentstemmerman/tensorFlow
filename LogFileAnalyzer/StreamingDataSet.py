@@ -5,7 +5,7 @@ import TokenParser
 import os
 
 class DatasetStreamWriter:
-    def __init__(self, inputFile, dataSetFile, itemList, id_from_tokenList, DataTypeForTensors):
+    def __init__(self, *, inputFile, dataSetFile, itemList, id_from_tokenList, DataTypeForTensors):
         self.dataSetFile = dataSetFile
         self.itemList = itemList
         self.id_from_tokenList = id_from_tokenList
@@ -28,7 +28,7 @@ class DatasetStreamWriter:
             tokenList = self.getLinesAndTokens(line)
             yield tokenList  # Return one tokenized line at a time
 
-    def write_tfrecord(self):
+    def WriteStreamingDataset(self):
         output_dir = os.path.dirname(self.dataSetFile)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -71,7 +71,7 @@ class DatasetStreamReader:
         }
         return tf.io.parse_single_example(example_proto, features)["tokens"]
 
-    def create_streaming_dataset_from_tfrecord(self):
+    def GetStreamingDataset(self):
         """Creates a streaming dataset from a TFRecord file with a sliding window."""
         dataset = tf.data.TFRecordDataset(self.dataSetFile)  # Streaming from disk
         dataset = dataset.map(lambda x: self.parse_tfrecord(x))
@@ -89,10 +89,10 @@ def StreamDataSet(inputFile, outputDataSetFile, itemList, id_from_tokenList, Dat
     stride = 1
                                  
     datasetStreamWriter = DatasetStreamWriter(inputFile, outputDataSetFile, itemList, id_from_tokenList, DataTypeForTensors)
-    datasetStreamWriter.write_tfrecord()
+    datasetStreamWriter.WriteStreamingDataset()
     
     datasetStreamReader = DatasetStreamReader(outputDataSetFile, itemList, DataTypeForTensors, seq_length, stride)
-    datasetStreamer = datasetStreamReader.create_streaming_dataset_from_tfrecord()
+    datasetStreamer = datasetStreamReader.GetStreamingDataset()
     
 
     

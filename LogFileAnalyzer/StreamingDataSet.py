@@ -51,7 +51,7 @@ class DatasetStreamWriter:
 
                 feature = {
                     "Ids": tf.train.Feature(float_list=tf.train.FloatList(value=np.concatenate(transformed_columns).flatten())),
-                    "TokenString": tf.train.Feature(bytes_list=tf.train.BytesList(value=np.concatenate(columns).flatten()))
+                    "TokenString": tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(str(item)) for item in np.concatenate(columns).flatten()]))
                 }
                 
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
@@ -71,9 +71,12 @@ class DatasetStreamReader:
     def parse_tfrecord(self, example_proto):
         """Parses a single TFRecord example."""
         features = {
-            "Ids": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors)  # Adjust shape as needed
+            "Ids": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors),  # Adjust shape as needed
+            "TokenString": tf.io.FixedLenFeature([], tf.string)
+            
         }
-        return tf.io.parse_single_example(example_proto, features)["Ids"]
+        parsed_features = tf.io.parse_single_example(example_proto, features)
+        return parsed_features["Ids"]
 
     def GetStreamingDataset(self):
         """Creates a streaming dataset from a TFRecord file with a sliding window."""

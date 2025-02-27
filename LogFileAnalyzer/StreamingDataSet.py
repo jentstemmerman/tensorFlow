@@ -35,7 +35,9 @@ class DatasetStreamWriter:
 
         with tf.io.TFRecordWriter(self.dataSetFile) as writer:
             for tokenList in self.process_file_line_by_line():
+                tokenList = [item for sublist in tokenList for item in sublist]  # Flatten the list of lists
                 transformed_columns = []
+                columns = []
                 for index, id_from_token in enumerate(self.id_from_tokenList):
                     column = np.array([tokenList[index]])  # Process one tokenized line at a time
                     
@@ -44,10 +46,12 @@ class DatasetStreamWriter:
                     else:
                         TransformedItemTensor = tf.convert_to_tensor(column, dtype=self.DataTypeForTensors)
                     
+                    columns.append(column)
                     transformed_columns.append(TransformedItemTensor.numpy())  # Convert to NumPy
 
                 feature = {
-                    "Ids": tf.train.Feature(float_list=tf.train.FloatList(value=np.concatenate(transformed_columns).flatten()))
+                    "Ids": tf.train.Feature(float_list=tf.train.FloatList(value=np.concatenate(transformed_columns).flatten())),
+                    "TokenString": tf.train.Feature(bytes_list=tf.train.BytesList(value=np.concatenate(columns).flatten()))
                 }
                 
                 example = tf.train.Example(features=tf.train.Features(feature=feature))

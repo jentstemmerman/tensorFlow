@@ -47,7 +47,7 @@ class DatasetStreamWriter:
                     transformed_columns.append(TransformedItemTensor.numpy())  # Convert to NumPy
 
                 feature = {
-                    "tokens": tf.train.Feature(float_list=tf.train.FloatList(value=np.concatenate(transformed_columns).flatten()))
+                    "Ids": tf.train.Feature(float_list=tf.train.FloatList(value=np.concatenate(transformed_columns).flatten()))
                 }
                 
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
@@ -67,9 +67,9 @@ class DatasetStreamReader:
     def parse_tfrecord(self, example_proto):
         """Parses a single TFRecord example."""
         features = {
-            "tokens": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors)  # Adjust shape as needed
+            "Ids": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors)  # Adjust shape as needed
         }
-        return tf.io.parse_single_example(example_proto, features)["tokens"]
+        return tf.io.parse_single_example(example_proto, features)["Ids"]
 
     def GetStreamingDataset(self):
         """Creates a streaming dataset from a TFRecord file with a sliding window."""

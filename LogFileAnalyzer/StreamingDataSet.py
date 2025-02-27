@@ -66,26 +66,25 @@ class DatasetStreamReader:
         self.seq_length = seq_length
         self.num_features = len(self.itemList)
         self.stride = stride
-        self.dataTreatment = DataTreatment.DataTreatment(len(self.itemList))
         
     def parse_tfrecord(self, example_proto):
-        """Parses a single TFRecord example."""
         features = {
             "Ids": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors),  # Adjust shape as needed
             "TokenString": tf.io.FixedLenFeature([], tf.string)
             
         }
         parsed_features = tf.io.parse_single_example(example_proto, features)
-        return parsed_features["Ids"]
+        return [parsed_features["Ids"], parsed_features["TokenString"]]
 
     def GetStreamingDataset(self):
-        """Creates a streaming dataset from a TFRecord file with a sliding window."""
-        dataset = tf.data.TFRecordDataset(self.dataSetFile)  # Streaming from disk
+        dataset = tf.data.TFRecordDataset(self.dataSetFile)
         dataset = dataset.map(lambda x: self.parse_tfrecord(x))
-       
-        # Apply sliding window
+
         dataset = dataset.window(self.seq_length, shift=self.stride, drop_remainder=True)
-        dataset = dataset.flat_map(lambda window: window.batch(self.seq_length))
+        dataset = dataset.flat_map(
+            lambda ids, tokens: tf.data.Dataset.zip(
+                (ids.batch(self.seq_length), tokens.batch(self.seq_length)))
+        )
 
         return dataset
 
@@ -93,7 +92,6 @@ class DatasetStreamReader:
 def StreamDataSet(inputFile, outputDataSetFile, itemList, id_from_tokenList, DataTypeForTensors, seq_length, stride):
     tf.config.run_functions_eagerly(True)  
     tf.data.experimental.enable_debug_mode() 
-    stride = 1
                                  
     datasetStreamWriter = DatasetStreamWriter(inputFile, outputDataSetFile, itemList, id_from_tokenList, DataTypeForTensors)
     datasetStreamWriter.WriteStreamingDataset()

@@ -11,7 +11,7 @@ import InferenceAssembly
 import InferenceOutput
 import BinaryFileHandler
 import Model
-
+import os
 
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     
@@ -46,7 +46,8 @@ def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions
 
 def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, FileNameAnalyzed, FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors, id_from_tokenList, token_from_idList, temperature, seq_length):
     with tf.device('/CPU:0'):
-
+        numberOfThreads = 2
+        
         numberOfIdenticals = 0
         averagePredictedTokenProbability = 0
         accumulatedNextTokenProbability = 0.0
@@ -57,6 +58,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
         
         from pathlib import Path
+
         file = Path(FileNameAnalyzed)
         file.parent.mkdir(parents=True, exist_ok=True)
         
@@ -91,7 +93,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         manager          = None
 
         print("Retrieving tokens from files... ", LogfileVerification)
-        TokenList, origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, None)
+        
+        LogfileVerificationTemp = os.path.splitext(LogfileVerification)[0] + ".temp"
+                
+        TokenList, origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, LogfileVerificationTemp)
         print("Retrieving tokens from files Done")
 
         print("Creating shared memory manager...")
@@ -308,8 +313,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileAnalyzed.close()   
         binaryFileHandler.close()
 
-def GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, startIndex):
-    result = InferenceAssembly.AssembleInputsThread(id_from_tokenList, 0, DataTypeForTensors, startIndex, 1, sharedTokenList, None, window_size)
+def GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, tokenList, startIndex):
+    result = InferenceAssembly.AssembleInputsThread(id_from_tokenList, 0, DataTypeForTensors, startIndex, 1, tokenList, None, window_size)
 
     inputTensor = result[1]   
     nexttokenIds = result[2]     

@@ -127,7 +127,7 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
     IntermediateFile = None #OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".intermediate"
     outputDatasetFile = OutputDirectory + os.path.sep + os.path.basename(InputFile) + ".dataset"
 
-    dataset = CreateDatasetFromFile(InputFile, 
+    dataset = CreateTrainingDatasetFromFile(InputFile, 
                                     IntermediateFile, 
                                     itemList, 
                                     id_from_tokenList, 
@@ -147,14 +147,68 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
 
 
 # This function will not create an intermediate tokenfile
-def CreateDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+def CreateInferenceDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, removeDuplicates=False, num_parallel_calls=10, verbose=False):
+
+    print("Creating an inference dataset from  " + InputFile + ".\n")
+    
+    if(IntermediateFile is not None):
+        print(" Intermediate file: " + IntermediateFile + ".\n")
+
+    tokenListList, _, numberOfLines = TokenParser.process_file_to_tokenFile(itemList=itemList, input_file=InputFile, human_readable_output_file=IntermediateFile)
+    print(" Number Of Lines in the file: " + str(numberOfLines) + "\n" )
+    
+    TensorOfThisFile = []
+    
+    for index, id_from_token in enumerate(id_from_tokenList):
+        
+        column = [inner_list[index] for inner_list in tokenListList]
+        column = np.array(column)
+        
+        if (id_from_token is not None):
+            TransformedItemTensor = id_from_token(column)  # next todo
+        else:
+            TransformedItemTensor = tf.convert_to_tensor(column)
+        
+        TensorOfThisFile.append(TransformedItemTensor)
+    
+    TensorOfThisFile = tf.stack(TensorOfThisFile, axis=-1)
+    
+    datasetfast = tf.data.Dataset.from_tensor_slices(TensorOfThisFile)
+    
+    try:
+        datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
+    except TypeError as e:
+        print("Error: {e}")
+        print(InputFile  + "\n")
+
+    except OSError as e:
+        print(f"Error: {e}")
+        print(InputFile  + "\n")
+
+    datasetfast = datasetfast.flat_map(lambda window2: window2)
+    datasetfast = datasetfast.batch(seq_length + 1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
+    
+    if (removeDuplicates):
+        datasetfast = datasetfast.unique()
+
+    datasetfast = datasetfast.map(lambda x: tf.cast(x, DataTypeForTensors))
+    
+    if (dual_input):
+        datasetfast = datasetfast.map(TokenParser.split_input_target_transformer) 
+    else:
+        datasetfast = datasetfast.map(TokenParser.split_input_target_transformer_decoder_only)
+        
+    return datasetfast
+
+# This function will not create an intermediate tokenfile
+def CreateTrainingDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, removeDuplicates=False, num_parallel_calls=10, verbose=False):
 
     print("Creating a dataset from  " + InputFile + ".\n")
     
     if(IntermediateFile is not None):
         print(" Intermediate file: " + IntermediateFile + ".\n")
 
-    tokenListList, _, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, InputFile, IntermediateFile)
+    tokenListList, _, numberOfLines = TokenParser.process_file_to_tokenFile(itemList=itemList, input_file=InputFile, human_readable_output_file=IntermediateFile)
     print(" Number Of Lines in the file: " + str(numberOfLines) + "\n" )
     
     TensorOfThisFile = []
@@ -359,9 +413,9 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, Outp
                     if (OutputVocabularyDirectory is not None):
                         OutputVocabularyFile = OutputVocabularyDirectory + os.path.sep + "VocabularyFileItem_" + str(itemIndex)
 
-                        tokenListList, _, _ = TokenParser.process_file_to_tokenFile([itemsInLine], OriginalTokenFileName, OutputVocabularyFile)
+                        tokenListList, _, _ = TokenParser.process_file_to_tokenFile(itemList=[itemsInLine], input_file=OriginalTokenFileName, human_readable_output_file=OutputVocabularyFile)
                     else:
-                        tokenListList, _, _ = TokenParser.process_file_to_tokenFile([itemsInLine], OriginalTokenFileName, None)
+                        tokenListList, _, _ = TokenParser.process_file_to_tokenFile(itemList=[itemsInLine], input_file=OriginalTokenFileName, human_readable_output_file=None)
 
 
                     VocabularyNumpy = [inner_list[0] for inner_list in tokenListList]

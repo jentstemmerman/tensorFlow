@@ -19,17 +19,16 @@ with tf.device('/CPU:0'):
 
         return nextTokenIdWindow
 
-    def GetFirstSequenceData(startIndex, tokenList, id_from_tokenList, window_size, DataTypeForTensors, threadId, numberOfParallelExecutions):
+    def GetFirstSequenceData(tokenList, id_from_tokenList, window_size, DataTypeForTensors, threadId, numberOfParallelExecutions):
 
         if (tokenList is not None):
             try:
-                tokenWindow       = tokenList[startIndex:startIndex + window_size]
-                outputToken       = tokenList[startIndex + window_size]
+                tokenWindow       = tokenList[0:window_size]
+                outputToken       = tokenList[window_size]
             except IndexError:
-                print(f"IndexError: Index: {startIndex} is out of range for the list.  window_size: {window_size}")
                 print(f"IndexError: threadId: {threadId} numberOfParallelExecutions {numberOfParallelExecutions}")     
                 print(f"IndexError: len(tokenList) = {len(tokenList)} ")
-
+                exit()
 
             tokenIdWindow = copy.deepcopy(tokenWindow)
             outputTokenId = copy.deepcopy(outputToken)
@@ -84,7 +83,17 @@ with tf.device('/CPU:0'):
             nextTokens   = []
             printfList   = []
             
-            window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(indexOfFirstPrediction - window_size,  newTokenList, id_from_tokenList, window_size, DataTypeForTensors, threadId, numberOfParallelExecutions)
+            assert (indexOfFirstPrediction >= window_size)
+            
+            startIndex = indexOfFirstPrediction - window_size
+            
+            tokenListThatWillBeInputToThisFunction = newTokenList[startIndex : indexOfFirstPrediction + numberOfParallelExecutions]
+            
+            tokenListToUse = tokenListThatWillBeInputToThisFunction[0 : window_size + numberOfParallelExecutions]
+                        
+            window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(tokenListToUse, id_from_tokenList, window_size, DataTypeForTensors, threadId, numberOfParallelExecutions)
+            
+            tokenListToUse = tokenListThatWillBeInputToThisFunction[window_size : window_size + numberOfParallelExecutions]
             
             inputTensor.append(tokenIdWindow)
             nexttokenIds.append(nexttokenId)  
@@ -94,9 +103,9 @@ with tf.device('/CPU:0'):
             if (origPrintfList is not None):
                 printfList = origPrintfList[indexOfFirstPrediction:indexOfFirstPrediction + numberOfParallelExecutions]
             
-            for executionIndex in range(indexOfFirstPrediction, indexOfFirstPrediction + numberOfParallelExecutions - 1):
+            for executionIndex in range(numberOfParallelExecutions - 1):
                 
-                nextTokenBatch  = newTokenList[executionIndex]  
+                nextTokenBatch  = tokenListToUse[executionIndex]  
                 
                 if (type(nextTokenBatch) != str):
                     exit

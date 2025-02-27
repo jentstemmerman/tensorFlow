@@ -70,20 +70,20 @@ def getLinesAndTokens(itemList, reading_file=None, tokenList=None, PrintfList=No
 
     return tokenList, PrintfList, numberOfLines
 
-def process_file_to_tokenFile(itemList, input_file, output_file):
+def process_file_to_tokenFile(itemList, input_file, human_readable_output_file=None, machine_readable_output_file=None):
     
     tokenListList = None
     reading_file = open(input_file,  "r", errors='ignore')
                      
     tokenListList, PrintfList, numberOfLines = getLinesAndTokens(itemList, reading_file, tokenList=None, PrintfList=None)
 
-    if (output_file is not None):
-        file = Path(output_file)
+    if (human_readable_output_file is not None):
+        file = Path(human_readable_output_file)
         file.parent.mkdir(parents=True, exist_ok=True)
-        LogfileOnlyTokens = open(output_file, "w")
+        LogfileOnlyTokens = open(human_readable_output_file, "w")
     
         lineNumber = 0
-        stopLine = False
+
         for tokenList in tokenListList:
             line = ""
             for index, token in enumerate(tokenList):
@@ -92,21 +92,14 @@ def process_file_to_tokenFile(itemList, input_file, output_file):
                 else:
                     line = line + str(token) 
 
-         #   if (index == 1):  # vuile hack
-         #       value = int()
-         #       if(int(token) > 100000):
-         #           print("stop at " + str(token) + " at line ", str(lineNumber))
-         #           stopLine = True
-         #           break
-
-        #    if (stopLine):
-        #        stopLine = False
-        #        continue
             lineNumber += 1
 
             line = line + '\n'
             LogfileOnlyTokens.write(line)
         LogfileOnlyTokens.close()
+
+
+
 
 
     reading_file.close()

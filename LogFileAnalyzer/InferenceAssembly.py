@@ -85,9 +85,7 @@ with tf.device('/CPU:0'):
             
             assert (indexOfFirstPrediction >= window_size)
             
-            startIndex = indexOfFirstPrediction - window_size
-            
-            tokenListThatWillBeInputToThisFunction = newTokenList[startIndex : indexOfFirstPrediction + numberOfParallelExecutions]
+            tokenListThatWillBeInputToThisFunction = newTokenList
             
             tokenListToUse = tokenListThatWillBeInputToThisFunction[0 : window_size + numberOfParallelExecutions]
                         

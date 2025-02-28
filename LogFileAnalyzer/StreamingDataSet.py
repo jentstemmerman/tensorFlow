@@ -38,6 +38,7 @@ class DatasetStreamWriter:
                 tokenList = [item for sublist in tokenList for item in sublist]  # Flatten the list of lists
                 transformed_columns = []
                 columns = []
+                
                 for index, id_from_token in enumerate(self.id_from_tokenList):
                     column = np.array([tokenList[index]])  # Process one tokenized line at a time
                     
@@ -57,7 +58,6 @@ class DatasetStreamWriter:
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
                 writer.write(example.SerializeToString())
 
-
 class DatasetStreamReader:
     def __init__(self, dataSetFile, itemList, DataTypeForTensors, seq_length, stride):
         self.dataSetFile = dataSetFile
@@ -69,21 +69,28 @@ class DatasetStreamReader:
         
     def parse_tfrecord(self, example_proto):
         features = {
-            "Ids": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors),  # Adjust shape as needed
-            "TokenString": tf.io.FixedLenFeature([], tf.string)
-            
+            "Ids": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors),
+            "TokenString": tf.io.FixedLenFeature([self.num_features], tf.string)
         }
         parsed_features = tf.io.parse_single_example(example_proto, features)
-        return [parsed_features["Ids"], parsed_features["TokenString"]]
+        return [
+            parsed_features["Ids"],
+            parsed_features["TokenString"]
+        ]
 
     def GetStreamingDataset(self):
         dataset = tf.data.TFRecordDataset(self.dataSetFile)
         dataset = dataset.map(lambda x: self.parse_tfrecord(x))
 
-        dataset = dataset.window(self.seq_length, shift=self.stride, drop_remainder=True)
+        dataset = dataset.window(self.seq_length + 1, shift=self.stride, drop_remainder=True)
+
         dataset = dataset.flat_map(
-            lambda ids, tokens: tf.data.Dataset.zip(
-                (ids.batch(self.seq_length), tokens.batch(self.seq_length)))
+        lambda ids, tokens: tf.data.Dataset.zip(
+                                                (ids.take(self.seq_length).batch(self.seq_length),
+                                                tokens.take(self.seq_length).batch(self.seq_length),
+                                                ids.skip(self.seq_length).batch(1),
+                                                tokens.skip(self.seq_length).batch(1))
+                                                )     
         )
 
         return dataset

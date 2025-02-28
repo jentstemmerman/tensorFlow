@@ -7,8 +7,9 @@ import Dataset
 
 def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature):
     with tf.device('/CPU:0'):
-       
-        numberOfThreads = 7
+        tf.config.run_functions_eagerly(True)  
+        tf.data.experimental.enable_debug_mode()  
+        numberOfThreads = 2
 
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
@@ -25,7 +26,7 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
             
         Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
     
-        if (Workers == None):
+        if (Workers is None):
             print("Could not start workers. END")
         else:
 

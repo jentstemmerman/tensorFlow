@@ -63,22 +63,23 @@ def CreateDataSetFromVerificationFile(LogfileVerification, dataSetFile, itemList
 
 
 def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, inferenceDataSetFile, FileNameAnalyzed, FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors, id_from_tokenList, token_from_idList, temperature, seq_length):
-    numberOfFeatures = len(id_from_tokenList)
-    
     import StreamingDataSet
     
-    try:
-        StreamingDataSet.StreamDataSet(LogfileVerification, inferenceDataSetFile, itemList, id_from_tokenList, DataTypeForTensors, seq_length, stride=1)
-    except Exception as e:
-        print("Error in StreamDataSet: ", e)
-        exit()
+    datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, dataSetFile=inferenceDataSetFile, itemList=itemList, id_from_tokenList=id_from_tokenList, DataTypeForTensors=DataTypeForTensors)
+    datasetStreamWriter.WriteStreamingDataset()
+    datasetStreamWriter = None
     
-    # CreateDataSetFromVerificationFile(LogfileVerification=LogfileVerification, dataSetFile=inferenceDataSetFile, itemList=itemList, id_from_tokenList=id_from_tokenList, seq_length=seq_length, DataTypeForTensors=DataTypeForTensors, dual_input=False)
-
-
+    datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1)
+    datasetStreamer = datasetStreamReader.GetStreamingDataset()
+    
+    
+    
+    for batch in datasetStreamer.take(3):
+        print(batch)
+    
     with tf.device('/CPU:0'):
-        
-        
+            
+        numberOfFeatures = len(id_from_tokenList)
         numberOfThreads = 2
         
         numberOfIdenticals = 0
@@ -141,14 +142,16 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         sharedTokenList.extend(TokenList) # bug
         print("Creating shared memory manager Done")
         TokenList  = None
-
+        
+        numberOfParallelExecutions = maxNumberOfParallelExecutions
         indexOfFirstPrediction  = window_size
         
-        hiddenVectorSize = GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, indexOfFirstPrediction)
+        inputTokenList = sharedTokenList[indexOfFirstPrediction - window_size : indexOfFirstPrediction + numberOfParallelExecutions]
+        hiddenVectorSize = GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, inputTokenList, indexOfFirstPrediction)
                 
         binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
                 
-        numberOfParallelExecutions = maxNumberOfParallelExecutions
+        
         
         remainingNumberOfLines  = (numberOfLines - numberOfAnalyzedLines) - (window_size + 1)
         noMoreReductionPossible, reduced, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, numberOfParallelExecutions, numberOfThreads)
@@ -171,9 +174,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             inputQueue  = Workers[threadId]["inputQueue"]
             print("Before inputQueue.put AssembleInputsThread ", threadId)
             
-            
-            
-            inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, sharedTokenList, origPrintfList, window_size,)))
+            inputTokenList = sharedTokenList[indexOfFirstPrediction - window_size : indexOfFirstPrediction + numberOfParallelExecutions]
+            inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, inputTokenList, origPrintfList, window_size,)))
             print("After inputQueue.put AssembleInputsThread ", threadId)
            # for line in newPrint:
            #     LogfileCompared.write(f"{line}")
@@ -224,7 +226,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 
                 for threadId in range(0, newNumberOfThreads):
                     inputQueue  = Workers[threadId]["inputQueue"]
-                    inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPredictionTemp, newNumberOfParallelExecutions, sharedTokenList, origPrintfList, window_size,)))
+                    inputTokenList = sharedTokenList[indexOfFirstPredictionTemp - window_size : indexOfFirstPredictionTemp + numberOfParallelExecutions]
+                    inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId, DataTypeForTensors, indexOfFirstPredictionTemp, newNumberOfParallelExecutions, inputTokenList, origPrintfList, window_size,)))
                     indexOfFirstPredictionTemp  += newNumberOfParallelExecutions
             
             

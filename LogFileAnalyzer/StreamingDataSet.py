@@ -66,6 +66,7 @@ class DatasetStreamReader:
         self.seq_length = seq_length
         self.num_features = len(self.itemList)
         self.stride = stride
+        self.offset = 0
         
     def parse_tfrecord(self, example_proto):
         features = {
@@ -94,6 +95,8 @@ class DatasetStreamReader:
         )
 
         return dataset
+
+
 
 
 def StreamDataSet(inputFile, outputDataSetFile, itemList, id_from_tokenList, DataTypeForTensors, seq_length, stride):

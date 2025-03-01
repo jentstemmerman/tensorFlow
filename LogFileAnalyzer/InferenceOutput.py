@@ -1,9 +1,8 @@
-import multiprocessing
 import TokenParser
-import time
 import tensorflow as tf
 import numpy as np
 from numbers import Number
+import Dataset
 
 def extend_string_with_spaces(s, target_length):
     if len(s) >= target_length:
@@ -15,12 +14,14 @@ def extend_string_with_spaces(s, target_length):
 
 def TranslateToString(value):
     if isinstance(value, (Number, np.number)):
-        value = "{:5.2f} ".format(value)  
+        value = "{:5.2f} ".format(value)
+    elif tf.is_tensor(value):
+        value = value.numpy()[0].decode('ascii')
     else:
         value = str(value)
     return value
 
-import Dataset
+
 
 def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
     with tf.device('/CPU:0'):

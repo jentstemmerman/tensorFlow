@@ -74,61 +74,16 @@ with tf.device('/CPU:0'):
 
 
 
-    def AssembleInputsThread(workerParameter, threadId, DataTypeForTensors, indexOfFirstPrediction, numberOfParallelExecutions, newTokenList, origPrintfList, window_size):
+    def AssembleInputsThread(workerParameter, indexOfFirstPrediction, numberOfParallelExecutions, origPrintfList, window_size):
         with tf.device('/CPU:0'):
-
-            id_from_tokenList = workerParameter 
-            inputTensor  = []
-            nexttokenIds = []
-            nextTokens   = []
             printfList   = []
             
             assert (indexOfFirstPrediction >= window_size)
             
-            tokenListThatWillBeInputToThisFunction = newTokenList
-            
-            tokenListToUse = tokenListThatWillBeInputToThisFunction[0 : window_size + numberOfParallelExecutions]
-                        
-            window, nextToken, tokenIdWindow, nexttokenId = GetFirstSequenceData(tokenListToUse, id_from_tokenList, window_size, DataTypeForTensors, threadId, numberOfParallelExecutions)
-            
-            tokenListToUse = tokenListThatWillBeInputToThisFunction[window_size : window_size + numberOfParallelExecutions]
-            
-            inputTensor.append(tokenIdWindow)
-            nexttokenIds.append(nexttokenId)  
-            nextTokens.append(nextToken)
-            index = 0
-            
             if (origPrintfList is not None):
                 printfList = origPrintfList[indexOfFirstPrediction:indexOfFirstPrediction + numberOfParallelExecutions]
             
-            for executionIndex in range(numberOfParallelExecutions - 1):
-                
-                nextTokenBatch  = tokenListToUse[executionIndex]  
-                
-                if (type(nextTokenBatch) != str):
-                    exit
-                    
-                window, nextToken, nexttokenId, tokenIdWindow = GetNextSequenceData(nextTokenBatch, id_from_tokenList, window, tokenIdWindow, nextToken, nexttokenId, DataTypeForTensors)
-                
-                
-                if (window is None):
-                    break
-                else:
-                    tokenIdWindowTensor = tf.convert_to_tensor(tokenIdWindow, dtype=DataTypeForTensors)
-                    inputTensor.append(tokenIdWindowTensor)
-                    nexttokenIdTensor = tf.convert_to_tensor(nexttokenId, dtype=DataTypeForTensors)
-                    nexttokenIds.append(nexttokenIdTensor)  
-                    nextTokens.append(nextToken)
-
-                index += 1
-            
-            inputTensor  = tf.stack(inputTensor,  axis=0)
-            nexttokenIds = tf.stack(nexttokenIds, axis=0)
-
-
-            result = (nextTokens, inputTensor, nexttokenIds, printfList)
-
-            return result
+            return (printfList)
         
         
 

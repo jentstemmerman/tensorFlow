@@ -66,7 +66,7 @@ class DatasetStreamReader:
         self.seq_length = seq_length
         self.num_features = len(self.itemList)
         self.stride = stride
-        self.offset = 0
+
         
     def parse_tfrecord(self, example_proto):
         features = {
@@ -81,6 +81,7 @@ class DatasetStreamReader:
 
     def GetStreamingDataset(self):
         dataset = tf.data.TFRecordDataset(self.dataSetFile)
+        dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
         dataset = dataset.map(lambda x: self.parse_tfrecord(x))
 
         dataset = dataset.window(self.seq_length + 1, shift=self.stride, drop_remainder=True)

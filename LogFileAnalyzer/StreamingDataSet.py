@@ -58,6 +58,8 @@ class DatasetStreamWriter:
                 example = tf.train.Example(features=tf.train.Features(feature=feature))
                 writer.write(example.SerializeToString())
 
+import tensorflow as tf
+
 class DatasetStreamReader:
     def __init__(self, dataSetFile, itemList, DataTypeForTensors, seq_length, stride):
         self.dataSetFile = dataSetFile
@@ -96,6 +98,13 @@ class DatasetStreamReader:
         )
 
         return dataset
+
+    def GetStreamingIterator(self, start_index=0, num_shards=None):
+        """Use an iterator for finer control over dataset streaming."""
+        dataset = self.GetStreamingDataset()
+        return iter(dataset.as_numpy_iterator())  # Allows manual control
+
+
 
 
 

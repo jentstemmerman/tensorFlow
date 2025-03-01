@@ -70,7 +70,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
     datasetStreamWriter = None
     
     datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1)
-    datasetStreamer = datasetStreamReader.GetStreamingDataset()
+    #datasetStreamer = datasetStreamReader.GetStreamingDataset()
+    datasetStreamerInterator = datasetStreamReader.GetStreamingIterator()  
       
     with tf.device('/CPU:0'):
             
@@ -146,7 +147,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         print(f"Start creating input data numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
         datasetIndex = 0
-       
+        
+        
+        
         for threadId in range(0,numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]
             print("Before inputQueue.put AssembleInputsThread ", threadId)
@@ -163,7 +166,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             nextLogs = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
             printfList.append(nextLogs)
                 
-            idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList  = GetInferenceDataFromDatasetStreamer(datasetStreamer, numberOfParallelExecutions, datasetIndex)
+            datasetStreamerInterator, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList  = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
             datasetIndex += numberOfParallelExecutions
             
             idList.append(idInnerList)
@@ -252,7 +255,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     nextLogs = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                     printfList.append(nextLogs)
                         
-                    idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList  = GetInferenceDataFromDatasetStreamer(datasetStreamer, numberOfParallelExecutions, datasetIndex)
+                    datasetStreamerInterator, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
                     datasetIndex += numberOfParallelExecutions
                     
                     idList.append(idInnerList)
@@ -357,29 +360,28 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     return numberOfVectors
 
     
-def GetInferenceDataFromDatasetStreamer(datasetStreamReader, numberOfSamples, offset):
+def GetInferenceDataFromDatasetStreamer(numberOfSamples, datasetStreamerInterator):
 
     idList = []
     tokenList = []
     nextIdsList = []
     nextTokenList = []
     
-    batch = datasetStreamReader.skip(offset).take(numberOfSamples)
-    batch = batch.prefetch(tf.data.experimental.AUTOTUNE)
-    
-    for (ids, tokens , nextIds, nextTokens) in batch:
+       
+    for sampleIndex in range(0, numberOfSamples):
+        ids, tokens, nextIds, nextTokens = datasetStreamerInterator.next()
         idList.append(ids)
         tokenList.append(tokens)
         nextIdsList.append(nextIds)
         nextTokenList.append(nextTokens)
-       
+              
         
     idList = tf.stack(idList, axis=0)
     tokenList = tf.stack(tokenList, axis=0)
     nextIdsList = tf.stack(nextIdsList, axis=0)
     nextTokenList = tf.stack(nextTokenList, axis=0)
     
-    return idList, tokenList, nextIdsList, nextTokenList
+    return datasetStreamerInterator, idList, tokenList, nextIdsList, nextTokenList
 
 
 

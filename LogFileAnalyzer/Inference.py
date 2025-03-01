@@ -359,28 +359,22 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
     return numberOfVectors
 
-    
+@tf.function   
 def GetInferenceDataFromDatasetStreamer(numberOfSamples, datasetStreamerInterator):
+    idList, tokenList, nextIdsList, nextTokenList = [], [], [], []
 
-    idList = []
-    tokenList = []
-    nextIdsList = []
-    nextTokenList = []
-    
-       
-    for sampleIndex in range(0, numberOfSamples):
-        ids, tokens, nextIds, nextTokens = datasetStreamerInterator.next()
+    for _ in range(numberOfSamples):
+        ids, tokens, nextIds, nextTokens = next(datasetStreamerInterator)
         idList.append(ids)
         tokenList.append(tokens)
         nextIdsList.append(nextIds)
         nextTokenList.append(nextTokens)
-              
-        
-    idList = tf.stack(idList, axis=0)
-    tokenList = tf.stack(tokenList, axis=0)
-    nextIdsList = tf.stack(nextIdsList, axis=0)
-    nextTokenList = tf.stack(nextTokenList, axis=0)
-    
+
+    idList = tf.convert_to_tensor(idList)
+    tokenList = tf.convert_to_tensor(tokenList)
+    nextIdsList = tf.convert_to_tensor(nextIdsList)
+    nextTokenList = tf.convert_to_tensor(nextTokenList)
+
     return datasetStreamerInterator, idList, tokenList, nextIdsList, nextTokenList
 
 

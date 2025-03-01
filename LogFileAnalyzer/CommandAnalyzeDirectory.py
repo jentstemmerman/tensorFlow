@@ -7,8 +7,8 @@ import Dataset
 
 def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature):
     with tf.device('/CPU:0'):
-        tf.config.run_functions_eagerly(True)  
-        tf.data.experimental.enable_debug_mode()  
+        #tf.config.run_functions_eagerly(True)  
+        #tf.data.experimental.enable_debug_mode()  
         numberOfThreads = 8
 
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)

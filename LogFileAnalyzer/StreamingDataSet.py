@@ -102,6 +102,7 @@ class DatasetStreamReader:
     def GetStreamingIterator(self, start_index=0, num_shards=None):
         """Use an iterator for finer control over dataset streaming."""
         dataset = self.GetStreamingDataset()
+        dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
         return iter(dataset.as_numpy_iterator())  # Allows manual control
 
 

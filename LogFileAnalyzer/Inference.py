@@ -64,24 +64,22 @@ def CreateDataSetFromVerificationFile(LogfileVerification, dataSetFile, itemList
 
 
 def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, inferenceDataSetFile, FileNameAnalyzed, FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors, id_from_tokenList, token_from_idList, temperature, seq_length):
-    
-    datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, dataSetFile=inferenceDataSetFile, itemList=itemList, id_from_tokenList=id_from_tokenList, DataTypeForTensors=DataTypeForTensors)
-    datasetStreamWriter.WriteStreamingDataset()
-    datasetStreamWriter = None
-    
-    datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1)
-    #datasetStreamer = datasetStreamReader.GetStreamingDataset()
-    datasetStreamerInterator = datasetStreamReader.GetStreamingIterator()  
-      
+          
     with tf.device('/CPU:0'):
             
-        numberOfFeatures = len(id_from_tokenList)
-        numberOfThreads = 2
+        numberOfThreads                       = 3
+        maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
         
-        numberOfIdenticals = 0
-        averagePredictedTokenProbability = 0
-        accumulatedNextTokenProbability = 0.0
+        numberOfFeatures = len(id_from_tokenList)
+        queueTimeout                         = 50
+        numberOfIdenticals                   = 0
+        averagePredictedTokenProbability     = 0
+        accumulatedNextTokenProbability      = 0.0
         accumulatedPredictedTokenProbability = 0.0
+
+        numberOfAnalyzedLines                = 0
+        accumulatedNextTokenProbability      = 0
+        accumulatedPredictedTokenProbability = 0
         
         window_size = seq_length
         
@@ -107,36 +105,55 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileCompared.write("Model hash: " + modelHash + "\n")
         FileHumanReadablePooledVectors.write("Model hash: " + modelHash + "\n")
         
-        queueTimeout                         = 50
-        maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
-        numberOfAnalyzedLines                = 0
-        accumulatedNextTokenProbability      = 0
-        accumulatedPredictedTokenProbability = 0
+
 
         one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
-
-        print("Retrieving tokens from files... ", LogfileVerification)
-        
+       
         LogfileVerificationTemp = os.path.splitext(LogfileVerification)[0] + ".temp"
-                
-        TokenList, origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, human_readable_output_file=LogfileVerificationTemp)
+        _ , origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, human_readable_output_file=LogfileVerificationTemp)
+        
+        remainingNumberOfLines  = numberOfLines - (window_size + 1)
         
         numberOfParallelExecutions = maxNumberOfParallelExecutions
+        
+        noMoreReductionPossible, reduced, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, numberOfParallelExecutions, numberOfThreads)
+        
+        datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
+                                                                   dataSetFile=inferenceDataSetFile, 
+                                                                   itemList=itemList, 
+                                                                   id_from_tokenList=id_from_tokenList, 
+                                                                   DataTypeForTensors=DataTypeForTensors, 
+                                                                   numberOfShards=numberOfThreads,
+                                                                   chardGranularity=numberOfParallelExecutions,
+                                                                   windowSize=window_size)
+        datasetStreamWriter.WriteStreamingDataset()
+        datasetStreamWriter = None
+        
+
+        datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1, numberOfShards=numberOfThreads)
+        
+        datasetStreamerInteratorList = []
+        
+        for threadId in range(0,numberOfThreads):
+            datasetStreamerInterator = datasetStreamReader.GetStreamingIterator(shard_index=threadId)  
+            datasetStreamerInteratorList.append(datasetStreamerInterator)
+        
+
         indexOfFirstPrediction     = window_size
                
         hiddenVectorSize = GetInitialInference(DataTypeForTensors, inferenceDataSetFile, window_size, one_step_model, itemList)
                
         binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
+               
         
-        remainingNumberOfLines  = (numberOfLines - numberOfAnalyzedLines) - (window_size + 1)
         
-        noMoreReductionPossible, reduced, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, numberOfParallelExecutions, numberOfThreads)
         
         if (reduced):
             print("reduced parameters 1")
         
         newNumberOfParallelExecutions = numberOfParallelExecutions
         newNumberOfThreads = numberOfThreads
+        
         analyzeStartTime   = time.time()
     
         printfList      = []
@@ -166,7 +183,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             nextLogs = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
             printfList.append(nextLogs)
                 
-            datasetStreamerInterator, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList  = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
+            datasetStreamerInteratorList[threadId], idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList  = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInteratorList[threadId])
             datasetIndex += numberOfParallelExecutions
             
             idList.append(idInnerList)
@@ -255,7 +272,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     nextLogs = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                     printfList.append(nextLogs)
                         
-                    datasetStreamerInterator, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
+                    datasetStreamerInteratorList[threadId], idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInteratorList[threadId])
                     datasetIndex += numberOfParallelExecutions
                     
                     idList.append(idInnerList)
@@ -340,7 +357,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         binaryFileHandler.close()
 
 def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, one_step_model, itemList):
-    datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1)
+    datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1, numberOfShards=1)
     datasetStreamer = datasetStreamReader.GetStreamingDataset()
     inputTensorList = []
     nexttokenIdsList = []
@@ -359,7 +376,7 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
     return numberOfVectors
 
-@tf.function   
+#@tf.function   
 def GetInferenceDataFromDatasetStreamer(numberOfSamples, datasetStreamerInterator):
     idList, tokenList, nextIdsList, nextTokenList = [], [], [], []
 

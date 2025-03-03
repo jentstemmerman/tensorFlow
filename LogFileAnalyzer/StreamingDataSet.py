@@ -3,11 +3,16 @@ import numpy as np
 import DataTreatment
 import TokenParser
 import os
+import itertools
 
+# each shard contains the subset of the dataset that will be used by one thread. 
 class DatasetStreamWriter:
-    def __init__(self, *, inputFile, dataSetFile, itemList, id_from_tokenList, DataTypeForTensors):
+    def __init__(self, *, inputFile, dataSetFile, itemList, id_from_tokenList, DataTypeForTensors, numberOfShards, chardGranularity, windowSize):
         self.dataSetFile = dataSetFile
         self.itemList = itemList
+        self.numberOfShards = numberOfShards
+        self.chardGranularity = chardGranularity
+        self.windowSize = windowSize
         self.id_from_tokenList = id_from_tokenList
         self.DataTypeForTensors = DataTypeForTensors
         self.dataTreatment = DataTreatment.DataTreatment(len(self.itemList))
@@ -33,43 +38,86 @@ class DatasetStreamWriter:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        with tf.io.TFRecordWriter(self.dataSetFile) as writer:
-            for tokenList in self.process_file_line_by_line():
-                tokenList = [item for sublist in tokenList for item in sublist]  # Flatten the list of lists
-                transformed_columns = []
-                columns = []
+        # Create a list of TFRecordWriters, one for each shard
+        writers = [tf.io.TFRecordWriter(f"{self.dataSetFile}_shard_{i}") for i in range(self.numberOfShards)]
+        
+        for lineIndex, tokenList in enumerate(self.process_file_line_by_line()):
+            tokenList = [item for sublist in tokenList for item in sublist]  # Flatten the list of lists
+            transformed_columns = []
+            columns = []
+            
+            for index, id_from_token in enumerate(self.id_from_tokenList):
+                column = np.array([tokenList[index]])  # Process one tokenized line at a time
                 
-                for index, id_from_token in enumerate(self.id_from_tokenList):
-                    column = np.array([tokenList[index]])  # Process one tokenized line at a time
-                    
-                    if id_from_token is not None:
-                        TransformedItemTensor = id_from_token(column)
-                    else:
-                        TransformedItemTensor = tf.convert_to_tensor(column, dtype=self.DataTypeForTensors)
-                    
-                    columns.append(column)
-                    transformed_columns.append(TransformedItemTensor.numpy())  # Convert to NumPy
-
-                feature = {
-                    "Ids": tf.train.Feature(float_list=tf.train.FloatList(value=np.concatenate(transformed_columns).flatten())),
-                    "TokenString": tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(str(item)) for item in np.concatenate(columns).flatten()]))
-                }
+                if id_from_token is not None:
+                    TransformedItemTensor = id_from_token(column)
+                else:
+                    TransformedItemTensor = tf.convert_to_tensor(column, dtype=self.DataTypeForTensors)
                 
-                example = tf.train.Example(features=tf.train.Features(feature=feature))
-                writer.write(example.SerializeToString())
+                columns.append(column)
+                transformed_columns.append(TransformedItemTensor.numpy())  # Convert to NumPy
 
-import tensorflow as tf
+            feature = {
+                "Ids": tf.train.Feature(float_list=tf.train.FloatList(value=np.concatenate(transformed_columns).flatten())),
+                "TokenString": tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(str(item)) for item in np.concatenate(columns).flatten()]))
+            }
+            
+            example = tf.train.Example(features=tf.train.Features(feature=feature))
+            
+            if lineIndex == 75:
+                print("debug breakpoint")
+            
+            shardsWritten = []
+            
+            prevousShardWritten = False
+            nextShardWritten = False
+            
+            # Determine which writer to use based on the modulo of the index
+            shard_offset = (lineIndex // self.chardGranularity)
+            shard_index = shard_offset % self.numberOfShards
+            writers[shard_index].write(example.SerializeToString()) 
+            shardsWritten.append(shard_index)
+            
+            
+            # Watch out. There could be overlap between this shard and the previous shard, if there is one
+            if (shard_offset > 0): # is there a previous shard?
+
+                shard_index_of_previous_shard      = (shard_offset  - 1) % self.numberOfShards
+                start_line_index_of_current_shard  = (shard_offset)      * self.chardGranularity   
+                
+                if lineIndex < (start_line_index_of_current_shard + self.windowSize):
+                    writers[shard_index_of_previous_shard].write(example.SerializeToString())
+                    prevousShardWritten = True
+                    shardsWritten.append(shard_index_of_previous_shard)
+            # there could also be overlap between this shard and the next shard
+            shard_offset_of_next_shard      = shard_offset  + 1
+            shard_index_of_next_shard       = shard_offset_of_next_shard  % self.numberOfShards
+            start_line_index_of_next_shard  = shard_offset_of_next_shard  * self.chardGranularity   
+            
+            if lineIndex >= (start_line_index_of_next_shard - (self.windowSize - 1)):
+                writers[shard_index_of_next_shard].write(example.SerializeToString())
+                nextShardWritten = True
+                shardsWritten.append(shard_index_of_next_shard)
+                
+            with open("debug_log.txt", "a") as debug_file:
+                debug_file.write(f"lineIndex: {lineIndex}, {columns} shard_offset: {shard_offset}, shardsWritten: {shardsWritten}, prevousShardWritten: {prevousShardWritten}, nextShardWritten: {nextShardWritten}\n")
+            
+        # Close all writers
+        for writer in writers:
+            writer.close()
+
+
 
 class DatasetStreamReader:
-    def __init__(self, dataSetFile, itemList, DataTypeForTensors, seq_length, stride):
+    def __init__(self, dataSetFile, itemList, DataTypeForTensors, seq_length, stride, numberOfShards):
         self.dataSetFile = dataSetFile
         self.itemList = itemList
         self.DataTypeForTensors = DataTypeForTensors
         self.seq_length = seq_length
         self.num_features = len(self.itemList)
         self.stride = stride
+        self.numberOfShards = numberOfShards
 
-        
     def parse_tfrecord(self, example_proto):
         features = {
             "Ids": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors),
@@ -81,48 +129,38 @@ class DatasetStreamReader:
             parsed_features["TokenString"]
         ]
 
-    def GetStreamingDataset(self):
-        dataset = tf.data.TFRecordDataset(self.dataSetFile)
+    def GetStreamingDataset(self, shard_index=None):
+        if shard_index is not None:
+            # Create a dataset from the specific shard file
+            shard_file = f"{self.dataSetFile}_shard_{shard_index}"
+            dataset = tf.data.TFRecordDataset(shard_file)
+        else:
+            # Create a list of shard file paths
+            shard_files = [f"{self.dataSetFile}_shard_{i}" for i in range(self.numberOfShards)]
+            # Create a dataset from the list of shard files
+            dataset = tf.data.TFRecordDataset(shard_files)
+        
         dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
         dataset = dataset.map(lambda x: self.parse_tfrecord(x))
 
         dataset = dataset.window(self.seq_length + 1, shift=self.stride, drop_remainder=True)
 
         dataset = dataset.flat_map(
-        lambda ids, tokens: tf.data.Dataset.zip(
-                                                (ids.take(self.seq_length).batch(self.seq_length),
-                                                tokens.take(self.seq_length).batch(self.seq_length),
-                                                ids.skip(self.seq_length).batch(1),
-                                                tokens.skip(self.seq_length).batch(1))
-                                                )     
+            lambda ids, tokens: tf.data.Dataset.zip(
+                (ids.take(self.seq_length).batch(self.seq_length),
+                 tokens.take(self.seq_length).batch(self.seq_length),
+                 ids.skip(self.seq_length).batch(1),
+                 tokens.skip(self.seq_length).batch(1))
+            )
         )
 
         return dataset
 
-    def GetStreamingIterator(self, start_index=0, num_shards=None):
+    def GetStreamingIterator(self, shard_index):
         """Use an iterator for finer control over dataset streaming."""
-        dataset = self.GetStreamingDataset()
+        dataset = self.GetStreamingDataset(shard_index)
         dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
         return iter(dataset.as_numpy_iterator())  # Allows manual control
 
-
-
-
-
-
-def StreamDataSet(inputFile, outputDataSetFile, itemList, id_from_tokenList, DataTypeForTensors, seq_length, stride):
-    tf.config.run_functions_eagerly(True)  
-    tf.data.experimental.enable_debug_mode() 
-                                 
-    datasetStreamWriter = DatasetStreamWriter(inputFile, outputDataSetFile, itemList, id_from_tokenList, DataTypeForTensors)
-    datasetStreamWriter.WriteStreamingDataset()
-    
-    datasetStreamReader = DatasetStreamReader(outputDataSetFile, itemList, DataTypeForTensors, seq_length, stride)
-    datasetStreamer = datasetStreamReader.GetStreamingDataset()
-    
-
-    
-    for batch in datasetStreamer.take(3):
-        print(batch)
-
-    return datasetStreamer
+    def JumpToIndex(self, start, stop, iterator):
+        itertools.islice(iterator, start, stop)

@@ -98,10 +98,6 @@ def process_file_to_tokenFile(itemList, input_file, human_readable_output_file=N
             LogfileOnlyTokens.write(line)
         LogfileOnlyTokens.close()
 
-
-
-
-
     reading_file.close()
 
     return tokenListList, PrintfList, numberOfLines

@@ -83,7 +83,7 @@ class DatasetStreamWriter:
                 shard_index_of_previous_shard      = (shard_offset  - 1) % self.numberOfShards
                 start_line_index_of_current_shard  = (shard_offset)      * self.chardGranularity   
                 
-                if lineIndex <= (start_line_index_of_current_shard + self.windowSize):
+                if lineIndex < (start_line_index_of_current_shard + self.windowSize):
                     writers[shard_index_of_previous_shard].write(example.SerializeToString())
                     prevousShardWritten = True
                     shardsWrittenDebug.append(shard_index_of_previous_shard)

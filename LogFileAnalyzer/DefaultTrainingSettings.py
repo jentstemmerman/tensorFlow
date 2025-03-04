@@ -3,7 +3,7 @@ TrainingsParameter = {"Model": {#"Network":"LSTMMultiModel",
                                 "Network":"Transformer_DecoderOnly",
                                 "returnState":True,
                                 "rnn_units":1024,
-                                "seq_length":64 ,
+                                "seq_length":8 ,
                                 "return_states": True
                                 },
                       "EPOCHS":4,  #etest

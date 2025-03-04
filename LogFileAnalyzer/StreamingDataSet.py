@@ -64,19 +64,17 @@ class DatasetStreamWriter:
             
             example = tf.train.Example(features=tf.train.Features(feature=feature))
             
-            if lineIndex == 75:
-                print("debug breakpoint")
-            
-            shardsWritten = []
-            
+            shardsWrittenDebug = []
             prevousShardWritten = False
-            nextShardWritten = False
+            nextShardWritten    = False
             
             # Determine which writer to use based on the modulo of the index
             shard_offset = (lineIndex // self.chardGranularity)
             shard_index = shard_offset % self.numberOfShards
+            
             writers[shard_index].write(example.SerializeToString()) 
-            shardsWritten.append(shard_index)
+            
+            shardsWrittenDebug.append(shard_index)
             
             
             # Watch out. There could be overlap between this shard and the previous shard, if there is one
@@ -85,22 +83,23 @@ class DatasetStreamWriter:
                 shard_index_of_previous_shard      = (shard_offset  - 1) % self.numberOfShards
                 start_line_index_of_current_shard  = (shard_offset)      * self.chardGranularity   
                 
-                if lineIndex < (start_line_index_of_current_shard + self.windowSize):
+                if lineIndex <= (start_line_index_of_current_shard + self.windowSize):
                     writers[shard_index_of_previous_shard].write(example.SerializeToString())
                     prevousShardWritten = True
-                    shardsWritten.append(shard_index_of_previous_shard)
+                    shardsWrittenDebug.append(shard_index_of_previous_shard)
+            
             # there could also be overlap between this shard and the next shard
             shard_offset_of_next_shard      = shard_offset  + 1
             shard_index_of_next_shard       = shard_offset_of_next_shard  % self.numberOfShards
             start_line_index_of_next_shard  = shard_offset_of_next_shard  * self.chardGranularity   
             
-            if lineIndex >= (start_line_index_of_next_shard - (self.windowSize - 1)):
+            if lineIndex >= (start_line_index_of_next_shard + 1):
                 writers[shard_index_of_next_shard].write(example.SerializeToString())
                 nextShardWritten = True
-                shardsWritten.append(shard_index_of_next_shard)
+                shardsWrittenDebug.append(shard_index_of_next_shard)
                 
             with open("debug_log.txt", "a") as debug_file:
-                debug_file.write(f"lineIndex: {lineIndex}, {columns} shard_offset: {shard_offset}, shardsWritten: {shardsWritten}, prevousShardWritten: {prevousShardWritten}, nextShardWritten: {nextShardWritten}\n")
+                debug_file.write(f"lineIndex: {lineIndex}, {columns} shard_offset: {shard_offset}, shardsWritten: {shardsWrittenDebug}, prevousShardWritten: {prevousShardWritten}, nextShardWritten: {nextShardWritten}\n")
             
         # Close all writers
         for writer in writers:
@@ -147,7 +146,7 @@ class DatasetStreamReader:
 
         dataset = dataset.flat_map(
             lambda ids, tokens: tf.data.Dataset.zip(
-                (ids.take(self.seq_length).batch(self.seq_length),
+                (ids.take(self.seq_length).batch(self.seq_length),     
                  tokens.take(self.seq_length).batch(self.seq_length),
                  ids.skip(self.seq_length).batch(1),
                  tokens.skip(self.seq_length).batch(1))

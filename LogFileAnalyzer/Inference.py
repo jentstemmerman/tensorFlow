@@ -163,9 +163,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         tokenList       = []
         
         print(f"Start creating input data numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
-        datasetIndex = 0
-        
-        
         
         for threadId in range(0,numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]
@@ -184,7 +181,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             printfList.append(nextLogs)
                 
             datasetStreamerInteratorList[threadId], idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList  = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInteratorList[threadId])
-            datasetIndex += numberOfParallelExecutions
             
             idList.append(idInnerList)
             tokenList.append(tokenInnerList)
@@ -273,7 +269,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     printfList.append(nextLogs)
                         
                     datasetStreamerInteratorList[threadId], idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInteratorList[threadId])
-                    datasetIndex += numberOfParallelExecutions
                     
                     idList.append(idInnerList)
                     tokenList.append(tokenInnerList)

@@ -267,7 +267,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     outputQueue = Workers[threadId]["outputQueue"]
                     nextLogs = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                     printfList.append(nextLogs)
-                        
+                    
+                    datasetStreamerInteratorList[threadId], _, _, _, _ = GetInferenceDataFromDatasetStreamer(window_size, datasetStreamerInteratorList[threadId])
                     datasetStreamerInteratorList[threadId], idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInteratorList[threadId])
                     
                     idList.append(idInnerList)

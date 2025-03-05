@@ -266,9 +266,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 for threadId in range(0,numberOfThreads):
                     outputQueue = Workers[threadId]["outputQueue"]
                     nextLogs = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+                    
+                    
                     printfList.append(nextLogs)
                     
-                    datasetStreamerInteratorList[threadId], _, _, _, _ = GetInferenceDataFromDatasetStreamer(window_size, datasetStreamerInteratorList[threadId])
+                    datasetStreamerInteratorList[threadId] = SkipInferenceDatasetStreamer(window_size, datasetStreamerInteratorList[threadId])
                     datasetStreamerInteratorList[threadId], idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInteratorList[threadId])
                     
                     idList.append(idInnerList)
@@ -371,6 +373,12 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, states=None)
     numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
     return numberOfVectors
+
+def SkipInferenceDatasetStreamer(numberOfSamples, datasetStreamerInterator):
+    for _ in range(numberOfSamples):
+        next(datasetStreamerInterator)
+        
+    return datasetStreamerInterator
 
 #@tf.function   
 def GetInferenceDataFromDatasetStreamer(numberOfSamples, datasetStreamerInterator):

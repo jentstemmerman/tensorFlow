@@ -86,7 +86,6 @@ with tf.device('/CPU:0'):
                              numberOfShards, 
                              indexOfFirstPrediction, 
                              numberOfParallelExecutions, 
-                             origPrintfList, 
                              window_size):
         
         
@@ -97,37 +96,19 @@ with tf.device('/CPU:0'):
             
             global datasetStreamReader
             global datasetStreamerInterator            
-            
-            AdditionalAnnotation = ""
-            
+           
             if (datasetStreamerInterator is None):
                 datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=dataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=stride, numberOfShards=numberOfShards)
                 datasetStreamerInterator = datasetStreamReader.GetStreamingIterator(shard_index=chardId)  
-                print(f"chardId: {chardId} DO NOT SKIP datasetStreamerInterator is  None")
-                AdditionalAnnotation = f"chardId: {chardId} NO SKIP "
             else:
-                #if (chardId == 0):
                 datasetStreamerInterator, nextTokenList = SkipInferenceDatasetStreamer(seq_length, datasetStreamerInterator)
-                AdditionalAnnotation = f"chardId: {chardId} SKIP  {str(seq_length)}: {nextTokenList}"
-                print(f"chardId:{chardId} SKIP. datasetStreamerInterator is defined {nextTokenList}")
-                
-                
-                #else:
-                #    AdditionalAnnotation = f"chardId: {chardId }DO NOT SKIP " + str(chardId)
-                #    print(f"chardId:{chardId} DO NOT SKIP. datasetStreamerInterator is defined")
-                
-            
-            
+               
+
             datasetStreamerInterator, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
-            
-            
-            if (origPrintfList is not None):
-                printfList = origPrintfList[indexOfFirstPrediction:indexOfFirstPrediction + numberOfParallelExecutions]
-                
-            printfList[0] = AdditionalAnnotation + printfList[0]
-            
+                        
+
                        
-            return printfList, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList
+            return idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList
             
         
         

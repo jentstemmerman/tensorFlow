@@ -9,7 +9,7 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
     with tf.device('/CPU:0'):
         #tf.config.run_functions_eagerly(True)  
         #tf.data.experimental.enable_debug_mode()  
-        numberOfThreads = 3
+        numberOfThreads = 4
 
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 

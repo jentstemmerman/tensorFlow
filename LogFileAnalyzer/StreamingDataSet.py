@@ -35,6 +35,7 @@ class DatasetStreamWriter:
             yield tokenList  # Return one tokenized line at a time
 
     def WriteStreamingDataset(self):
+        numberOfLinesInFile = 0
         output_dir = os.path.dirname(self.dataSetFile)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -43,6 +44,9 @@ class DatasetStreamWriter:
         writers = [tf.io.TFRecordWriter(f"{self.dataSetFile}_shard_{i}") for i in range(self.numberOfShards)]
         
         for lineIndex, tokenList in enumerate(self.process_file_line_by_line()):
+            if (lineIndex % 10000 == 0):
+                print(f"Processing line: {lineIndex}")  
+                
             tokenList = [item for sublist in tokenList for item in sublist]  # Flatten the list of lists
             transformed_columns = []
             columns = []
@@ -101,6 +105,8 @@ class DatasetStreamWriter:
                 
             with open("debug_log.txt", "a") as debug_file:
                 debug_file.write(f"lineIndex: {lineIndex}, {columns} shard_offset: {shard_offset}, shardsWritten: {shardsWrittenDebug}, prevousShardWritten: {prevousShardWritten}, nextShardWritten: {nextShardWritten}\n")
+            
+            numberOfLinesInFile += 1
             
         # Close all writers
         for writer in writers:

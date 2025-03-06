@@ -6,15 +6,16 @@ import tensorflow as tf
 import numpy as np
 
 def Worker(cpu, inputQueue, outputQueue, id_from_tokenListNumpy):
-    print("Starting worker ", cpu)
-    
-    id_from_tokenList = []
-    
-    for id_from_token in id_from_tokenListNumpy:
-        lookup = tf.keras.layers.StringLookup(vocabulary=id_from_token.tolist())
-        id_from_tokenList.append(lookup)
-    
     with tf.device('/CPU:0'):
+        print("Starting worker ", cpu)
+        
+        id_from_tokenList = []
+        
+        for id_from_token in id_from_tokenListNumpy:
+            lookup = tf.keras.layers.StringLookup(vocabulary=id_from_token.tolist())
+            id_from_tokenList.append(lookup)
+        
+        
         while True:
             try:
                 func, args = inputQueue.get(timeout=1000)  
@@ -36,9 +37,9 @@ def KillWorkers(Workers):
         inputQueue.put(("exit", ()))
 
 def CreateWorkers(numberOfWorkers, id_from_tokenList):
-    multiprocessing.set_start_method('spawn', force=True)   
+    
     with tf.device('/CPU:0'):
-        
+        multiprocessing.set_start_method('spawn', force=True)   
         workers = None
 
         inputQueues = [multiprocessing.Queue() for _ in range(numberOfWorkers)]

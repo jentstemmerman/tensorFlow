@@ -13,7 +13,7 @@ def AnalyzeFile(modelDirectory, inputFile, inferenceDataSetFile, LogFileAnalyzed
     with tf.device('/CPU:0'):
         success = False
         physical_devices = tf.config.list_physical_devices("CPU")
-        numberOfThreads = 5  # 1 for the main process
+        numberOfThreads = 7  # 1 for the main process
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads, "/ physical_devices: ", physical_devices)
 
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)

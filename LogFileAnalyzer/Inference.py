@@ -1,12 +1,7 @@
 import time
 import tensorflow as tf
-#from tensorflow import keras
-import numpy as np
 import TokenParser
 import ModelClass
-#from pathlib import Path
-import multiprocessing
-from multiprocessing import shared_memory
 import InferenceAssembly
 import InferenceOutput
 import BinaryFileHandler
@@ -67,7 +62,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
           
     with tf.device('/CPU:0'):
             
-        maxNumberOfParallelExecutions        = 20  # dit is het aantal samples dat de GPU inferes in 1 keer
+        maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
         
         numberOfFeatures = len(id_from_tokenList)
         queueTimeout                         = 50000
@@ -104,8 +99,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileCompared.write("Model hash: " + modelHash + "\n")
         FileHumanReadablePooledVectors.write("Model hash: " + modelHash + "\n")
         
-
-
         one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
        
         LogfileVerificationTemp = os.path.splitext(LogfileVerification)[0] + ".temp"
@@ -125,7 +118,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                    numberOfShards=numberOfThreads,
                                                                    chardGranularity=numberOfParallelExecutions,
                                                                    windowSize=window_size)
+        
+        print("Start writing streaming dataset... This may take a long time")
         datasetStreamWriter.WriteStreamingDataset()
+        print("Done writing streaming dataset")
+        
         datasetStreamWriter = None
         
         indexOfFirstPrediction     = window_size
@@ -163,7 +160,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                      numberOfThreads, 
                                                                      indexOfFirstPrediction, 
                                                                      numberOfParallelExecutions, 
-                                                                     origPrintfList, 
                                                                      window_size,)))
 
             indexOfFirstPrediction += numberOfParallelExecutions
@@ -171,10 +167,16 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileCompared.flush()
         print(f"Start retrieving input data numberOfThreads: {numberOfThreads}") 
         
+        indexOfFirstPredictionTemp = indexOfFirstPrediction
+        
         for threadId in range(0,numberOfThreads):
             outputQueue = Workers[threadId]["outputQueue"]
-            nextLogs, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+            idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
 
+            if (origPrintfList is not None):
+                nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfParallelExecutions]
+
+            indexOfFirstPredictionTemp += numberOfParallelExecutions
             printfList.append(nextLogs)
             idList.append(idInnerList)
             tokenList.append(tokenInnerList)
@@ -227,7 +229,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                              numberOfThreads, 
                                                                              indexOfFirstPredictionTemp, 
                                                                              numberOfParallelExecutions, 
-                                                                             origPrintfList, 
                                                                              window_size,)))
 
 
@@ -268,11 +269,18 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             
             # Get inputs for the next inference cycle
             print(f"Start retrieving input data numberOfThreads: {newNumberOfThreads}") 
+            indexOfFirstPredictionTemp = indexOfFirstPrediction
+            
             if (not noMoreReductionPossible):
                 for threadId in range(0,numberOfThreads):
                     outputQueue = Workers[threadId]["outputQueue"]
 
-                    nextLogs, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+                    idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+                    
+                    if (origPrintfList is not None):
+                        nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfParallelExecutions]
+                    
+                    indexOfFirstPredictionTemp += numberOfParallelExecutions
                     
                     printfList.append(nextLogs)
                     idList.append(idInnerList)

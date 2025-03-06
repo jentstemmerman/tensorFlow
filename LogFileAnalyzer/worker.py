@@ -2,10 +2,17 @@ import multiprocessing
 import queue
 import time
 import tensorflow as tf
-import os
 
-def Worker(cpu, inputQueue, outputQueue, parameters):
+import numpy as np
+
+def Worker(cpu, inputQueue, outputQueue, id_from_tokenListNumpy):
     print("Starting worker ", cpu)
+    
+    id_from_tokenList = []
+    
+    for id_from_token in id_from_tokenListNumpy:
+        lookup = tf.keras.layers.StringLookup(vocabulary=id_from_token.tolist())
+        id_from_tokenList.append(lookup)
     
     with tf.device('/CPU:0'):
         while True:
@@ -15,7 +22,7 @@ def Worker(cpu, inputQueue, outputQueue, parameters):
                 if (func == 'exit'):
                     break
 
-                result = func(parameters, *args)
+                result = func(id_from_tokenList, *args)
 
                 outputQueue.put(result)
 
@@ -28,9 +35,10 @@ def KillWorkers(Workers):
         inputQueue  = Workers[threadId]["inputQueue"]
         inputQueue.put(("exit", ()))
 
-def CreateWorkers(numberOfWorkers, parameters):
-
+def CreateWorkers(numberOfWorkers, id_from_tokenList):
+    multiprocessing.set_start_method('spawn', force=True)   
     with tf.device('/CPU:0'):
+        
         workers = None
 
         inputQueues = [multiprocessing.Queue() for _ in range(numberOfWorkers)]
@@ -39,7 +47,14 @@ def CreateWorkers(numberOfWorkers, parameters):
         workers = []
 
         for i in range(numberOfWorkers):
-            process = multiprocessing.Process(target=Worker, args=(i, inputQueues[i], outputQueues[i], parameters))
+            id_from_tokenListConverted = []
+            
+            for id_from_token in id_from_tokenList:
+                id_from_tokenConverted = np.array(id_from_token.get_vocabulary())
+                id_from_tokenListConverted.append(id_from_tokenConverted)
+                
+                
+            process = multiprocessing.Process(target=Worker, args=(i, inputQueues[i], outputQueues[i], id_from_tokenListConverted))
 
             process.start()
             worker_dict = {"process":process, "inputQueue":inputQueues[i],"outputQueue":outputQueues[i]}

@@ -6,7 +6,7 @@ TrainingsParameter = {"Model": {#"Network":"LSTMMultiModel",
                                 "seq_length":8 ,
                                 "return_states": True
                                 },
-                      "EPOCHS":4,  #etest
+                      "EPOCHS":2,  #etest
                       "Use_Validation":False,
                       "BatchSize":64,
                       "removeDuplicates":False,

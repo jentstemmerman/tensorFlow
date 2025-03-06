@@ -67,11 +67,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
           
     with tf.device('/CPU:0'):
             
-        numberOfThreads                       = 3
         maxNumberOfParallelExecutions        = 20  # dit is het aantal samples dat de GPU inferes in 1 keer
         
         numberOfFeatures = len(id_from_tokenList)
-        queueTimeout                         = 50
+        queueTimeout                         = 50000
         numberOfIdenticals                   = 0
         averagePredictedTokenProbability     = 0
         accumulatedNextTokenProbability      = 0.0
@@ -129,24 +128,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         datasetStreamWriter.WriteStreamingDataset()
         datasetStreamWriter = None
         
-
-        datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1, numberOfShards=numberOfThreads)
-        
-        datasetStreamerInteratorList = []
-        
-        for threadId in range(0,numberOfThreads):
-            datasetStreamerInterator = datasetStreamReader.GetStreamingIterator(shard_index=threadId)  
-            datasetStreamerInteratorList.append(datasetStreamerInterator)
-        
-
         indexOfFirstPrediction     = window_size
                
         hiddenVectorSize = GetInitialInference(DataTypeForTensors, inferenceDataSetFile, window_size, one_step_model, itemList)
                
         binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
-               
-        
-        
         
         if (reduced):
             print("reduced parameters 1")
@@ -168,7 +154,17 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             inputQueue  = Workers[threadId]["inputQueue"]
             print("Before inputQueue.put AssembleInputsThread ", threadId)
             
-            inputQueue.put((InferenceAssembly.AssembleInputsThread, (indexOfFirstPrediction, numberOfParallelExecutions, origPrintfList, window_size,)))
+            inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId,
+                                                                     inferenceDataSetFile, 
+                                                                     itemList, 
+                                                                     DataTypeForTensors, 
+                                                                     seq_length, 
+                                                                     1, 
+                                                                     numberOfThreads, 
+                                                                     indexOfFirstPrediction, 
+                                                                     numberOfParallelExecutions, 
+                                                                     origPrintfList, 
+                                                                     window_size,)))
 
             indexOfFirstPrediction += numberOfParallelExecutions
 
@@ -177,11 +173,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         for threadId in range(0,numberOfThreads):
             outputQueue = Workers[threadId]["outputQueue"]
-            nextLogs = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+            nextLogs, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+
             printfList.append(nextLogs)
-                
-            datasetStreamerInteratorList[threadId], idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList  = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInteratorList[threadId])
-            
             idList.append(idInnerList)
             tokenList.append(tokenInnerList)
             nextIdList.append(nextIdsInnerList)
@@ -220,10 +214,22 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 indexOfFirstPredictionTemp = indexOfFirstPrediction
            
                 for threadId in range(0,numberOfThreads):
+                    
                     inputQueue  = Workers[threadId]["inputQueue"]
                     print("Before inputQueue.put AssembleInputsThread ", threadId)
                     
-                    inputQueue.put((InferenceAssembly.AssembleInputsThread, (indexOfFirstPredictionTemp, numberOfParallelExecutions, origPrintfList, window_size,)))
+                    inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId,
+                                                                             inferenceDataSetFile, 
+                                                                             itemList, 
+                                                                             DataTypeForTensors, 
+                                                                             seq_length, 
+                                                                             1, 
+                                                                             numberOfThreads, 
+                                                                             indexOfFirstPredictionTemp, 
+                                                                             numberOfParallelExecutions, 
+                                                                             origPrintfList, 
+                                                                             window_size,)))
+
 
                     indexOfFirstPredictionTemp += numberOfParallelExecutions
             
@@ -265,14 +271,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             if (not noMoreReductionPossible):
                 for threadId in range(0,numberOfThreads):
                     outputQueue = Workers[threadId]["outputQueue"]
-                    nextLogs = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
-                    
+
+                    nextLogs, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                     
                     printfList.append(nextLogs)
-                    
-                    datasetStreamerInteratorList[threadId] = SkipInferenceDatasetStreamer(window_size, datasetStreamerInteratorList[threadId])
-                    datasetStreamerInteratorList[threadId], idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInteratorList[threadId])
-                    
                     idList.append(idInnerList)
                     tokenList.append(tokenInnerList)
                     nextIdList.append(nextIdsInnerList)
@@ -374,29 +376,7 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
     return numberOfVectors
 
-def SkipInferenceDatasetStreamer(numberOfSamples, datasetStreamerInterator):
-    for _ in range(numberOfSamples):
-        next(datasetStreamerInterator)
-        
-    return datasetStreamerInterator
 
-#@tf.function   
-def GetInferenceDataFromDatasetStreamer(numberOfSamples, datasetStreamerInterator):
-    idList, tokenList, nextIdsList, nextTokenList = [], [], [], []
-
-    for _ in range(numberOfSamples):
-        ids, tokens, nextIds, nextTokens = next(datasetStreamerInterator)
-        idList.append(ids)
-        tokenList.append(tokens)
-        nextIdsList.append(nextIds)
-        nextTokenList.append(nextTokens)
-
-    idList = tf.convert_to_tensor(idList)
-    tokenList = tf.convert_to_tensor(tokenList)
-    nextIdsList = tf.convert_to_tensor(nextIdsList)
-    nextTokenList = tf.convert_to_tensor(nextTokenList)
-
-    return datasetStreamerInterator, idList, tokenList, nextIdsList, nextTokenList
 
 
 

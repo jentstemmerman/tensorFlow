@@ -98,6 +98,8 @@ def AnalyzePrintfFile(model,
     Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, inferenceDataSetFile=inferenceDataSetFile, FileNameAnalyzed=LogfileAnalyzed, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
     print("Done analyzing ", os.path.basename(printfFileToProcess), ".")
 
+
+
 def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, temperature, seq_length, id_from_tokenList, token_from_idList, numberOfThreads, Workers, DataTypeForTensors):
 
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
@@ -564,7 +566,7 @@ if __name__ == "__main__":
 
     if (AnalyzeFiles):
         
-        numberOfThreads = 7  # 1 for the main process
+        numberOfThreads = 3  # 1 for the main process
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
         with tf.device('/CPU:0'):

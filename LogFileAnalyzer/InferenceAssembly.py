@@ -3,6 +3,7 @@ import numpy as np
 import copy
 import tensorflow as tf
 import time
+import StreamingDataSet
 
 with tf.device('/CPU:0'):
     def GetNextTokenWindow(oldWindow, newToken):
@@ -72,21 +73,94 @@ with tf.device('/CPU:0'):
 
         return newWindow, newToken, newTokenId, nextTokenIdWindow
 
+    datasetStreamReader = None
+    datasetStreamerInterator = None
 
-
-    def AssembleInputsThread(workerParameter, indexOfFirstPrediction, numberOfParallelExecutions, origPrintfList, window_size):
+    def AssembleInputsThread(workerParameter,
+                             chardId,
+                             dataSetFile, 
+                             itemList, 
+                             DataTypeForTensors, 
+                             seq_length, 
+                             stride, 
+                             numberOfShards, 
+                             indexOfFirstPrediction, 
+                             numberOfParallelExecutions, 
+                             origPrintfList, 
+                             window_size):
+        
+        
+        
         with tf.device('/CPU:0'):
             printfList   = []
-            
             assert (indexOfFirstPrediction >= window_size)
+            
+            global datasetStreamReader
+            global datasetStreamerInterator            
+            
+            AdditionalAnnotation = ""
+            
+            if (datasetStreamerInterator is None):
+                datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=dataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=stride, numberOfShards=numberOfShards)
+                datasetStreamerInterator = datasetStreamReader.GetStreamingIterator(shard_index=chardId)  
+                print(f"chardId: {chardId} DO NOT SKIP datasetStreamerInterator is  None")
+                AdditionalAnnotation = f"chardId: {chardId} NO SKIP "
+            else:
+                #if (chardId == 0):
+                datasetStreamerInterator, nextTokenList = SkipInferenceDatasetStreamer(seq_length, datasetStreamerInterator)
+                AdditionalAnnotation = f"chardId: {chardId} SKIP  {str(seq_length)}: {nextTokenList}"
+                print(f"chardId:{chardId} SKIP. datasetStreamerInterator is defined {nextTokenList}")
+                
+                
+                #else:
+                #    AdditionalAnnotation = f"chardId: {chardId }DO NOT SKIP " + str(chardId)
+                #    print(f"chardId:{chardId} DO NOT SKIP. datasetStreamerInterator is defined")
+                
+            
+            
+            datasetStreamerInterator, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
+            
             
             if (origPrintfList is not None):
                 printfList = origPrintfList[indexOfFirstPrediction:indexOfFirstPrediction + numberOfParallelExecutions]
+                
+            printfList[0] = AdditionalAnnotation + printfList[0]
             
-            return (printfList)
+                       
+            return printfList, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList
+            
         
         
-
+    def SkipInferenceDatasetStreamer(numberOfSamples, datasetStreamerInterator):
+        with tf.device('/CPU:0'):
+            nextTokenList = []
+                
             
+            for _ in range(numberOfSamples):
+                
+                ids, tokens, nextIds, nextTokens = next(datasetStreamerInterator)
+                nextTokenList.append(nextTokens)
+                
+                
+            return datasetStreamerInterator, nextTokenList
 
+    #@tf.function   
+    def GetInferenceDataFromDatasetStreamer(numberOfSamples, datasetStreamerInterator):
+        with tf.device('/CPU:0'):
+            idList, tokenList, nextIdsList, nextTokenList = [], [], [], []
+
+            for _ in range(numberOfSamples):
+                ids, tokens, nextIds, nextTokens = next(datasetStreamerInterator)
+                idList.append(ids)
+                tokenList.append(tokens)
+                nextIdsList.append(nextIds)
+                nextTokenList.append(nextTokens)
+
+            idList = tf.stack(idList, axis=0)
+            tokenList = tf.stack(tokenList, axis=0)
+            nextIdsList = tf.stack(nextIdsList, axis=0)
+            nextTokenList = tf.stack(nextTokenList, axis=0)
+
+            return datasetStreamerInterator, idList, tokenList, nextIdsList, nextTokenList
+            
 

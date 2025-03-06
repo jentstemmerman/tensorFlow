@@ -5,6 +5,7 @@ import TokenParser
 import os
 import itertools
 
+
 # each shard contains the subset of the dataset that will be used by one thread. 
 class DatasetStreamWriter:
     def __init__(self, *, inputFile, dataSetFile, itemList, id_from_tokenList, DataTypeForTensors, numberOfShards, chardGranularity, windowSize):
@@ -109,57 +110,65 @@ class DatasetStreamWriter:
 
 class DatasetStreamReader:
     def __init__(self, dataSetFile, itemList, DataTypeForTensors, seq_length, stride, numberOfShards):
-        self.dataSetFile = dataSetFile
-        self.itemList = itemList
-        self.DataTypeForTensors = DataTypeForTensors
-        self.seq_length = seq_length
-        self.num_features = len(self.itemList)
-        self.stride = stride
-        self.numberOfShards = numberOfShards
+        with tf.device('/CPU:0'):
+            self.dataSetFile = dataSetFile
+            self.itemList = itemList
+            self.DataTypeForTensors = DataTypeForTensors
+            self.seq_length = seq_length
+            self.num_features = len(self.itemList)
+            self.stride = stride
+            self.numberOfShards = numberOfShards
 
     def parse_tfrecord(self, example_proto):
-        features = {
-            "Ids": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors),
-            "TokenString": tf.io.FixedLenFeature([self.num_features], tf.string)
-        }
-        parsed_features = tf.io.parse_single_example(example_proto, features)
-        return [
-            parsed_features["Ids"],
-            parsed_features["TokenString"]
-        ]
+        with tf.device('/CPU:0'):
+            features = {
+                "Ids": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors),
+                "TokenString": tf.io.FixedLenFeature([self.num_features], tf.string)
+            }
+            parsed_features = tf.io.parse_single_example(example_proto, features)
+            return [
+                parsed_features["Ids"],
+                parsed_features["TokenString"]
+            ]
 
     def GetStreamingDataset(self, shard_index=None):
-        if shard_index is not None:
-            # Create a dataset from the specific shard file
-            shard_file = f"{self.dataSetFile}_shard_{shard_index}"
-            dataset = tf.data.TFRecordDataset(shard_file)
-        else:
-            # Create a list of shard file paths
-            shard_files = [f"{self.dataSetFile}_shard_{i}" for i in range(self.numberOfShards)]
-            # Create a dataset from the list of shard files
-            dataset = tf.data.TFRecordDataset(shard_files)
-        
-        dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-        dataset = dataset.map(lambda x: self.parse_tfrecord(x))
+        with tf.device('/CPU:0'):
+            if shard_index is not None:
+                # Create a dataset from the specific shard file
+                shard_file = f"{self.dataSetFile}_shard_{shard_index}"
+                dataset = tf.data.TFRecordDataset(shard_file)
+            else:
+                # Create a list of shard file paths
+                shard_files = [f"{self.dataSetFile}_shard_{i}" for i in range(self.numberOfShards)]
+                # Create a dataset from the list of shard files
+                dataset = tf.data.TFRecordDataset(shard_files)
+            
+            dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+            dataset = dataset.map(lambda x: self.parse_tfrecord(x))
 
-        dataset = dataset.window(self.seq_length + 1, shift=self.stride, drop_remainder=True)
+            dataset = dataset.window(self.seq_length + 1, shift=self.stride, drop_remainder=True)
 
-        dataset = dataset.flat_map(
-            lambda ids, tokens: tf.data.Dataset.zip(
-                (ids.take(self.seq_length).batch(self.seq_length),     
-                 tokens.take(self.seq_length).batch(self.seq_length),
-                 ids.skip(self.seq_length).batch(1),
-                 tokens.skip(self.seq_length).batch(1))
+            dataset = dataset.flat_map(
+                lambda ids, tokens: tf.data.Dataset.zip(
+                    (ids.take(self.seq_length).batch(self.seq_length),     
+                    tokens.take(self.seq_length).batch(self.seq_length),
+                    ids.skip(self.seq_length).batch(1),
+                    tokens.skip(self.seq_length).batch(1))
+                )
             )
-        )
 
-        return dataset
+            return dataset
 
     def GetStreamingIterator(self, shard_index):
-        """Use an iterator for finer control over dataset streaming."""
-        dataset = self.GetStreamingDataset(shard_index)
-        dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-        return iter(dataset.as_numpy_iterator())  # Allows manual control
+        with tf.device('/CPU:0'):
+            """Use an iterator for finer control over dataset streaming."""
+            dataset = self.GetStreamingDataset(shard_index)
+            dataset = dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+            
+            dataset_as_numpy_iterator = dataset.as_numpy_iterator()
+            iterator = iter(dataset_as_numpy_iterator)  # Allows manual control
+            return iterator
 
     def JumpToIndex(self, start, stop, iterator):
-        itertools.islice(iterator, start, stop)
+        with tf.device('/CPU:0'):
+            itertools.islice(iterator, start, stop)

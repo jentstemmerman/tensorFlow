@@ -9,16 +9,14 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
     with tf.device('/CPU:0'):
         #tf.config.run_functions_eagerly(True)  
         #tf.data.experimental.enable_debug_mode()  
-        numberOfThreads = 8
+        numberOfThreads = 3
 
         print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
 
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
         id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList) 
         modelFeatureList                     = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
-
         maskValueList                        = Model.GetMaskValueList(id_from_tokenList)
-
 
         modelSource = {"Source": "FromFile", "ModelDirectory": modelFile, "Network": TrainingsParameter["Model"]["Network"]}
         model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)

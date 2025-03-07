@@ -125,7 +125,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                    numberOfShards=numberOfThreads,
                                                                    chardGranularity=numberOfParallelExecutions,
                                                                    windowSize=window_size)
+        
+        print("Start writing streaming dataset... This may take a long time")
         datasetStreamWriter.WriteStreamingDataset()
+        print("Done writing streaming dataset")
+        
         datasetStreamWriter = None
         
         indexOfFirstPrediction     = window_size

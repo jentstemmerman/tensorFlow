@@ -1,12 +1,7 @@
 import time
 import tensorflow as tf
-#from tensorflow import keras
-import numpy as np
 import TokenParser
 import ModelClass
-#from pathlib import Path
-import multiprocessing
-from multiprocessing import shared_memory
 import InferenceAssembly
 import InferenceOutput
 import BinaryFileHandler

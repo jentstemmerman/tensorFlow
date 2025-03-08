@@ -31,7 +31,8 @@ class DatasetStreamWriter:
 
     def process_file_line_by_line(self):
         for line in self.input_file_handler:
-            tokenList = self.getLinesAndTokens(line)
+            # tokenList = self.getLinesAndTokens(line)
+            tokenList = TokenParser.GetItemsInLine(line, self.itemList, self.dataTreatment)
             yield tokenList  # Return one tokenized line at a time
 
     def WriteStreamingDataset(self):
@@ -43,16 +44,25 @@ class DatasetStreamWriter:
         # Create a list of TFRecordWriters, one for each shard
         writers = [tf.io.TFRecordWriter(f"{self.dataSetFile}_shard_{i}") for i in range(self.numberOfShards)]
         
+        import time
+        
+        start_time = time.time()
+        
         for lineIndex, tokenList in enumerate(self.process_file_line_by_line()):
             if (lineIndex % 10000 == 0):
-                print(f"Processing line: {lineIndex}")  
+                print(f"Processing line: {lineIndex}")
+                print(f"Time per line: {time.time() - start_time:.4f} seconds")
+                start_time = time.time()
                 
-            tokenList = [item for sublist in tokenList for item in sublist]  # Flatten the list of lists
+            # tokenList = [item for sublist in tokenList for item in sublist]  # Flatten the list of lists
             transformed_columns = []
             columns = []
             
+            # columns = np.array(tokenList, dtype=np.float32)  
+            # transformed_columns = np.array([id_from_token(columns) if id_from_token else columns for id_from_token in self.id_from_tokenList], dtype=np.float32)
+            
             for index, id_from_token in enumerate(self.id_from_tokenList):
-                column = np.array([tokenList[index]])  # Process one tokenized line at a time
+                column = [tokenList[index]]  # Process one tokenized line at a time
                 
                 if id_from_token is not None:
                     TransformedItemTensor = id_from_token(column)
@@ -70,8 +80,8 @@ class DatasetStreamWriter:
             example = tf.train.Example(features=tf.train.Features(feature=feature))
             
             shardsWrittenDebug = []
-            prevousShardWritten = False
-            nextShardWritten    = False
+        #    prevousShardWritten = False
+        #    nextShardWritten    = False
             
             # Determine which writer to use based on the modulo of the index
             shard_offset = (lineIndex // self.chardGranularity)
@@ -90,7 +100,7 @@ class DatasetStreamWriter:
                 
                 if lineIndex < (start_line_index_of_current_shard + self.windowSize):
                     writers[shard_index_of_previous_shard].write(example.SerializeToString())
-                    prevousShardWritten = True
+            #        prevousShardWritten = True
                     shardsWrittenDebug.append(shard_index_of_previous_shard)
             
             # there could also be overlap between this shard and the next shard
@@ -100,11 +110,11 @@ class DatasetStreamWriter:
             
             if lineIndex >= (start_line_index_of_next_shard + 1):
                 writers[shard_index_of_next_shard].write(example.SerializeToString())
-                nextShardWritten = True
+            #    nextShardWritten = True
                 shardsWrittenDebug.append(shard_index_of_next_shard)
                 
-            with open("debug_log.txt", "a") as debug_file:
-                debug_file.write(f"lineIndex: {lineIndex}, {columns} shard_offset: {shard_offset}, shardsWritten: {shardsWrittenDebug}, prevousShardWritten: {prevousShardWritten}, nextShardWritten: {nextShardWritten}\n")
+            #with open("debug_log.txt", "a") as debug_file:
+            #    debug_file.write(f"lineIndex: {lineIndex}, {columns} shard_offset: {shard_offset}, shardsWritten: {shardsWrittenDebug}, prevousShardWritten: {prevousShardWritten}, nextShardWritten: {nextShardWritten}\n")
             
             numberOfLinesInFile += 1
             

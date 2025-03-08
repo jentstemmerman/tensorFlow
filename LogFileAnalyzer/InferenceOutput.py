@@ -182,7 +182,9 @@ def InferenceOutputThread(workerParameter,
                           pooledLogitsVector):
     
     with tf.device('/CPU:0'):
-        id_from_tokenList = workerParameter
+        id_from_tokenList = workerParameter[0]
+        token_from_idList = workerParameter[1]
+        
         linesToWrite, printfList, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions=numberOfParallelExecutions, 
                                                                                                                                       id_from_tokenList=id_from_tokenList, 
                                                                                                                                       predictions=predictions, 

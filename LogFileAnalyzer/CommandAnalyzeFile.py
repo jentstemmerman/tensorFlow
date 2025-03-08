@@ -25,7 +25,7 @@ def AnalyzeFile(modelDirectory, inputFile, inferenceDataSetFile, LogFileAnalyzed
         modelSource = {"Source": "FromFile", "ModelDirectory": modelDirectory, "Network": TrainingsParameter["Model"]["Network"]}
         model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
             
-        Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
+        Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList, token_from_idList)
     
         if (Workers == None):
             print("Could not start workers. END")

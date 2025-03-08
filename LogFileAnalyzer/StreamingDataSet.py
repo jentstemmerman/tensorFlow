@@ -4,7 +4,7 @@ import DataTreatment
 import TokenParser
 import os
 import itertools
-
+import time
 
 # each shard contains the subset of the dataset that will be used by one thread. 
 class DatasetStreamWriter:
@@ -41,69 +41,90 @@ class DatasetStreamWriter:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        # Create a list of TFRecordWriters, one for each shard
-        writers = [tf.io.TFRecordWriter(f"{self.dataSetFile}_shard_{i}") for i in range(self.numberOfShards)]
-        
-        import time
-        
+        # Create one TFRecordWriter per shard.
+        writers = [tf.io.TFRecordWriter(f"{self.dataSetFile}_shard_{i}") 
+                for i in range(self.numberOfShards)]
+
+        # Set the batch size – adjust this as needed.
+        batch_size = 1000
+        batch_token_lists = []
+        batch_line_indices = []
+
         start_time = time.time()
-        
-        for lineIndex, tokenList in enumerate(self.process_file_line_by_line()):
-            if (lineIndex % 10000 == 0):
-                print(f"Processing line: {lineIndex}")
-                print(f"Time per line: {time.time() - start_time:.4f} seconds")
-                start_time = time.time()
-                
-            # tokenList = [item for sublist in tokenList for item in sublist]  # Flatten the list of lists
-            transformed_columns = []
-            columns = []
-            
-            for index, id_from_token in enumerate(self.id_from_tokenList):
-                column = [tokenList[index]]  # Process one tokenized line at a time
-                
-                if id_from_token is not None:
-                    TransformedItemTensor = id_from_token(column)
+
+        def process_batch(batch_tokens, batch_indices):
+            # Process each column in the batch at once.
+            transformed_columns_batch = []
+            for col_index, transform_fn in enumerate(self.id_from_tokenList):
+                # Build a list for the current column from every line in the batch.
+                col_batch = [tokens[col_index] for tokens in batch_tokens]
+                if transform_fn is not None:
+                    # Assume the transform function supports batch processing.
+                    transformed_tensor = transform_fn(col_batch)
                 else:
-                    TransformedItemTensor = tf.convert_to_tensor(column, dtype=self.DataTypeForTensors)
-                
-                columns.append(column)
-                transformed_columns.append(TransformedItemTensor.numpy())  # Convert to NumPy
+                    transformed_tensor = tf.convert_to_tensor(col_batch,
+                                                            dtype=self.DataTypeForTensors)
+                # Convert the batch result to a NumPy array.
+                transformed_columns_batch.append(transformed_tensor.numpy())
 
-            feature = {
-                "Ids": tf.train.Feature(float_list=tf.train.FloatList(value=np.concatenate(transformed_columns).flatten()))
-            }
-            
-            example = tf.train.Example(features=tf.train.Features(feature=feature))
-           
-            # Determine which writer to use based on the modulo of the index
-            shard_offset = (lineIndex // self.chardGranularity)
-            shard_index = shard_offset % self.numberOfShards
-            
-            writers[shard_index].write(example.SerializeToString()) 
-            
-            # Watch out. There could be overlap between this shard and the previous shard, if there is one
-            if (shard_offset > 0): # is there a previous shard?
+            # Now, for each line in the batch, create and write the example.
+            for i, lineIndex in enumerate(batch_indices):
+                # For the current example, extract the corresponding row from each column.
+                row_features = [np.atleast_1d(col[i]) for col in transformed_columns_batch]
+                concatenated = np.concatenate(row_features).flatten()
+                feature = {
+                    "Ids": tf.train.Feature(
+                        float_list=tf.train.FloatList(value=concatenated)
+                    )
+                }
+                example = tf.train.Example(features=tf.train.Features(feature=feature))
+                serialized_example = example.SerializeToString()
 
-                shard_index_of_previous_shard      = (shard_offset  - 1) % self.numberOfShards
-                start_line_index_of_current_shard  = (shard_offset)      * self.chardGranularity   
-                
-                if lineIndex < (start_line_index_of_current_shard + self.windowSize):
-                    writers[shard_index_of_previous_shard].write(example.SerializeToString())
+                # Determine the target shard.
+                shard_offset = lineIndex // self.chardGranularity
+                shard_index = shard_offset % self.numberOfShards
+                writers[shard_index].write(serialized_example)
 
-            
-            # there could also be overlap between this shard and the next shard
-            shard_offset_of_next_shard      = shard_offset  + 1
-            shard_index_of_next_shard       = shard_offset_of_next_shard  % self.numberOfShards
-            start_line_index_of_next_shard  = shard_offset_of_next_shard  * self.chardGranularity   
-            
-            if lineIndex >= (start_line_index_of_next_shard + 1):
-                writers[shard_index_of_next_shard].write(example.SerializeToString())
-            
-            numberOfLinesInFile += 1
-            
-        # Close all writers
+                # Write to the previous shard if the current line falls into its window.
+                if shard_offset > 0:
+                    shard_index_prev = (shard_offset - 1) % self.numberOfShards
+                    start_line_current_shard = shard_offset * self.chardGranularity
+                    if lineIndex < (start_line_current_shard + self.windowSize):
+                        writers[shard_index_prev].write(serialized_example)
+
+                # Write to the next shard if the current line overlaps.
+                shard_offset_next = shard_offset + 1
+                shard_index_next = shard_offset_next % self.numberOfShards
+                start_line_next_shard = shard_offset_next * self.chardGranularity
+                if lineIndex >= (start_line_next_shard + 1):
+                    writers[shard_index_next].write(serialized_example)
+
+                nonlocal numberOfLinesInFile
+                numberOfLinesInFile += 1
+
+        # Accumulate lines and process in batches.
+        for lineIndex, tokenList in enumerate(self.process_file_line_by_line()):
+            batch_token_lists.append(tokenList)
+            batch_line_indices.append(lineIndex)
+
+            if (lineIndex % 10000 == 0) and batch_token_lists:
+                print(f"Processing line: {lineIndex}")
+                print(f"Time per 10000 lines: {time.time() - start_time:.4f} seconds")
+                start_time = time.time()
+
+            if len(batch_token_lists) >= batch_size:
+                process_batch(batch_token_lists, batch_line_indices)
+                batch_token_lists = []
+                batch_line_indices = []
+
+        # Process any remaining lines.
+        if batch_token_lists:
+            process_batch(batch_token_lists, batch_line_indices)
+
+        # Close all writers.
         for writer in writers:
             writer.close()
+
 
 
 

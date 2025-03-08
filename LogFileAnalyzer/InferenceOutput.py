@@ -43,8 +43,9 @@ def ComposeDensePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogits
 
 def ComposeLineList(numberOfParallelExecutions, 
                     id_from_tokenList, 
+                    token_from_idList,
                     predictions, 
-                    actuals, 
+                    actualNextIdList, 
                     PrintfList, 
                     probabilityOfActuals, 
                     crossEntropyOfActuals, 
@@ -76,7 +77,12 @@ def ComposeLineList(numberOfParallelExecutions,
             for featureIndex in range(numberOfFeatures):
 
                 prediction = TranslateToString(predictions[featureIndex][executionIndex])  
-                actual     = TranslateToString(actuals[executionIndex][featureIndex])
+                
+                if (token_from_idList[featureIndex] is None):
+                    actual = TranslateToString(actualNextIdList[executionIndex][featureIndex])
+                else:
+                    actual = TranslateToString(token_from_idList[featureIndex](actualNextIdList[executionIndex][featureIndex]))
+                    
                 
                 if (actual == prediction) and (actual != Dataset.Universal_Mask_Token):
                     prediction = prediction + IdenticalString
@@ -174,7 +180,7 @@ def InferenceOutputThread(workerParameter,
                           threadId, 
                           numberOfParallelExecutions, 
                           predictions, 
-                          nextTokens, 
+                          actualNextIdList, 
                           PrintfList, 
                           probabilityOfActuals, 
                           crossEntropyOfActuals, 
@@ -183,12 +189,15 @@ def InferenceOutputThread(workerParameter,
     
     with tf.device('/CPU:0'):
         id_from_tokenList = workerParameter[0]
+        
         token_from_idList = workerParameter[1]
+
         
         linesToWrite, printfList, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions=numberOfParallelExecutions, 
                                                                                                                                       id_from_tokenList=id_from_tokenList, 
+                                                                                                                                      token_from_idList=token_from_idList,
                                                                                                                                       predictions=predictions, 
-                                                                                                                                      actuals=nextTokens, 
+                                                                                                                                      actualNextIdList=actualNextIdList, 
                                                                                                                                       PrintfList=PrintfList, 
                                                                                                                                       probabilityOfActuals=probabilityOfActuals, 
                                                                                                                                       crossEntropyOfActuals=crossEntropyOfActuals, 

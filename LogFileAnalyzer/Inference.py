@@ -145,7 +145,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         nextIdList      = []
         nextTokenList   = []
         idList          = []
-        tokenList       = []
         
         print(f"Start creating input data numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
         
@@ -172,11 +171,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         for threadId in range(0,numberOfThreads):
             outputQueue = Workers[threadId]["outputQueue"]
-            nextLogs, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+            nextLogs, idInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
 
             printfList.append(nextLogs)
             idList.append(idInnerList)
-            tokenList.append(tokenInnerList)
             nextIdList.append(nextIdsInnerList)
             nextTokenList.append(nextTokenInnerList)
                          
@@ -257,25 +255,23 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             print(f"Start output generation numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
             for threadId in range(0, numberOfThreads):
                 inputQueue  = Workers[threadId]["inputQueue"]
-                inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextTokenList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], pooledLogitsVectorDataList[threadId],)))
+                inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextIdList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], pooledLogitsVectorDataList[threadId],)))
             
             printfList      = []
             nextIdList      = []
             nextTokenList   = []
             idList          = []
-            tokenList       = []
             
-            # Get inputs for the next inference cycle
+            # Get inputs for the next inference cycles
             print(f"Start retrieving input data numberOfThreads: {newNumberOfThreads}") 
             if (not noMoreReductionPossible):
                 for threadId in range(0,numberOfThreads):
                     outputQueue = Workers[threadId]["outputQueue"]
 
-                    nextLogs, idInnerList, tokenInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+                    nextLogs, idInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                     
                     printfList.append(nextLogs)
                     idList.append(idInnerList)
-                    tokenList.append(tokenInnerList)
                     nextIdList.append(nextIdsInnerList)
                     nextTokenList.append(nextTokenInnerList)
                     
@@ -375,7 +371,18 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
     return numberOfVectors
 
+def force_gpu_init():
+
+    dummy_model = create_dummy_model()
+    dummy_input = tf.constant([[1.0]])  # Some dummy input
+    with tf.device('/GPU:0'):
+        _ = dummy_model(dummy_input)
 
 
 
+def create_dummy_model():
 
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Dense(units=1, input_shape=(1,))
+    ])
+    return model

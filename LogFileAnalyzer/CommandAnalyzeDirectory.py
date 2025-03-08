@@ -11,8 +11,6 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
         #tf.data.experimental.enable_debug_mode()  
         numberOfThreads = 4
 
-        print("Calling CreateWorkers numberOfThreads: ", numberOfThreads)
-
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
         id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList) 
         modelFeatureList                     = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)

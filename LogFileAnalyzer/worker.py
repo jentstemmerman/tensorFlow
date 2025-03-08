@@ -2,26 +2,25 @@ import multiprocessing
 import queue
 import time
 import tensorflow as tf
-
+import Dataset
 import numpy as np
 
-def Worker(cpu, inputQueue, outputQueue, id_from_tokenListNumpy, token_from_IdListNumpy):
+def Worker(cpu, inputQueue, outputQueue, id_from_tokenListNumpy):
     with tf.device('/CPU:0'):
         print("Starting worker ", cpu)
         
         id_from_tokenList = []
-        
-        for id_from_token in id_from_tokenListNumpy:
-            lookup = tf.keras.layers.StringLookup(vocabulary=id_from_token.tolist())
-            id_from_tokenList.append(lookup)
-            
-    
         token_from_idList = []
         
-        for token_from_id in token_from_IdListNumpy:
-            lookup = tf.keras.layers.StringLookup(vocabulary=token_from_id.tolist())
-            token_from_idList.append(lookup)
-        
+        for id_from_tokenNumpy in id_from_tokenListNumpy:
+            if id_from_tokenNumpy is None:
+                id_from_token = None
+                token_from_id = None
+            else:   
+                id_from_token = tf.keras.layers.StringLookup(vocabulary=id_from_tokenNumpy.tolist())
+                token_from_id = tf.keras.layers.StringLookup(vocabulary=id_from_tokenNumpy.tolist(), mask_token=Dataset.Universal_Mask_Token, invert=True)
+            id_from_tokenList.append(id_from_token)
+            token_from_idList.append(token_from_id)
         
         while True:
             try:
@@ -57,18 +56,16 @@ def CreateWorkers(numberOfWorkers, id_from_tokenList, token_from_idList):
         id_from_tokenListConverted = []
         
         for id_from_token in id_from_tokenList:
-            id_from_tokenConverted = np.array(id_from_token.get_vocabulary())
-            id_from_tokenListConverted.append(id_from_tokenConverted)
+            if id_from_token is None:
+                id_from_tokenConverted = None
+            else:
+                id_from_tokenConverted = np.array(id_from_token.get_vocabulary())
             
-        token_from_idListConverted = []
-        
-        for token_from_id in token_from_idList:
-            token_from_idConverted = np.array(token_from_id.get_vocabulary())
-            token_from_idListConverted.append(token_from_idConverted)
+            id_from_tokenListConverted.append(id_from_tokenConverted)
 
         for i in range(numberOfWorkers):
                 
-            process = multiprocessing.Process(target=Worker, args=(i, inputQueues[i], outputQueues[i], id_from_tokenListConverted, token_from_idListConverted))
+            process = multiprocessing.Process(target=Worker, args=(i, inputQueues[i], outputQueues[i], id_from_tokenListConverted))
 
             process.start()
             worker_dict = {"process":process, "inputQueue":inputQueues[i],"outputQueue":outputQueues[i]}

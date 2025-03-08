@@ -58,9 +58,6 @@ class DatasetStreamWriter:
             transformed_columns = []
             columns = []
             
-            # columns = np.array(tokenList, dtype=np.float32)  
-            # transformed_columns = np.array([id_from_token(columns) if id_from_token else columns for id_from_token in self.id_from_tokenList], dtype=np.float32)
-            
             for index, id_from_token in enumerate(self.id_from_tokenList):
                 column = [tokenList[index]]  # Process one tokenized line at a time
                 

@@ -73,8 +73,7 @@ class DatasetStreamWriter:
                 transformed_columns.append(TransformedItemTensor.numpy())  # Convert to NumPy
 
             feature = {
-                "Ids": tf.train.Feature(float_list=tf.train.FloatList(value=np.concatenate(transformed_columns).flatten())),
-                "TokenString": tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(str(item)) for item in np.concatenate(columns).flatten()]))
+                "Ids": tf.train.Feature(float_list=tf.train.FloatList(value=np.concatenate(transformed_columns).flatten()))
             }
             
             example = tf.train.Example(features=tf.train.Features(feature=feature))
@@ -126,12 +125,10 @@ class DatasetStreamReader:
         with tf.device('/CPU:0'):
             features = {
                 "Ids": tf.io.FixedLenFeature([self.num_features], self.DataTypeForTensors),
-                "TokenString": tf.io.FixedLenFeature([self.num_features], tf.string)
             }
             parsed_features = tf.io.parse_single_example(example_proto, features)
             return [
                 parsed_features["Ids"],
-                parsed_features["TokenString"]
             ]
 
     def GetStreamingDataset(self, shard_index=None):
@@ -152,7 +149,7 @@ class DatasetStreamReader:
             dataset = dataset.window(self.seq_length + 1, shift=self.stride, drop_remainder=True)
 
             dataset = dataset.flat_map(
-                lambda ids, tokens: tf.data.Dataset.zip(
+                lambda ids: tf.data.Dataset.zip(
                     (ids.take(self.seq_length).batch(self.seq_length),     
                     ids.skip(self.seq_length).batch(1))
                 )

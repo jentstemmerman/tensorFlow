@@ -78,19 +78,12 @@ class DatasetStreamWriter:
             }
             
             example = tf.train.Example(features=tf.train.Features(feature=feature))
-            
-            shardsWrittenDebug = []
-        #    prevousShardWritten = False
-        #    nextShardWritten    = False
-            
+           
             # Determine which writer to use based on the modulo of the index
             shard_offset = (lineIndex // self.chardGranularity)
             shard_index = shard_offset % self.numberOfShards
             
             writers[shard_index].write(example.SerializeToString()) 
-            
-            shardsWrittenDebug.append(shard_index)
-            
             
             # Watch out. There could be overlap between this shard and the previous shard, if there is one
             if (shard_offset > 0): # is there a previous shard?
@@ -100,8 +93,7 @@ class DatasetStreamWriter:
                 
                 if lineIndex < (start_line_index_of_current_shard + self.windowSize):
                     writers[shard_index_of_previous_shard].write(example.SerializeToString())
-            #        prevousShardWritten = True
-                    shardsWrittenDebug.append(shard_index_of_previous_shard)
+
             
             # there could also be overlap between this shard and the next shard
             shard_offset_of_next_shard      = shard_offset  + 1
@@ -110,11 +102,6 @@ class DatasetStreamWriter:
             
             if lineIndex >= (start_line_index_of_next_shard + 1):
                 writers[shard_index_of_next_shard].write(example.SerializeToString())
-            #    nextShardWritten = True
-                shardsWrittenDebug.append(shard_index_of_next_shard)
-                
-            #with open("debug_log.txt", "a") as debug_file:
-            #    debug_file.write(f"lineIndex: {lineIndex}, {columns} shard_offset: {shard_offset}, shardsWritten: {shardsWrittenDebug}, prevousShardWritten: {prevousShardWritten}, nextShardWritten: {nextShardWritten}\n")
             
             numberOfLinesInFile += 1
             

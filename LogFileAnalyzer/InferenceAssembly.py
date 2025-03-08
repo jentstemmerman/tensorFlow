@@ -89,8 +89,6 @@ with tf.device('/CPU:0'):
                              origPrintfList, 
                              window_size):
         
-        
-        
         with tf.device('/CPU:0'):
             printfList   = []
             assert (indexOfFirstPrediction >= window_size)
@@ -98,34 +96,17 @@ with tf.device('/CPU:0'):
             global datasetStreamReader
             global datasetStreamerInterator            
             
-            AdditionalAnnotation = ""
-            
             if (datasetStreamerInterator is None):
                 datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=dataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=stride, numberOfShards=numberOfShards)
                 datasetStreamerInterator = datasetStreamReader.GetStreamingIterator(shard_index=chardId)  
-                print(f"chardId: {chardId} DO NOT SKIP datasetStreamerInterator is  None")
-                AdditionalAnnotation = f"chardId: {chardId} NO SKIP "
             else:
-                #if (chardId == 0):
-                datasetStreamerInterator, nextTokenList = SkipInferenceDatasetStreamer(seq_length, datasetStreamerInterator)
-                AdditionalAnnotation = f"chardId: {chardId} SKIP  {str(seq_length)}: {nextTokenList}"
-                print(f"chardId:{chardId} SKIP. datasetStreamerInterator is defined {nextTokenList}")
-                
-                
-                #else:
-                #    AdditionalAnnotation = f"chardId: {chardId }DO NOT SKIP " + str(chardId)
-                #    print(f"chardId:{chardId} DO NOT SKIP. datasetStreamerInterator is defined")
-                
-            
+                datasetStreamerInterator = SkipInferenceDatasetStreamer(seq_length, datasetStreamerInterator)
             
             datasetStreamerInterator, idInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
-            
-            
+                        
             if (origPrintfList is not None):
                 printfList = origPrintfList[indexOfFirstPrediction:indexOfFirstPrediction + numberOfParallelExecutions]
                 
-            printfList[0] = AdditionalAnnotation + printfList[0]
-            
                        
             return printfList, idInnerList, nextIdsInnerList, nextTokenInnerList
             
@@ -133,16 +114,11 @@ with tf.device('/CPU:0'):
         
     def SkipInferenceDatasetStreamer(numberOfSamples, datasetStreamerInterator):
         with tf.device('/CPU:0'):
-            nextTokenList = []
-                
             
             for _ in range(numberOfSamples):
+                next(datasetStreamerInterator)
                 
-                ids, tokens, nextIds, nextTokens = next(datasetStreamerInterator)
-                nextTokenList.append(nextTokens)
-                
-                
-            return datasetStreamerInterator, nextTokenList
+            return datasetStreamerInterator
 
     #@tf.function   
     def GetInferenceDataFromDatasetStreamer(numberOfSamples, datasetStreamerInterator):

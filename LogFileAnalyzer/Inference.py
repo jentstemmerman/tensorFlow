@@ -143,7 +143,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
     
         printfList      = []
         nextIdList      = []
-        nextTokenList   = []
         idList          = []
         
         print(f"Start creating input data numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
@@ -171,12 +170,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         for threadId in range(0,numberOfThreads):
             outputQueue = Workers[threadId]["outputQueue"]
-            nextLogs, idInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+            nextLogs, idInnerList, nextIdsInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
 
             printfList.append(nextLogs)
             idList.append(idInnerList)
             nextIdList.append(nextIdsInnerList)
-            nextTokenList.append(nextTokenInnerList)
                          
             
         ########################################################## Main loop starts here ##################################################	    
@@ -259,7 +257,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             
             printfList      = []
             nextIdList      = []
-            nextTokenList   = []
             idList          = []
             
             # Get inputs for the next inference cycles
@@ -268,13 +265,12 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 for threadId in range(0,numberOfThreads):
                     outputQueue = Workers[threadId]["outputQueue"]
 
-                    nextLogs, idInnerList, nextIdsInnerList, nextTokenInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+                    nextLogs, idInnerList, nextIdsInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                     
                     printfList.append(nextLogs)
                     idList.append(idInnerList)
                     nextIdList.append(nextIdsInnerList)
-                    nextTokenList.append(nextTokenInnerList)
-                    
+                   
 
             # Get outputs to write to file
             print(f"Get output generation numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
@@ -358,7 +354,7 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     nexttokenIdsList = []
     
     batch = datasetStreamer.take(1)
-    for (ids, _ , nextIds, _) in batch:
+    for (ids, nextIds) in batch:
         inputTensor = ids
         nexttokenIds = nextIds
         inputTensorList.append(inputTensor)

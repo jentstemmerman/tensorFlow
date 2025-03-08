@@ -154,9 +154,7 @@ class DatasetStreamReader:
             dataset = dataset.flat_map(
                 lambda ids, tokens: tf.data.Dataset.zip(
                     (ids.take(self.seq_length).batch(self.seq_length),     
-                    tokens.take(self.seq_length).batch(self.seq_length),
-                    ids.skip(self.seq_length).batch(1),
-                    tokens.skip(self.seq_length).batch(1))
+                    ids.skip(self.seq_length).batch(1))
                 )
             )
 

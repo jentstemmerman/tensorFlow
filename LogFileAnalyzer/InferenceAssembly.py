@@ -102,13 +102,13 @@ with tf.device('/CPU:0'):
             else:
                 datasetStreamerInterator = SkipInferenceDatasetStreamer(seq_length, datasetStreamerInterator)
             
-            datasetStreamerInterator, idInnerList, nextIdsInnerList, nextTokenInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
+            datasetStreamerInterator, idInnerList, nextIdsInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
                         
             if (origPrintfList is not None):
                 printfList = origPrintfList[indexOfFirstPrediction:indexOfFirstPrediction + numberOfParallelExecutions]
                 
                        
-            return printfList, idInnerList, nextIdsInnerList, nextTokenInnerList
+            return printfList, idInnerList, nextIdsInnerList
             
         
         
@@ -123,18 +123,16 @@ with tf.device('/CPU:0'):
     #@tf.function   
     def GetInferenceDataFromDatasetStreamer(numberOfSamples, datasetStreamerInterator):
         with tf.device('/CPU:0'):
-            idList, nextIdsList, nextTokenList = [], [], []
+            idList, nextIdsList = [], []
 
             for _ in range(numberOfSamples):
-                ids, _, nextIds, nextTokens = next(datasetStreamerInterator)
+                ids, nextIds = next(datasetStreamerInterator)
                 idList.append(ids)
                 nextIdsList.append(nextIds)
-                nextTokenList.append(nextTokens)
 
             idList = tf.stack(idList, axis=0)
             nextIdsList = tf.stack(nextIdsList, axis=0)
-            nextTokenList = tf.stack(nextTokenList, axis=0)
 
-            return datasetStreamerInterator, idList, nextIdsList, nextTokenList
+            return datasetStreamerInterator, idList, nextIdsList
             
 

@@ -42,7 +42,7 @@ def KillWorkers(Workers):
         inputQueue  = Workers[threadId]["inputQueue"]
         inputQueue.put(("exit", ()))
 
-def CreateWorkers(numberOfWorkers, id_from_tokenList, token_from_idList):
+def CreateWorkers(numberOfWorkers, id_from_tokenList):
     
     with tf.device('/CPU:0'):
         multiprocessing.set_start_method('spawn', force=True)   

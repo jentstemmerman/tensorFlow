@@ -20,7 +20,7 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
         model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
         model.summary()
             
-        Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList, token_from_idList)
+        Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
     
         if (Workers is None):
             print("Could not start workers. END")

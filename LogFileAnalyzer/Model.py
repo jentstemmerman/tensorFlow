@@ -571,7 +571,7 @@ if __name__ == "__main__":
 
         with tf.device('/CPU:0'):
             
-            Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList, token_from_idList)
+            Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
         
             if (Workers == None):
                 print("Could not start workers")

@@ -86,11 +86,9 @@ with tf.device('/CPU:0'):
                              numberOfShards, 
                              indexOfFirstPrediction, 
                              numberOfParallelExecutions, 
-                             origPrintfList, 
                              window_size):
         
         with tf.device('/CPU:0'):
-            print(f"AssembleInputsThread chardId: {chardId} START")
             printfList   = []
             assert (indexOfFirstPrediction >= window_size)
             
@@ -104,12 +102,8 @@ with tf.device('/CPU:0'):
                 datasetStreamerInterator = SkipInferenceDatasetStreamer(seq_length, datasetStreamerInterator)
             
             datasetStreamerInterator, idInnerList, nextIdsInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
-                        
-            if (origPrintfList is not None):
-                printfList = origPrintfList[indexOfFirstPrediction:indexOfFirstPrediction + numberOfParallelExecutions]
-                
-            print(f"AssembleInputsThread chardId: {chardId} DONE")          
-            return printfList, idInnerList, nextIdsInnerList
+   
+            return idInnerList, nextIdsInnerList
             
         
         

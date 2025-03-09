@@ -147,6 +147,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         print(f"Start creating input data numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
         
+        indexOfFirstPredictionTemp = indexOfFirstPrediction
+        
         for threadId in range(0,numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]
             print("Before inputQueue.put AssembleInputsThread ", threadId)
@@ -158,23 +160,27 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                      seq_length, 
                                                                      1, 
                                                                      numberOfThreads, 
-                                                                     indexOfFirstPrediction, 
+                                                                     indexOfFirstPredictionTemp, 
                                                                      numberOfParallelExecutions, 
-                                                                     origPrintfList, 
                                                                      window_size,)))
 
-            indexOfFirstPrediction += numberOfParallelExecutions
+            indexOfFirstPredictionTemp += numberOfParallelExecutions
 
         LogfileCompared.flush()
         print(f"Start retrieving input data numberOfThreads: {numberOfThreads}") 
         
         for threadId in range(0,numberOfThreads):
             outputQueue = Workers[threadId]["outputQueue"]
-            nextLogs, idInnerList, nextIdsInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+            idInnerList, nextIdsInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+
+            if (origPrintfList is not None):
+                nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfParallelExecutions]
 
             printfList.append(nextLogs)
             idList.append(idInnerList)
             nextIdList.append(nextIdsInnerList)
+            
+            indexOfFirstPrediction += numberOfParallelExecutions
                          
         print("Start while loop")
           
@@ -201,18 +207,17 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             probabilityOfActualsList       = []
             crossEntropyOfActualsList      = []
             pooledLogitsVectorDataList     = []
-            
-
 
             # Assemble inputs for the next cycle
-            print(f"Start creating input data indexOfFirstPrediction: {indexOfFirstPrediction} numberOfThreads: {newNumberOfThreads}, numberOfParallelExecutions {newNumberOfParallelExecutions}") 
+            # print(f"Start creating input data indexOfFirstPrediction: {indexOfFirstPrediction} numberOfThreads: {newNumberOfThreads}, numberOfParallelExecutions {newNumberOfParallelExecutions}") 
             if (not noMoreReductionPossible):
                 indexOfFirstPredictionTemp = indexOfFirstPrediction
            
                 for threadId in range(0,numberOfThreads):
                     
                     inputQueue  = Workers[threadId]["inputQueue"]
-                    print("Before inputQueue.put AssembleInputsThread ", threadId)
+                    startTime = time.time()
+                    print("Starting AssembleInputsThread ")
                     
                     inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId,
                                                                              inferenceDataSetFile, 
@@ -223,14 +228,13 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                              numberOfThreads, 
                                                                              indexOfFirstPredictionTemp, 
                                                                              numberOfParallelExecutions, 
-                                                                             origPrintfList, 
                                                                              window_size,)))
-                    print("After inputQueue.put AssembleInputsThread ", threadId)
+                    print("AssembleInputsThread started in time: ", time.time() - startTime) 
 
                     indexOfFirstPredictionTemp += numberOfParallelExecutions
             
             # Generate inference
-            print(f"generate_steps_optimized numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
+            #print(f"generate_steps_optimized numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
             for threadId in range(0, numberOfThreads):
 
                 predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], states=None)
@@ -262,16 +266,21 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             
             # Get inputs for the next inference cycles
             print(f"Start retrieving input data numberOfThreads: {newNumberOfThreads}") 
+            indexOfFirstPredictionTemp = indexOfFirstPrediction
+            
             if (not noMoreReductionPossible):
                 for threadId in range(0,numberOfThreads):
                     outputQueue = Workers[threadId]["outputQueue"]
 
-                    nextLogs, idInnerList, nextIdsInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+                    idInnerList, nextIdsInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                     
+                    if (origPrintfList is not None):
+                        nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfParallelExecutions]
+                
                     printfList.append(nextLogs)
                     idList.append(idInnerList)
                     nextIdList.append(nextIdsInnerList)
-                   
+                    indexOfFirstPredictionTemp += numberOfParallelExecutions
 
             # Get outputs to write to file
             print(f"Get output generation numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 

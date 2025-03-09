@@ -176,7 +176,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             idList.append(idInnerList)
             nextIdList.append(nextIdsInnerList)
                          
-            
+        print("Start while loop")
+          
         ########################################################## Main loop starts here ##################################################	    
             
         while (True):
@@ -224,7 +225,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                              numberOfParallelExecutions, 
                                                                              origPrintfList, 
                                                                              window_size,)))
-
+                    print("After inputQueue.put AssembleInputsThread ", threadId)
 
                     indexOfFirstPredictionTemp += numberOfParallelExecutions
             

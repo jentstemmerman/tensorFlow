@@ -90,6 +90,7 @@ with tf.device('/CPU:0'):
                              window_size):
         
         with tf.device('/CPU:0'):
+            print(f"AssembleInputsThread chardId: {chardId} START")
             printfList   = []
             assert (indexOfFirstPrediction >= window_size)
             
@@ -107,7 +108,7 @@ with tf.device('/CPU:0'):
             if (origPrintfList is not None):
                 printfList = origPrintfList[indexOfFirstPrediction:indexOfFirstPrediction + numberOfParallelExecutions]
                 
-                       
+            print(f"AssembleInputsThread chardId: {chardId} DONE")          
             return printfList, idInnerList, nextIdsInnerList
             
         

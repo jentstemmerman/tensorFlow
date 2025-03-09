@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 from numbers import Number
 import Dataset
+import time
 
 def extend_string_with_spaces(s, target_length):
     if len(s) >= target_length:
@@ -57,7 +58,6 @@ def ComposeLineList(numberOfParallelExecutions,
         number_string_length = 6
         numberOfFeatures = len(id_from_tokenList)
         linesToWrite = []
-        localPrintfList = []
         numberOfIdenticals = 0
         accumulatedActualProbability = 0
         accumulatedPredictedProbability = 0
@@ -81,7 +81,7 @@ def ComposeLineList(numberOfParallelExecutions,
                 if (token_from_idList[featureIndex] is None):
                     actual = TranslateToString(actualNextIdList[executionIndex][featureIndex])
                 else:
-                    actual = TranslateToString(token_from_idList[featureIndex](actualNextIdList[executionIndex][featureIndex]))
+                    actual = "DISABLED" #TranslateToString(token_from_idList[featureIndex](actualNextIdList[executionIndex][featureIndex]))
                     
                 
                 if (actual == prediction) and (actual != Dataset.Universal_Mask_Token):
@@ -136,10 +136,9 @@ def ComposeLineList(numberOfParallelExecutions,
             printf = PrintfList[executionIndex]
             lineToWrite = AccuracyOfPredictionString + SimilarityString + actualsString + predictionsString + ProbabilityOfActualsString + crossEntropyOfActualString + "  "  + ProbabilityOfPredictionsString + printf
  
-            localPrintfList.append(printf)
             linesToWrite.append(lineToWrite)
 
-        return linesToWrite, localPrintfList, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
+        return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability
 
 
 
@@ -192,8 +191,8 @@ def InferenceOutputThread(workerParameter,
         
         token_from_idList = workerParameter[1]
 
-        
-        linesToWrite, printfList, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions=numberOfParallelExecutions, 
+        startTimeComposingLines = time.time()
+        linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability = ComposeLineList(numberOfParallelExecutions=numberOfParallelExecutions, 
                                                                                                                                       id_from_tokenList=id_from_tokenList, 
                                                                                                                                       token_from_idList=token_from_idList,
                                                                                                                                       predictions=predictions, 
@@ -203,10 +202,16 @@ def InferenceOutputThread(workerParameter,
                                                                                                                                       crossEntropyOfActuals=crossEntropyOfActuals, 
                                                                                                                                       probabilityOfPredictions=probabilityOfPredictions, 
                                                                                                                                       pooledLogitsVector=pooledLogitsVector)
-        
+        endTimeComposingLines = time.time()
+        startTimePooling = time.time()
         pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
         pooledMachineReadableLogitsVectorlinesToWrite = ComposeDensePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
+        endTimePooling = time.time()
         
-        return linesToWrite, printfList, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite
+        poolingTime = endTimePooling - startTimePooling
+        composingLinesTime = endTimeComposingLines - startTimeComposingLines
+        print(f"Thread {threadId} composingLinesTime took {composingLinesTime:.4f} Pooling took: {poolingTime:.4f} seconds")
+
+        return linesToWrite, numberOfIdenticals, accumulatedActualProbability, accumulatedPredictedProbability, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite
 
 

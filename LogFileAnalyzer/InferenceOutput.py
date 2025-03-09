@@ -81,7 +81,7 @@ def ComposeLineList(numberOfParallelExecutions,
                 if (token_from_idList[featureIndex] is None):
                     actual = TranslateToString(actualNextIdList[executionIndex][featureIndex])
                 else:
-                    actual = "DISABLED" #TranslateToString(token_from_idList[featureIndex](actualNextIdList[executionIndex][featureIndex]))
+                    actual = TranslateToString(token_from_idList[featureIndex](actualNextIdList[executionIndex][featureIndex])) # TranslateToString("DISABLED") #
                     
                 
                 if (actual == prediction) and (actual != Dataset.Universal_Mask_Token):

@@ -110,7 +110,11 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         numberOfParallelExecutions = maxNumberOfParallelExecutions
         
-        noMoreReductionPossible, reduced, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, numberOfParallelExecutions, numberOfThreads)
+        #noMoreReductionPossible, reduced, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, numberOfParallelExecutions, numberOfThreads)
+        
+        noMoreReductionPossible = False
+        reduced = False
+        
         
         datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
                                                                    dataSetFile=inferenceDataSetFile, 
@@ -136,9 +140,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         if (reduced):
             print("reduced parameters 1")
         
-        newNumberOfParallelExecutions = numberOfParallelExecutions
-        newNumberOfThreads = numberOfThreads
-        
+       
         analyzeStartTime   = time.time()
     
         printfList      = []
@@ -146,6 +148,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         idList          = []
         
         print(f"Start creating input data numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
+        
+        numberOfExecutionsInProgress         = [0 for _ in range(numberOfThreads)]
         
         indexOfFirstPredictionTemp = indexOfFirstPrediction
         
@@ -173,16 +177,18 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         for threadId in range(0,numberOfThreads):
             outputQueue = Workers[threadId]["outputQueue"]
-            idInnerList, nextIdsInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
-
+            idInnerList, nextIdsInnerList, numberOfSamples = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+            
+            numberOfExecutionsInProgress[threadId] = numberOfSamples
+            
             if (origPrintfList is not None):
-                nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfParallelExecutions]
+                nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfSamples]
 
             printfList.append(nextLogs)
             idList.append(idInnerList)
             nextIdList.append(nextIdsInnerList)
             
-            indexOfFirstPrediction += numberOfParallelExecutions
+            indexOfFirstPrediction += numberOfSamples
                          
         print("Start while loop")
           
@@ -195,13 +201,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 break
             
             remainingNumberOfLines = (numberOfLines - indexOfFirstPrediction)
-            noMoreReductionPossible, reduced, newNumberOfParallelExecutions, newNumberOfThreads = GetInferenceParameters(remainingNumberOfLines, numberOfParallelExecutions, numberOfThreads)
 
-            if (reduced):
-                print(f"reduced parameters: newNumberOfThreads: {newNumberOfThreads}, newNumberOfParallelExecutions {newNumberOfParallelExecutions}")
-            
-            if (noMoreReductionPossible):
-                print("noMoreReductionPossible")
 
             numberOfAnalyzedLinesThisCycle = 0
             nextPredictionsList            = []
@@ -211,7 +211,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             pooledLogitsVectorDataList     = []
 
             # Assemble inputs for the next cycle
-            # print(f"Start creating input data indexOfFirstPrediction: {indexOfFirstPrediction} numberOfThreads: {newNumberOfThreads}, numberOfParallelExecutions {newNumberOfParallelExecutions}") 
             if (not noMoreReductionPossible):
                 indexOfFirstPredictionTemp = indexOfFirstPrediction
            
@@ -240,33 +239,51 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             inferenceStepStartTime = time.time()
             for threadId in range(0, numberOfThreads):
 
-                predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], states=None)
-                
-                # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
-                nextPredictionsList.append(predictions)
+                if (numberOfExecutionsInProgress[threadId] == 0):
+                    nextPredictionsList.append([])
+                    probabilityOfPredictionsList.append([])
+                    probabilityOfActualsList.append([])
+                    crossEntropyOfActualsList.append([])
+                    pooledLogitsVectorDataList.append([])
+                else:
+                    print(f"start generate_steps_optimized threadId: {threadId}, numberOfExecutionsInProgress[threadId] {numberOfExecutionsInProgress[threadId]}") 
+                    
+                    if threadId == 4:
+                        print("Thread 4")
+                    
+                    predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], states=None)
+                    
+                    # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
+                    nextPredictionsList.append(predictions)
 
-                # probabilityPredictionsList is a tensor of shape (numberOfParallelExecutions, number of features)
-                probabilityOfPredictionsList.append(probabilityOfPredictions)
+                    # probabilityPredictionsList is a tensor of shape (numberOfParallelExecutions, number of features)
+                    probabilityOfPredictionsList.append(probabilityOfPredictions)
 
-                # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
-                probabilityOfActualsList.append(probabilityOfActuals)
+                    # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                    probabilityOfActualsList.append(probabilityOfActuals)
 
-                # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
-                crossEntropyOfActualsList.append(crossEntropyOfActuals)
+                    # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                    crossEntropyOfActualsList.append(crossEntropyOfActuals)
 
-                pooledLogitsVectorDataList.append(pooledLogitsVectorData)
+                    pooledLogitsVectorDataList.append(pooledLogitsVectorData)
 
-            print(f"generate_steps_optimized numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}, time {time.time() - inferenceStepStartTime}")
+            print(f"generate_steps_optimized threadId: {threadId}, numberOfParallelExecutions {numberOfParallelExecutions}, time {time.time() - inferenceStepStartTime}")
             # Start output generation
             
             
             for threadId in range(0, numberOfThreads):
                 inputQueue  = Workers[threadId]["inputQueue"]
-                inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfParallelExecutions, nextPredictionsList[threadId], nextIdList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], pooledLogitsVectorDataList[threadId],)))
+                inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfExecutionsInProgress[threadId], nextPredictionsList[threadId], nextIdList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], pooledLogitsVectorDataList[threadId],)))
             
             printfList      = []
             nextIdList      = []
             idList          = []
+            totalNumberOfExecutionsWereInProgress = 0
+            
+            for executionInProgress in numberOfExecutionsInProgress:
+                totalNumberOfExecutionsWereInProgress += executionInProgress
+            
+            numberOfExecutionsInProgress         = [0 for _ in range(numberOfThreads)]
             
             # Get inputs for the next inference cycles
     
@@ -276,15 +293,17 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 for threadId in range(0,numberOfThreads):
                     outputQueue = Workers[threadId]["outputQueue"]
 
-                    idInnerList, nextIdsInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+                    idInnerList, nextIdsInnerList, numberOfSamples = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+                    
+                    numberOfExecutionsInProgress[threadId] = numberOfSamples
                     
                     if (origPrintfList is not None):
-                        nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfParallelExecutions]
+                        nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfSamples]
                 
                     printfList.append(nextLogs)
                     idList.append(idInnerList)
                     nextIdList.append(nextIdsInnerList)
-                    indexOfFirstPredictionTemp += numberOfParallelExecutions
+                    indexOfFirstPredictionTemp += numberOfSamples
 
             # Get outputs to write to file
             outputGenerationStartTime = time.time()
@@ -330,13 +349,12 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
                 
             
-            indexOfFirstPrediction    += (newNumberOfParallelExecutions * newNumberOfThreads)    
-            numberOfParallelExecutions = newNumberOfParallelExecutions
-            numberOfThreads = newNumberOfThreads
+            indexOfFirstPrediction  += totalNumberOfExecutionsWereInProgress
+       
             
             
-            
-            if (noMoreReductionPossible):
+            if (totalNumberOfExecutionsWereInProgress == 0):
+                print("No more executions")
                 break
 
         averageNextTokenProbabilities    = accumulatedNextTokenProbability      / numberOfAnalyzedLines

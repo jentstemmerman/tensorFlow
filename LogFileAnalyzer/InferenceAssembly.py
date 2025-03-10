@@ -89,45 +89,68 @@ with tf.device('/CPU:0'):
                              window_size):
         
         with tf.device('/CPU:0'):
-            printfList   = []
+
             assert (indexOfFirstPrediction >= window_size)
             
             global datasetStreamReader
             global datasetStreamerInterator            
             
+            numberOfSamples    = 0
+            allSamplesSkipped  = True
+            
             if (datasetStreamerInterator is None):
                 datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=dataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=stride, numberOfShards=numberOfShards)
                 datasetStreamerInterator = datasetStreamReader.GetStreamingIterator(shard_index=chardId)  
             else:
-                datasetStreamerInterator = SkipInferenceDatasetStreamer(seq_length, datasetStreamerInterator)
+                datasetStreamerInterator, allSamplesSkipped = SkipInferenceDatasetStreamer(seq_length, datasetStreamerInterator)
             
-            datasetStreamerInterator, idInnerList, nextIdsInnerList = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
-   
-            return idInnerList, nextIdsInnerList
+            if (allSamplesSkipped):
+                datasetStreamerInterator, idInnerList, nextIdsInnerList, numberOfSamples = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
+            else:
+                idInnerList = []
+                nextIdsInnerList = []
+                                
+            if (numberOfSamples < numberOfParallelExecutions ):
+                print(f"Thread {chardId} numberOfSamples: {numberOfSamples} < numberOfParallelExecutions: {numberOfParallelExecutions}")
+
+            return idInnerList, nextIdsInnerList, numberOfSamples
             
         
         
     def SkipInferenceDatasetStreamer(numberOfSamples, datasetStreamerInterator):
         with tf.device('/CPU:0'):
+            alllSamplesSkipped = True
             
-            for _ in range(numberOfSamples):
-                next(datasetStreamerInterator)
-                
-            return datasetStreamerInterator
+            try:
+                for _ in range(numberOfSamples):
+                    next(datasetStreamerInterator)
+            except StopIteration:
+                print(f"[SkipInferenceDatasetStreamer] End of dataset reached, numberOfSamples: {numberOfSamples}")
+                alllSamplesSkipped = False
+            
+        return datasetStreamerInterator, alllSamplesSkipped
 
     #@tf.function   
     def GetInferenceDataFromDatasetStreamer(numberOfSamples, datasetStreamerInterator):
         with tf.device('/CPU:0'):
             idList, nextIdsList = [], []
+            effectiveNumberOfSamples = 0
+            
+            try:
+                for _ in range(numberOfSamples):
+                    ids, nextIds = next(datasetStreamerInterator)
 
-            for _ in range(numberOfSamples):
-                ids, nextIds = next(datasetStreamerInterator)
-                idList.append(ids)
-                nextIdsList.append(nextIds)
+                    idList.append(ids)
+                    nextIdsList.append(nextIds)
+                    effectiveNumberOfSamples += 1
+                    
+            except StopIteration:
+                print(f"[GetInferenceDataFromDatasetStreamer] End of dataset reached, effectiveNumberOfSamples: {effectiveNumberOfSamples}")
+                
 
             idList = tf.stack(idList, axis=0)
             nextIdsList = tf.stack(nextIdsList, axis=0)
 
-            return datasetStreamerInterator, idList, nextIdsList
+            return datasetStreamerInterator, idList, nextIdsList, effectiveNumberOfSamples
             
 

@@ -295,7 +295,7 @@ def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParam
 
     print(ModelSummary + "\n")
 
-    TrainBatchEnd_callback = ModelCallbacks.DebugCallback()
+    TrainBatchEnd_callback = None # ModelCallbacks.DebugCallback()
     EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=2, restore_best_weights=True)
     
     Epoch_End_callback = None
@@ -310,7 +310,7 @@ def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParam
 
 
     #history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback,  ])
-    history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])
+    history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback])
     #history = model.fit(datasetForTraining, validation_split=0.2, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])
     sys.stdout = sys.__stdout__
 

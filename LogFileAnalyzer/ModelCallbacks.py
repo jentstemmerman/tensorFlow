@@ -1,20 +1,25 @@
 import tensorflow as tf
+import os
 
 
 class DebugCallback(tf.keras.callbacks.Callback):
-    def __init__(self):
+    def __init__(self, outputDirectory):
         self.index = 0
-
+        # Ensure the file is empty at the start
+        self.outputFile = os.path.join(outputDirectory, "training_log.txt")
+        open(self.outputFile, 'w').close()
+            
+        
     def on_train_batch_end(self, batch, logs=None):
         keys = list(logs.keys())
-        total_loss = logs["loss"] 
-        with open('output_log.txt', 'a') as file:
+        total_loss = logs["loss"]
+        
+        with open(self.outputFile, 'a') as file:
             file.write("\n******** Callback: **************")
             file.write(str(logs["loss"]) + "\n")
             
-
-        if (total_loss > 100000):
-            print(str(self.index) + "...on_train_batch_end: "+ str(logs["loss"]) + "end of batch {}; got log keys: {}\n".format(batch, keys))
+        if total_loss > 100000:
+            print(str(self.index) + "...on_train_batch_end: " + str(logs["loss"]) + " end of batch {}; got log keys: {}\n".format(batch, keys))
 
         
 class EpochEndCallback(tf.keras.callbacks.Callback):

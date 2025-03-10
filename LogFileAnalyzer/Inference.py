@@ -169,6 +169,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileCompared.flush()
         print(f"Start retrieving input data numberOfThreads: {numberOfThreads}") 
         
+        indexOfFirstPredictionTemp = indexOfFirstPrediction
+        
         for threadId in range(0,numberOfThreads):
             outputQueue = Workers[threadId]["outputQueue"]
             idInnerList, nextIdsInnerList = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens

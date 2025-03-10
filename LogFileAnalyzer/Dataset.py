@@ -96,6 +96,11 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             InputFile = fileIterator.get_next_tokenlogfile()
         
         concurrent.futures.wait(futureList, return_when=concurrent.futures.ALL_COMPLETED)
+        
+        # Ensure all tasks are completed (and re-raise any exceptions) by calling result:
+        for future in futureList:
+            future.result()
+        
         data_dir = OutputDirectory
 
         if (mergeDatasets):
@@ -140,7 +145,6 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
                                                 seq_length, 
                                                 dual_input,
                                                 DataTypeForTensors, 
-                                                ReductionInSamples=None, 
                                                 removeDuplicates=False, 
                                                 num_parallel_calls=10, 
                                                 verbose=False)
@@ -258,81 +262,6 @@ def CreateTrainingDatasetFromFile(InputFile, IntermediateFile, itemList, id_from
         datasetfast = datasetfast.map(TokenParser.split_input_target_transformer_decoder_only)
         
     return datasetfast
-
-def CreateDatasetFromDirectory(InputDirectory, OutputDirectory, itemFile, id_from_tokenList, batch_size, stride, shuffle, BUFFER_SIZE, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, verbose=False):
-    print("Creating Item list:\n")
-    itemList = TokenParser.GetItemListToSearchFor(itemFile)
-    print("Processing log files to tokens:\n")
-    tokenListListList = TokenParser.process_log_files_to_tokens_recursive(InputDirectory, OutputDirectory, itemList)
-    
-    TraininglogFileIterator = FileIterator.FileIterator(OutputDirectory, ".log")
-    dataset                 = None
-    filesUsed               = []
-    TrainingLogTensor       = None
-    tokenLogfileToProcess   = TraininglogFileIterator.get_first_tokenlogfile()
-
-    for tokenListList in tokenListListList:
-
-        numberOfTokens = len([inner_list[0] for inner_list in tokenListList])
-        print("Adding " + tokenLogfileToProcess + " to the dataset. Number Of tokens: " + str(numberOfTokens))
-        filesUsed.append(tokenLogfileToProcess)
-        
-        TensorOfThisFile = []
-
-        for index, id_from_token in enumerate(id_from_tokenList):
-           
-            column = [inner_list[index] for inner_list in tokenListList]
-            column = np.array(column)
-            if (id_from_token is not None):
-                TransformedItemTensor = id_from_token(column)  # next todo
-            else:
-                TransformedItemTensor = tf.convert_to_tensor(column)
-
-            TensorOfThisFile.append(TransformedItemTensor)
-        
-        #print("Number of items from file " + tokenLogfileToProcess+ " added " +  str(index) + "/" + str(numberOfTokens))
-
-        TensorOfThisFile = tf.stack(TensorOfThisFile, axis=-1)
-
-        if (TrainingLogTensor is None):
-            TrainingLogTensor = TensorOfThisFile
-        else:
-            TrainingLogTensor = np.concatenate((TrainingLogTensor, TensorOfThisFile), axis=0)
-
-        tokenLogfileToProcess = TraininglogFileIterator.get_next_tokenlogfile()
- 
-
-        
-        
-    datasetfast = tf.data.Dataset.from_tensor_slices(TrainingLogTensor)
-    datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
-    datasetfast = datasetfast.flat_map(lambda window2: window2)
-    datasetfast = datasetfast.batch(seq_length + 1, drop_remainder = True, num_parallel_calls = num_parallel_calls)
-    
-    if (removeDuplicates):
-        datasetfast = datasetfast.unique()
-
-    if (verbose):
-        PrintDataset(datasetfast, 10)
-
-    datasetfast = datasetfast.map(lambda x: tf.cast(x, DataTypeForTensors))
-    datasetfast = datasetfast.map(TokenParser.split_input_target) 
-    
-    if (shuffle):
-        datasetfast = datasetfast.shuffle(BUFFER_SIZE)
-
-    datasetfast = datasetfast.batch(batch_size, drop_remainder=True)
-    datasetfast = datasetfast.prefetch(tf.data.experimental.AUTOTUNE)
-
-    if (verbose):
-        PrintDatasetTuple(datasetfast)
-
-        
-
-    dataset = datasetfast
-
-    return dataset, filesUsed
-
 
 def PrintDataset(dataSet, count = 0):
     if (dataSet is not None):

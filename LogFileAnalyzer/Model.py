@@ -158,7 +158,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
 
     return Accumulator / AccumulatorCount
 
-def GetMaskValueList(id_from_tokenList):
+def GetMaskValueList(id_from_tokenList):   # JENTS BUG
     maskValueList = []
 
     for id_from_token in id_from_tokenList:

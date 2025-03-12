@@ -270,10 +270,22 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             print(f"generate_steps_optimized threadId: {threadId}, numberOfParallelExecutions {numberOfParallelExecutions}, time {time.time() - inferenceStepStartTime}")
             # Start output generation
             
+            onlyMachineReadableLogitsVector = False
             
             for threadId in range(0, numberOfThreads):
                 inputQueue  = Workers[threadId]["inputQueue"]
-                inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, numberOfExecutionsInProgress[threadId], nextPredictionsList[threadId], nextIdList[threadId], printfList[threadId], probabilityOfActualsList[threadId], crossEntropyOfActualsList[threadId], probabilityOfPredictionsList[threadId], pooledLogitsVectorDataList[threadId],)))
+                
+                
+                inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
+                                                                        numberOfExecutionsInProgress[threadId], 
+                                                                        nextPredictionsList[threadId], 
+                                                                        nextIdList[threadId], 
+                                                                        printfList[threadId], 
+                                                                        probabilityOfActualsList[threadId], 
+                                                                        crossEntropyOfActualsList[threadId], 
+                                                                        probabilityOfPredictionsList[threadId], 
+                                                                        pooledLogitsVectorDataList[threadId], 
+                                                                        onlyMachineReadableLogitsVector)))
             
             printfList      = []
             nextIdList      = []
@@ -311,24 +323,29 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             for threadId in range(0, numberOfThreads):
 
                 outputQueue = Workers[threadId]["outputQueue"]
-                linesToWrite, numberOfIdenticalsInThisCycle, accumulatedActualProbability, accumulatedPredictedProbability, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
-                
-                accumulatedNextTokenProbability      += accumulatedActualProbability
-                accumulatedPredictedTokenProbability += accumulatedPredictedProbability
-                numberOfIdenticals                   += numberOfIdenticalsInThisCycle
-                numberOfAnalyzedLines                += numberOfParallelExecutions
-                numberOfAnalyzedLinesThisCycle       += numberOfParallelExecutions
-                
-                for lineToWrite in linesToWrite:
-                    LogfileAnalyzed.write(''.join(lineToWrite))
+                HumanReadableTextOutput, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
 
-                for lineToWrite in pooledHumanReadableLogitsVectorlinesToWrite:
-                    FileHumanReadablePooledVectors.write(lineToWrite)
-                    
-                for lineToWrite in pooledMachineReadableLogitsVectorlinesToWrite:
+                for index, lineToWrite in enumerate(pooledMachineReadableLogitsVectorlinesToWrite):
                     binaryFileHandler.append(lineToWrite)
+                
+                numberOfAnalyzedLines                += (index + 1)
+                numberOfAnalyzedLinesThisCycle       += (index + 1)
+                
+                if (HumanReadableTextOutput is not None):
                     
+                    linesToWrite, numberOfIdenticalsInThisCycle, accumulatedActualProbability, accumulatedPredictedProbability,  = HumanReadableTextOutput
+                    for lineToWrite in linesToWrite:
+                        LogfileAnalyzed.write(''.join(lineToWrite))
+                        
+                    accumulatedNextTokenProbability      += accumulatedActualProbability
+                    accumulatedPredictedTokenProbability += accumulatedPredictedProbability
+                    numberOfIdenticals                   += numberOfIdenticalsInThisCycle
 
+
+                if (pooledHumanReadableLogitsVectorlinesToWrite is not None):
+                    for lineToWrite in pooledHumanReadableLogitsVectorlinesToWrite:
+                        FileHumanReadablePooledVectors.write(lineToWrite)
+                    
             print(f"Output generated numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}, time {time.time() - outputGenerationStartTime}")
             
             Endtime = time.time()

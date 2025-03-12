@@ -173,8 +173,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileCompared.flush()
         print(f"Start retrieving input data numberOfThreads: {numberOfThreads}") 
         
-        indexOfFirstPredictionTemp = indexOfFirstPrediction
-        
         for threadId in range(0,numberOfThreads):
             outputQueue = Workers[threadId]["outputQueue"]
             idInnerList, nextIdsInnerList, numberOfSamples = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
@@ -182,7 +180,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             numberOfExecutionsInProgress[threadId] = numberOfSamples
             
             if (origPrintfList is not None):
-                nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfSamples]
+                nextLogs = origPrintfList[indexOfFirstPrediction:indexOfFirstPrediction + numberOfSamples]
 
             printfList.append(nextLogs)
             idList.append(idInnerList)
@@ -290,6 +288,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             printfList      = []
             nextIdList      = []
             idList          = []
+            
             totalNumberOfExecutionsWereInProgress = 0
             
             for executionInProgress in numberOfExecutionsInProgress:
@@ -367,8 +366,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 
             
             indexOfFirstPrediction  += totalNumberOfExecutionsWereInProgress
-       
-            
             
             if (totalNumberOfExecutionsWereInProgress == 0):
                 print("No more executions")

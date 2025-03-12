@@ -232,58 +232,73 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
 
                     indexOfFirstPredictionTemp += numberOfParallelExecutions
             
+            
+            onlyMachineReadableLogitsVector = True
+            
             # Generate inference
-            #print(f"generate_steps_optimized numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
-            inferenceStepStartTime = time.time()
             for threadId in range(0, numberOfThreads):
 
                 if (numberOfExecutionsInProgress[threadId] == 0):
-                    nextPredictionsList.append([])
-                    probabilityOfPredictionsList.append([])
-                    probabilityOfActualsList.append([])
-                    crossEntropyOfActualsList.append([])
-                    pooledLogitsVectorDataList.append([])
+                    if (onlyMachineReadableLogitsVector):
+                        pooledLogitsVectorDataList.append([])
+                    else:
+                        nextPredictionsList.append([])
+                        probabilityOfPredictionsList.append([])
+                        probabilityOfActualsList.append([])
+                        crossEntropyOfActualsList.append([])
+                        pooledLogitsVectorDataList.append([])
+
                 else:
-                    print(f"start generate_steps_optimized threadId: {threadId}, numberOfExecutionsInProgress[threadId] {numberOfExecutionsInProgress[threadId]}") 
-                    
-                    if threadId == 4:
-                        print("Thread 4")
-                    
-                    predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], states=None)
-                    
-                    # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
-                    nextPredictionsList.append(predictions)
 
-                    # probabilityPredictionsList is a tensor of shape (numberOfParallelExecutions, number of features)
-                    probabilityOfPredictionsList.append(probabilityOfPredictions)
+                    if (onlyMachineReadableLogitsVector):
+                        pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], onlyMachineReadableLogitsVector=True, states=None)
 
-                    # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
-                    probabilityOfActualsList.append(probabilityOfActuals)
+                        pooledLogitsVectorDataList.append(pooledLogitsVectorData)
+                        
+                    else:
+                        predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], onlyMachineReadableLogitsVector, states=None)
+                        
+                        # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
+                        nextPredictionsList.append(predictions)
 
-                    # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
-                    crossEntropyOfActualsList.append(crossEntropyOfActuals)
+                        # probabilityPredictionsList is a tensor of shape (numberOfParallelExecutions, number of features)
+                        probabilityOfPredictionsList.append(probabilityOfPredictions)
 
-                    pooledLogitsVectorDataList.append(pooledLogitsVectorData)
+                        # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                        probabilityOfActualsList.append(probabilityOfActuals)
 
-            print(f"generate_steps_optimized threadId: {threadId}, numberOfParallelExecutions {numberOfParallelExecutions}, time {time.time() - inferenceStepStartTime}")
+                        # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                        crossEntropyOfActualsList.append(crossEntropyOfActuals)
+
+                        pooledLogitsVectorDataList.append(pooledLogitsVectorData)
+
+
             # Start output generation
-            
-            onlyMachineReadableLogitsVector = False
-            
             for threadId in range(0, numberOfThreads):
                 inputQueue  = Workers[threadId]["inputQueue"]
                 
-                
-                inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
-                                                                        numberOfExecutionsInProgress[threadId], 
-                                                                        nextPredictionsList[threadId], 
-                                                                        nextIdList[threadId], 
-                                                                        printfList[threadId], 
-                                                                        probabilityOfActualsList[threadId], 
-                                                                        crossEntropyOfActualsList[threadId], 
-                                                                        probabilityOfPredictionsList[threadId], 
-                                                                        pooledLogitsVectorDataList[threadId], 
-                                                                        onlyMachineReadableLogitsVector)))
+                if (onlyMachineReadableLogitsVector):
+                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
+                                                                            numberOfExecutionsInProgress[threadId], 
+                                                                            None, 
+                                                                            None, 
+                                                                            None, 
+                                                                            None, 
+                                                                            None, 
+                                                                            None, 
+                                                                            pooledLogitsVectorDataList[threadId], 
+                                                                            onlyMachineReadableLogitsVector)))
+                else:
+                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
+                                                    numberOfExecutionsInProgress[threadId], 
+                                                    nextPredictionsList[threadId], 
+                                                    nextIdList[threadId], 
+                                                    printfList[threadId], 
+                                                    probabilityOfActualsList[threadId], 
+                                                    crossEntropyOfActualsList[threadId], 
+                                                    probabilityOfPredictionsList[threadId], 
+                                                    pooledLogitsVectorDataList[threadId], 
+                                                    onlyMachineReadableLogitsVector)))
             
             printfList      = []
             nextIdList      = []
@@ -405,7 +420,7 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     inputTensor = tf.stack(inputTensorList, axis=0)
     nexttokenIds = tf.stack(nexttokenIdsList, axis=0)
     
-    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, states=None)
+    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, onlyMachineReadableLogitsVector = False, states=None)
     numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
     return numberOfVectors
 

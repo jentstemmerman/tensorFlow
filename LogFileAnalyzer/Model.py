@@ -95,7 +95,21 @@ def AnalyzePrintfFile(model,
 
     LogfileAnalyzed = LogFileAnalyzedPath
     
-    Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, inferenceDataSetFile=inferenceDataSetFile, FileNameAnalyzed=LogfileAnalyzed, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
+    Inference.AddProbabilitiesPrintfFileParallel(model=model, 
+                                                 numberOfThreads=numberOfThreads, 
+                                                 Workers=Workers, 
+                                                 itemList=itemList, 
+                                                 DataTypeForTensors=DataTypeForTensors, 
+                                                 LogfileVerification=printfFileToProcess, 
+                                                 inferenceDataSetFile=inferenceDataSetFile, 
+                                                 FileNameAnalyzed=LogfileAnalyzed, 
+                                                 FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors,
+                                                 FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, 
+                                                 id_from_tokenList=id_from_tokenList, 
+                                                 token_from_idList=token_from_idList, 
+                                                 temperature=temperature, 
+                                                 seq_length=seq_length)
+    
     print("Done analyzing ", os.path.basename(printfFileToProcess), ".")
 
 
@@ -126,7 +140,20 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         LogFileAnalyzedPath = os.path.join(outputDirectory, FileNameAnalyzed)
         inferenceDataSetFilePath = os.path.join(outputDirectory, inferenceDataSetFile)
        
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, numberOfThreads=numberOfThreads, Workers=Workers, itemList=itemList, DataTypeForTensors=DataTypeForTensors, LogfileVerification=printfFileToProcess, inferenceDataSetFile=inferenceDataSetFilePath, FileNameAnalyzed=LogFileAnalyzedPath, FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, seq_length=seq_length)
+        Inference.AddProbabilitiesPrintfFileParallel(model=model, 
+                                                     numberOfThreads=numberOfThreads, 
+                                                     Workers=Workers, 
+                                                     itemList=itemList, 
+                                                     DataTypeForTensors=DataTypeForTensors, 
+                                                     LogfileVerification=printfFileToProcess, 
+                                                     inferenceDataSetFile=inferenceDataSetFilePath, 
+                                                     FileNameAnalyzed=LogFileAnalyzedPath, 
+                                                     FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, 
+                                                     FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, 
+                                                     id_from_tokenList=id_from_tokenList, 
+                                                     token_from_idList=token_from_idList, 
+                                                     temperature=temperature, 
+                                                     seq_length=seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_tokenlogfile()
 

@@ -230,9 +230,13 @@ def analyze_file(file_name):
                 shutil.rmtree(directory)
                 os.makedirs(directory)
         
+        inferenceDataSetFile = Constants.GetInferenceDataSetPath(file_path, userId, temperature)
+        #inferenceDataSetFile = os.path.join(os.path.basename(os.path.dirname(inferenceDataSetFile)), os.path.basename(inferenceDataSetFile))     
+        #inferenceDataSetFilePath = os.path.join(outputDirectory, inferenceDataSetFile)
         
-        CommandAnalyzeFile.AnalyzeFile(modelDirectory, file_path, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature=1)
         
+        CommandAnalyzeFile.AnalyzeFile(modelDirectory, file_path, inferenceDataSetFile, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature=1)
+         
         analyze_file_busy = False
         # print("get_file_lines file_name: ", file_name, ", lineOffset: ", lineOffset, "numberOfLines: ", numberOfLines, "offset_file_path: ", offset_file_path, "file_path: ", file_path)
 

@@ -34,7 +34,7 @@ def read_signature_from_file(filename):
     return numberOfPooledVectors, DataTypeForTensors, signature_tensor, modelHash
 
 def CalculatePooledVectors(vectors):
-    batchedvectors = tf.expand_dims(vectors, axis=0) # Add a bactch dimension. Will be removed in the squeeze
+    batchedvectors = tf.expand_dims(vectors, axis=0) # Add a batch dimension. Will be removed in the squeeze
     pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
     pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
     pooledAverageVector = tf.squeeze(pooledAverageVector, axis=0) # remove the batch dimension from the tensor

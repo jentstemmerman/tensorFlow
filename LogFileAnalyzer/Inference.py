@@ -63,6 +63,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
     with tf.device('/CPU:0'):
             
         maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
+        onlyMachineReadableLogitsVector      = False
         
         numberOfFeatures = len(id_from_tokenList)
         queueTimeout                         = 50000
@@ -231,10 +232,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     print("AssembleInputsThread started in time: ", time.time() - startTime) 
 
                     indexOfFirstPredictionTemp += numberOfParallelExecutions
-            
-            
-            onlyMachineReadableLogitsVector = True
-            
+                        
             # Generate inference
             for threadId in range(0, numberOfThreads):
 
@@ -251,12 +249,15 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 else:
 
                     if (onlyMachineReadableLogitsVector):
-                        pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], onlyMachineReadableLogitsVector=True, states=None)
-
+                        pooledLogitsVectorData = one_step_model.generate_hidded_states(idList[threadId], window_size)
+                        nextPredictionsList.append([])
+                        probabilityOfPredictionsList.append([])
+                        probabilityOfActualsList.append([])
+                        crossEntropyOfActualsList.append([])
                         pooledLogitsVectorDataList.append(pooledLogitsVectorData)
                         
                     else:
-                        predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], onlyMachineReadableLogitsVector, states=None)
+                        predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], onlyMachineReadableLogitsVector, window_size=window_size, states=None)
                         
                         # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
                         nextPredictionsList.append(predictions)
@@ -420,7 +421,7 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     inputTensor = tf.stack(inputTensorList, axis=0)
     nexttokenIds = tf.stack(nexttokenIdsList, axis=0)
     
-    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, onlyMachineReadableLogitsVector = False, states=None)
+    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, onlyMachineReadableLogitsVector = False, window_size = seq_length, states=None)
     numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
     return numberOfVectors
 

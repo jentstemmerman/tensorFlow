@@ -155,30 +155,58 @@ class OneStep(tf.keras.Model):
     self.model = model
     self.Tokens_from_idList = Tokens_from_idList
 
+  
+  
   def GetProbabilityFromLogits(self, softmaxLogits, id):
     probability = softmaxLogits[id].numpy()
     return probability
 
+  
+  
   def GetProbabilitiesFromLogits(self, softmaxLogits, id):
 
     probabilities = tf.gather(softmaxLogits, id, axis=1, batch_dims=1)
 
     return probabilities
   
+  
+  
   def GetCrossEntropyromLogits(self, softmaxLogits, id):
     probabilities = tf.keras.losses.sparse_categorical_crossentropy(id, softmaxLogits, from_logits=True)
     
     return probabilities
+  
+  
    
+  @tf.function
+  def generate_hidded_states(self, inputTensor, window_size):
+    with tf.device('/GPU:0'):
+      # this is not how I want to do it eventually, ideally the hidden states of all the lines should be stored for every line in the log. 
+      
+      _, hidden_state  = self.model(inputs=(inputTensor))  
+      
+      hiddenStateOfLastLineInWindow = tf.gather(hidden_state, indices = window_size - 1, axis=1)
+      hiddenStateOfPrediction       = tf.gather(hidden_state, indices = window_size - 2, axis=1)
+            
+      similarity = -tf.keras.losses.cosine_similarity(hiddenStateOfLastLineInWindow, hiddenStateOfPrediction)
+
+      pooledLogitsData = {
+                              'vector': hiddenStateOfLastLineInWindow,
+                              'similarity': similarity,
+                        }
+      
+      return pooledLogitsData
+    
 
   @tf.function
-  def generate_steps_optimized(self, inputTensor, nexttokenIds, onlyMachineReadableLogitsVector, states=None):
+  def generate_steps_optimized(self, inputTensor, nexttokenIds, onlyMachineReadableLogitsVector, window_size, states=None):
     with tf.device('/GPU:0'):
 
       # Run the model.
       predicted_logits_list, hidden_state  = self.model(inputs=(inputTensor))   
    
       hiddenStateOfPrediction = hidden_state[:,-1,:]
+      
       hiddenStateOfLineBeforePrediction = hidden_state[:,-2,:]
       
       indexOfPrediction = hidden_state.shape[1] - 1

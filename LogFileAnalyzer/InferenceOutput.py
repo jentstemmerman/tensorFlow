@@ -22,8 +22,6 @@ def TranslateToString(value):
         value = str(value)
     return value
 
-
-
 def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
     with tf.device('/CPU:0'):
         linesToWrite = []

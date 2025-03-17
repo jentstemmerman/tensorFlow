@@ -100,8 +100,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileCompared.write("Model hash: " + modelHash + "\n")
         FileHumanReadablePooledVectors.write("Model hash: " + modelHash + "\n")
         
-
-
         one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
        
         LogfileVerificationTemp = os.path.splitext(LogfileVerification)[0] + ".temp"
@@ -173,6 +171,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
 
         LogfileCompared.flush()
         print(f"Start retrieving input data numberOfThreads: {numberOfThreads}") 
+        
+        indexOfFirstPredictionTemp = indexOfFirstPrediction
         
         for threadId in range(0,numberOfThreads):
             outputQueue = Workers[threadId]["outputQueue"]

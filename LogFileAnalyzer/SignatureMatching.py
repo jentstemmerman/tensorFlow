@@ -265,10 +265,10 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         machine_readable_mtime = os.path.getmtime(machineReadableOutputFile) if os.path.exists(machineReadableOutputFile) else 0
         human_readable_mtime = os.path.getmtime(humanReadableOutputFile) if os.path.exists(humanReadableOutputFile) else 0
 
-        if log_file_mtime < machine_readable_mtime and log_file_mtime < human_readable_mtime:
-            print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
-            signature_file = signatureIterator.get_next_tokenlogfile()
-            continue
+        #if log_file_mtime < machine_readable_mtime and log_file_mtime < human_readable_mtime:
+        #    print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
+         #   signature_file = signatureIterator.get_next_tokenlogfile()
+        #    continue
         
         numberOfSignatureFiles += 1
         
@@ -359,7 +359,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 simularity = CalculateSimularityBatched(batched_signature_tensor, batchedTestTensor)
                 
                 for index in range(numberOfSimularityCalculationsPerRead):
-                    humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
+                    # humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
                     outputBinaryFileHandlers[signatureIndex].append(simularity[index])
                     simularityCalculationIndexes[signatureIndex] += 1
                     

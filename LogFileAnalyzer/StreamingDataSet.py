@@ -44,10 +44,13 @@ class DatasetStreamWriter:
 
         # Create one TFRecordWriter per shard.
         shard_files = [f"{self.dataSetFile}_shard_{i}" for i in range(self.numberOfShards)]
+        
         if all(os.path.exists(shard_file) for shard_file in shard_files):
             print("All shard files already exist. Skipping WriteStreamingDataset.")
             return
-
+        else:
+            print("Shard files do not exist. Writing new shard files.")
+            
         writers = [tf.io.TFRecordWriter(shard_file) for shard_file in shard_files]
 
         # Set the batch size – adjust this as needed.

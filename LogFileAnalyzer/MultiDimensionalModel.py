@@ -223,8 +223,8 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
     
 if __name__ == '__main__':
     ##################### Settings ######################
-    tf.config.run_functions_eagerly(True)  
-    tf.data.experimental.enable_debug_mode()
+    #tf.config.run_functions_eagerly(True)  
+    #tf.data.experimental.enable_debug_mode()
 
     datatype        = tf.float64
     sequence_length = 16

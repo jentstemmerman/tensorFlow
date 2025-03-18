@@ -9,6 +9,7 @@ LOG_FILE_ANALYZER_DIRECTORY = os.path.join("/" , "home", "jents", "AI", "LogFile
 LOG_FILES_DIRECTORY = os.path.normpath("logFiles")
 ITEM_FILES_DIRECTORY = os.path.normpath("ItemFiles")
 ANALYZED_LOG_FILES_DIRECTORY = os.path.normpath("logFilesAnalyzed")
+DATASET_ANALYZED_LOGFILES_DIRECTORY = os.path.normpath(os.path.join("cache", "Dataset_AnalyzedLogFiles"))
 SIGNATURE_FILES_DIRECTORY = os.path.normpath("signatures")
 MODEL_FILES_DIRECTORY = os.path.normpath("Models")
 SETTINGS_DIRECTORY = os.path.normpath("settings")
@@ -107,11 +108,11 @@ def GetInferenceDataSetPath(logFilename, userId, temperature):
     userId = str(userId)
     logFilenameWithoughExtention = os.path.splitext(os.path.basename(logFilename))[0]
             
-    baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
+    baseDirectory = GetUserSpecificBaseDirectory("inferenceDataSet", userId)
     
-    FileNameMachineReadablePooledVectors = os.path.join(baseDirectory, logFilenameWithoughExtention, "InferenceDataset")
+    fileName = os.path.join(baseDirectory, logFilenameWithoughExtention, "InferenceDataset")
 
-    return FileNameMachineReadablePooledVectors
+    return fileName
 
 def GetItemFilesPath():
     return GetNonUserSpecificBaseDirectory("ItemFiles")
@@ -172,6 +173,9 @@ def GetUserSpecificBaseDirectory(directoryType, userId):
     elif (directoryType == "logFilesAnalyzed"): 
         userSpecificDirectory = True
         base_directory = ANALYZED_LOG_FILES_DIRECTORY
+    elif (directoryType == "inferenceDataSet"): 
+        userSpecificDirectory = True
+        base_directory = DATASET_ANALYZED_LOGFILES_DIRECTORY
     elif directoryType == "AnnotationType":
         userSpecificDirectory = True
         base_directory = ANNOTATION_FILES_DIRECTORY

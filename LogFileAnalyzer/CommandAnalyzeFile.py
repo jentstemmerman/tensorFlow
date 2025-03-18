@@ -6,47 +6,43 @@ import TokenParser
 import Dataset
 
 def AnalyzeFile(modelDirectory, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, FileNameMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
-    
-    #tf.config.run_functions_eagerly(True)  
-    #tf.data.experimental.enable_debug_mode() 
-      
-    with tf.device('/CPU:0'):
-        success = False
-        physical_devices = tf.config.list_physical_devices("CPU")
-        numberOfThreads = 7  # 1 for the main process
-        print("Calling CreateWorkers numberOfThreads: ", numberOfThreads, "/ physical_devices: ", physical_devices)
+     
+    success = False
+    physical_devices = tf.config.list_physical_devices("CPU")
+    numberOfThreads = 7  # 1 for the main process
+    print("Calling CreateWorkers numberOfThreads: ", numberOfThreads, "/ physical_devices: ", physical_devices)
 
-        itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
-        id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList) 
-        modelFeatureList                     = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
-        maskValueList                        = Model.GetMaskValueList(id_from_tokenList)
+    itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
+    id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList) 
+    modelFeatureList                     = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
+    maskValueList                        = Model.GetMaskValueList(id_from_tokenList)
 
-        TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
-        modelSource = {"Source": "FromFile", "ModelDirectory": modelDirectory, "Network": TrainingsParameter["Model"]["Network"]}
-        model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
-            
-        Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
-    
-        if (Workers == None):
-            print("Could not start workers. END")
-        else:
-            Model.AnalyzePrintfFile(    model=model, 
-                                        inputFile=inputFile, 
-                                        inferenceDataSetFile=inferenceDataSetFile,
-                                        LogFileAnalyzedPath=LogFileAnalyzedPath,
-                                        FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, 
-                                        FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors,
-                                        itemFile=itemFile, 
-                                        temperature=temperature, 
-                                        seq_length=TrainingsParameter["Model"]["seq_length"], 
-                                        id_from_tokenList = id_from_tokenList,
-                                        token_from_idList=token_from_idList,
-                                        numberOfThreads=numberOfThreads, 
-                                        Workers=Workers,
-                                        DataTypeForTensors=TrainingsParameter["DataTypeForTensors"] )
+    TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
+    modelSource = {"Source": "FromFile", "ModelDirectory": modelDirectory, "Network": TrainingsParameter["Model"]["Network"]}
+    model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
+        
+    Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
 
-            success = True
-            worker.KillWorkers(Workers)
+    if (Workers == None):
+        print("Could not start workers. END")
+    else:
+        Model.AnalyzePrintfFile(    model=model, 
+                                    inputFile=inputFile, 
+                                    inferenceDataSetFile=inferenceDataSetFile,
+                                    LogFileAnalyzedPath=LogFileAnalyzedPath,
+                                    FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, 
+                                    FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors,
+                                    itemFile=itemFile, 
+                                    temperature=temperature, 
+                                    seq_length=TrainingsParameter["Model"]["seq_length"], 
+                                    id_from_tokenList = id_from_tokenList,
+                                    token_from_idList=token_from_idList,
+                                    numberOfThreads=numberOfThreads, 
+                                    Workers=Workers,
+                                    DataTypeForTensors=TrainingsParameter["DataTypeForTensors"] )
+
+        success = True
+        worker.KillWorkers(Workers)
     
     return success
 

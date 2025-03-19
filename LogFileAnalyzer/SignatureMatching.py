@@ -348,19 +348,25 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 signatureLength = numberOfPooledVectorsList[signatureIndex]
                 
                 TestTensorList = []
-                
                 for index in range(numberOfSimularityCalculationsPerRead):
                     testTensor = inputTensor[index : index + signatureLength, :]
                     TestTensorList.append(testTensor)
-                
-                batchedTestTensor = tf.stack(TestTensorList, axis=0)
-                batched_signature_tensor = tf.stack([signature_tensor] * batchedTestTensor.shape[0], axis=0)
 
-                simularity = CalculateSimularityBatched(batched_signature_tensor, batchedTestTensor)
-                
+                batchedTestTensor_old = tf.stack(TestTensorList, axis=0)
+                batched_signature_tensor_old = tf.stack([signature_tensor] * batchedTestTensor_old.shape[0], axis=0)
+                simularity_old = CalculateSimularityBatched(batched_signature_tensor_old, batchedTestTensor_old)
+
+                # New approach using tf.signal.frame
+                batchedTestTensor_new = tf.signal.frame(inputTensor, signatureLength, 1, axis=0)
+                batched_signature_tensor_new = tf.stack([signature_tensor] * batchedTestTensor_new.shape[0], axis=0)
+                simularity_new = CalculateSimularityBatched(batched_signature_tensor_new, batchedTestTensor_new)
+
+                # Compare both results
+                tf.debugging.assert_near(simularity_old, simularity_new, message="Old and new simularities differ.")
+
                 for index in range(numberOfSimularityCalculationsPerRead):
                     # humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
-                    outputBinaryFileHandlers[signatureIndex].append(simularity[index])
+                    outputBinaryFileHandlers[signatureIndex].append(simularity_new[index])
                     simularityCalculationIndexes[signatureIndex] += 1
                     
                     
@@ -430,4 +436,4 @@ def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outp
                       
     print("CreateAnnotationListFromSimularitiesFile DONE")
 
-    
+

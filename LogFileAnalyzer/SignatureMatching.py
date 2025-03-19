@@ -43,6 +43,7 @@ def CalculatePooledVectors(vectors):
     
     return pooledVector
 
+@tf.function
 def CalculatePooledVectorsBatched(batchedvectors):
     
     pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
@@ -135,6 +136,7 @@ def CalculateSimularity(signature, tensor, data_type):
     
     return similarity
 
+@tf.function
 def CalculateSimularityBatched(signature, tensor):
    
     pooledVector = CalculatePooledVectorsBatched(tensor)
@@ -347,22 +349,10 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 signature_tensor = signatureTensors[signatureIndex]
                 signatureLength = numberOfPooledVectorsList[signatureIndex]
                 
-                TestTensorList = []
-                for index in range(numberOfSimularityCalculationsPerRead):
-                    testTensor = inputTensor[index : index + signatureLength, :]
-                    TestTensorList.append(testTensor)
-
-                batchedTestTensor_old = tf.stack(TestTensorList, axis=0)
-                batched_signature_tensor_old = tf.stack([signature_tensor] * batchedTestTensor_old.shape[0], axis=0)
-                simularity_old = CalculateSimularityBatched(batched_signature_tensor_old, batchedTestTensor_old)
-
                 # New approach using tf.signal.frame
                 batchedTestTensor_new = tf.signal.frame(inputTensor, signatureLength, 1, axis=0)
                 batched_signature_tensor_new = tf.stack([signature_tensor] * batchedTestTensor_new.shape[0], axis=0)
                 simularity_new = CalculateSimularityBatched(batched_signature_tensor_new, batchedTestTensor_new)
-
-                # Compare both results
-                tf.debugging.assert_near(simularity_old, simularity_new, message="Old and new simularities differ.")
 
                 for index in range(numberOfSimularityCalculationsPerRead):
                     # humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")

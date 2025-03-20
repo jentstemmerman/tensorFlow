@@ -352,11 +352,11 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 # New approach using tf.signal.frame
                 batchedTestTensor_new = tf.signal.frame(inputTensor, signatureLength, 1, axis=0)
                 batched_signature_tensor_new = tf.stack([signature_tensor] * batchedTestTensor_new.shape[0], axis=0)
-                simularity_new = CalculateSimularityBatched(batched_signature_tensor_new, batchedTestTensor_new)
+                simularity = CalculateSimularityBatched(batched_signature_tensor_new, batchedTestTensor_new)
 
                 for index in range(numberOfSimularityCalculationsPerRead):
-                    # humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
-                    outputBinaryFileHandlers[signatureIndex].append(simularity_new[index])
+                    humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
+                    outputBinaryFileHandlers[signatureIndex].append(simularity[index])
                     simularityCalculationIndexes[signatureIndex] += 1
                     
                     

@@ -488,24 +488,25 @@ def enable_signature():
         print("Error enable_signature:", e)
         return jsonify({"message": "Error enable_signature", "error": str(e)}), 500
 
-@WebServer.route("/api/PreProcessLogFiles", methods=["GET"])
-def PreProcessLogFiles():
+@WebServer.route("/api/PostProcessLogFiles", methods=["GET"])
+def PostProcessLogFiles():
     try:
+        fileName = request.args.get("fileName", None)
         userId = request.args.get("userId", None)
         similaritythreshold = float(request.args.get("similaritythreshold", 0.5))
         
-
-        def background_task(userId, DataTypeForTensors, similaritythreshold):
+        def background_task(fileName, userId, DataTypeForTensors, similaritythreshold):
             try:
-                FileHandler.async_preprocess_log_files_optimized(userId, DataTypeForTensors, similaritythreshold)
-                #FileHandler.async_preprocess_log_files(userId, DataTypeForTensors, similaritythreshold)
-                #socketio.emit('preprocess_complete', {'userId': userId})
+                if fileName is None:
+                    FileHandler.PostProcessLogFiles(userId, DataTypeForTensors, similaritythreshold)
+                else:
+                    FileHandler.PostProcessLogFile(fileName, userId, DataTypeForTensors, similaritythreshold)
             except Exception as e:
-                print(f"Error processing log files for user {userId}: {e}")
+                print(f"Error post processing log files for user {userId}: {e}")
                 #socketio.emit('preprocess_error', {'error': str(e), 'userId': userId})
 
         # Start a background thread to process the log files
-        threading.Thread(target=background_task, args=(userId, DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"],similaritythreshold,)).start()
+        threading.Thread(target=background_task, args=(fileName, userId, DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"],similaritythreshold,)).start()
 
         return jsonify({"started": True})
     except Exception as e:

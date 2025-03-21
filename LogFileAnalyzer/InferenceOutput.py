@@ -209,8 +209,8 @@ def InferenceOutputThread(workerParameter,
             pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
         else:
             HumanReadableTextOutput = None
-            pooledHumanReadableLogitsVectorlinesToWrite = None
-        
+            
+            pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
         
         endTimeComposingLines = time.time()
         startTimePooling = time.time()

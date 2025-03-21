@@ -178,15 +178,17 @@ class OneStep(tf.keras.Model):
   
   
    
-  @tf.function
+  # @tf.function
   def generate_hidded_states(self, inputTensor, window_size):
     with tf.device('/GPU:0'):
       # this is not how I want to do it eventually, ideally the hidden states of all the lines should be stored for every line in the log. 
       
       _, hidden_state  = self.model(inputs=(inputTensor))  
+            
       
-      hiddenStateOfLastLineInWindow = tf.gather(hidden_state, indices = window_size - 1, axis=1)
-      hiddenStateOfPrediction       = tf.gather(hidden_state, indices = window_size - 2, axis=1)
+      hiddenStateOfPrediction       = tf.gather(hidden_state, indices = window_size - 1, axis=1)
+      hiddenStateOfLastLineInWindow = tf.gather(hidden_state, indices = window_size - 2, axis=1)
+      
             
       similarity = -tf.keras.losses.cosine_similarity(hiddenStateOfLastLineInWindow, hiddenStateOfPrediction)
 

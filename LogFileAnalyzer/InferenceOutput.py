@@ -183,7 +183,7 @@ def InferenceOutputThread(workerParameter,
                           crossEntropyOfActuals, 
                           probabilityOfPredictions, 
                           pooledLogitsVector,
-                          onlyMachineReadableLogitsVector=False):
+                          onlyLogLogitsVectors=False):
     
     with tf.device('/CPU:0'):
         id_from_tokenList = workerParameter[0]
@@ -192,7 +192,7 @@ def InferenceOutputThread(workerParameter,
 
         startTimeComposingLines = time.time()
         
-        if not onlyMachineReadableLogitsVector:
+        if not onlyLogLogitsVectors:
             HumanReadableTextOutput = ComposeLineList(numberOfParallelExecutions=numberOfParallelExecutions, 
                                     id_from_tokenList=id_from_tokenList, 
                                     token_from_idList=token_from_idList,

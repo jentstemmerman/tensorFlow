@@ -19,7 +19,8 @@ import shutil
 WebServer = Flask(__name__)
 cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
 
-socketio = SocketIO(WebServer, cors_allowed_origins=["*"])
+# Update this line to allow all origins
+socketio = SocketIO(WebServer, cors_allowed_origins="*")
 
 
 # Mock annotations

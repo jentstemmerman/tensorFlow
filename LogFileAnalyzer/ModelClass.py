@@ -176,66 +176,34 @@ class OneStep(tf.keras.Model):
     
     return probabilities
   
-  
-   
-  # @tf.function
+    
+  @tf.function
   def generate_hidded_states(self, inputTensor, window_size):
     with tf.device('/GPU:0'):
-      # this is not how I want to do it eventually, ideally the hidden states of all the lines should be stored for every line in the log. 
-      
-      _, hidden_state  = self.model(inputs=(inputTensor))  
+      predicted_logits_list, hidden_state  = self.model(inputs=(inputTensor))  
             
+      lastItemInWindow = window_size - 1
       
-      hiddenStateOfPrediction       = tf.gather(hidden_state, indices = window_size - 1, axis=1)
-      hiddenStateOfLastLineInWindow = tf.gather(hidden_state, indices = window_size - 2, axis=1)
-      
-            
-      similarity = -tf.keras.losses.cosine_similarity(hiddenStateOfLastLineInWindow, hiddenStateOfPrediction)
-
+      hiddenStateOfFirstLineInWindow = tf.gather(hidden_state, indices = 0                   , axis=1)
+      hiddenStateOfPrediction        = tf.gather(hidden_state, indices = lastItemInWindow    , axis=1)
+      hiddenStateOfLastLineInWindow  = tf.gather(hidden_state, indices = lastItemInWindow - 1, axis=1)
+                  
       pooledLogitsData = {
-                              'vector': hiddenStateOfLastLineInWindow,
-                              'similarity': similarity,
+                              'hidden_state_prediction': hiddenStateOfPrediction,
+                              'hidden_state_first':      hiddenStateOfFirstLineInWindow,
+                              'hidden_state_last':       hiddenStateOfLastLineInWindow,
+                              'hidden_state':            hidden_state,
                         }
       
-      return pooledLogitsData
+      return predicted_logits_list, pooledLogitsData
     
 
  # @tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, onlyMachineReadableLogitsVector, window_size, states=None):
     with tf.device('/GPU:0'):
 
-      # Run the model.
-      predicted_logits_list, hidden_state  = self.model(inputs=(inputTensor))   
-   
-      hiddenStateOfPrediction = hidden_state[:,-1,:]
-      
-      hiddenStateOfLineBeforePrediction = hidden_state[:,-2,:]
-      
-      indexOfPrediction = hidden_state.shape[1] - 1
-             
-      hiddenStateOfPrediction2 = tf.gather(hidden_state, indices=indexOfPrediction, axis=1)
-      hiddenStateOfLineBeforePrediction2 = tf.gather(hidden_state, indices=indexOfPrediction-1, axis=1)
-            
-      ### this code is here to check if the gather function is ok
-      are_hiddenStateOfPrediction_equal = tf.reduce_all(tf.equal(hiddenStateOfPrediction, hiddenStateOfPrediction2))
-      are_hiddenStateOfLineBeforePrediction_equal = tf.reduce_all(tf.equal(hiddenStateOfLineBeforePrediction, hiddenStateOfLineBeforePrediction2))
-            
-      if (not are_hiddenStateOfPrediction_equal):
-        print("hiddenStateOfPrediction not equal")
-        exit()
-        
-      if (not are_hiddenStateOfLineBeforePrediction_equal):
-        print("hiddenStateOfLineBeforePrediction not equal")
-        exit()
-      ### end of check code
-      
-      similarity = -tf.keras.losses.cosine_similarity(hiddenStateOfPrediction, hiddenStateOfLineBeforePrediction)
-       
+      predicted_logits_list, pooledLogitsData = self.generate_hidded_states(inputTensor, window_size)
 
-      pooledLogitsData = {
-                              'vector': hiddenStateOfPrediction,
-                              'similarity': similarity,
-                           }
       if (onlyMachineReadableLogitsVector):
         return pooledLogitsData
       else:

@@ -249,7 +249,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 else:
 
                     if (onlyLogLogitsVector):
-                        pooledLogitsVectorData = one_step_model.generate_hidded_states(idList[threadId], window_size)
+                        _, pooledLogitsVectorData = one_step_model.generate_hidded_states(idList[threadId], window_size)
                         nextPredictionsList.append([])
                         probabilityOfPredictionsList.append([])
                         probabilityOfActualsList.append([])
@@ -341,7 +341,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 HumanReadableTextOutput, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
 
                 for index, lineToWrite in enumerate(pooledMachineReadableLogitsVectorlinesToWrite):
-                    binaryFileHandler.append(lineToWrite)
+                    binaryFileHandler.append(lineToWrite)   # line to write is now suddenly of shape 64,12
                 
                 numberOfAnalyzedLines                += (index + 1)
                 numberOfAnalyzedLinesThisCycle       += (index + 1)
@@ -422,7 +422,7 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     nexttokenIds = tf.stack(nexttokenIdsList, axis=0)
     
     _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, onlyMachineReadableLogitsVector = False, window_size = seq_length, states=None)
-    numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
+    numberOfVectors = pooledLogitsVectorData['hidden_state_prediction'].shape[1]
     return numberOfVectors
 
 def force_gpu_init():

@@ -26,8 +26,8 @@ def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pool
     with tf.device('/CPU:0'):
         linesToWrite = []
         for executionIndex in range(numberOfParallelExecutions):
-            arrayString = np.array2string(pooledLogitsVector['vector'][executionIndex].numpy(), max_line_width=80, threshold=1000)
-            line = TranslateToString(pooledLogitsVector['similarity'][executionIndex].numpy()) + "   " + arrayString + "\n"
+            arrayString = np.array2string(pooledLogitsVector['hidden_state_last'][executionIndex].numpy(), max_line_width=80, threshold=1000)
+            line = arrayString + "\n"
             linesToWrite.append(line)
 
         return linesToWrite
@@ -36,8 +36,8 @@ def ComposeDensePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogits
     with tf.device('/CPU:0'):
         vectorsToWrite = []
         for executionIndex in range(numberOfParallelExecutions):
-            vector = pooledLogitsVector['vector'][executionIndex].numpy()
-            vectorsToWrite.append(vector)
+            hidden_state_last = pooledLogitsVector['hidden_state_last'][executionIndex].numpy()
+            vectorsToWrite.append(hidden_state_last)
         return vectorsToWrite
 
 def ComposeLineList(numberOfParallelExecutions, 

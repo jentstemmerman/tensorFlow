@@ -217,12 +217,12 @@ def analyze_file(file_name):
         
         temperature = 1
          
-        FileNameMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId, temperature)
+        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId, temperature)
         FileNameHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId, temperature)
         
         # Clear directories
         directories_to_clear = [
-            os.path.dirname(FileNameMachineReadablePooledVectors),
+            os.path.dirname(FileNamesMachineReadablePooledVectors["all"]),
             os.path.dirname(FileNameHumanReadablePooledVectors)
         ]
 
@@ -237,7 +237,7 @@ def analyze_file(file_name):
                                        file_path, 
                                        inferenceDataSetFile, 
                                        LogFileAnalyzedPath, 
-                                       FileNameMachineReadablePooledVectors, 
+                                       FileNamesMachineReadablePooledVectors, 
                                        FileNameHumanReadablePooledVectors, 
                                        OriginalTokenFileDirectory, 
                                        itemFile, 

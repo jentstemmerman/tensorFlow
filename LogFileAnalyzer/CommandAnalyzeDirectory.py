@@ -9,7 +9,7 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
     with tf.device('/CPU:0'):
         #tf.config.run_functions_eagerly(True)  
         #tf.data.experimental.enable_debug_mode()  
-        numberOfThreads = 2  # 1 for the main process
+        numberOfThreads = 7  # 1 for the main process
 
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
         id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList) 

@@ -22,24 +22,16 @@ def TranslateToString(value):
         value = str(value)
     return value
 
-def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
+def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector_hidden_state_last):
     with tf.device('/CPU:0'):
         linesToWrite = []
         for executionIndex in range(numberOfParallelExecutions):
-            arrayString = np.array2string(pooledLogitsVector['hidden_state_last'][executionIndex].numpy(), max_line_width=80, threshold=1000)
+            arrayString = np.array2string(pooledLogitsVector_hidden_state_last[executionIndex].numpy(), max_line_width=80, threshold=1000)
             line = arrayString + "\n"
             linesToWrite.append(line)
 
         return linesToWrite
-
-def ComposeDensePooledLastLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
-    with tf.device('/CPU:0'):
-        vectorsToWrite = []
-        for executionIndex in range(numberOfParallelExecutions):
-            hidden_state_last = pooledLogitsVector['hidden_state_last'][executionIndex].numpy()
-            vectorsToWrite.append(hidden_state_last)
-        return vectorsToWrite
-
+    
 def ComposeLineList(numberOfParallelExecutions, 
                     id_from_tokenList, 
                     token_from_idList,
@@ -48,8 +40,7 @@ def ComposeLineList(numberOfParallelExecutions,
                     PrintfList, 
                     probabilityOfActuals, 
                     crossEntropyOfActuals, 
-                    probabilityOfPredictions, 
-                    pooledLogitsVector):
+                    probabilityOfPredictions):
     
     with tf.device('/CPU:0'):
         string_length = 17
@@ -123,8 +114,6 @@ def ComposeLineList(numberOfParallelExecutions,
             AccuracyOfPredictionString  = "HIDDEN" + str(int(AccuracyOfPrediction * 100))    
             AccuracyOfPredictionString  = extend_string_with_spaces(AccuracyOfPredictionString, 10)
 
-            SimilarityString = " Simul: " + TranslateToString(pooledLogitsVector['similarity'][executionIndex].numpy()) + "  "
-            
             #print(f"PrintfList[{executionIndex}], numberOfParallelExecutions = {numberOfParallelExecutions} len(PrintfList) = {len(PrintfList)}")
             
             if (executionIndex >= len(PrintfList)):
@@ -182,7 +171,7 @@ def InferenceOutputThread(workerParameter,
                           probabilityOfActuals, 
                           crossEntropyOfActuals, 
                           probabilityOfPredictions, 
-                          pooledLogitsVector,
+                          pooledLogitsVector_hidden_state_last,
                           onlyLogLogitsVectors=False):
     
     with tf.device('/CPU:0'):
@@ -201,27 +190,28 @@ def InferenceOutputThread(workerParameter,
                                     PrintfList=PrintfList, 
                                     probabilityOfActuals=probabilityOfActuals, 
                                     crossEntropyOfActuals=crossEntropyOfActuals, 
-                                    probabilityOfPredictions=probabilityOfPredictions, 
-                                    pooledLogitsVector=pooledLogitsVector)
+                                    probabilityOfPredictions=probabilityOfPredictions)
             
 
             
-            pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
+            pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector_hidden_state_last)
         else:
             HumanReadableTextOutput = None
             
-            pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
+            pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector_hidden_state_last)
         
         endTimeComposingLines = time.time()
         startTimePooling = time.time()
         
-        pooledMachineReadableLogitsVectorlinesToWrite = ComposeDensePooledLastLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
+        
+       
         endTimePooling = time.time()
+        
         
         poolingTime = endTimePooling - startTimePooling
         composingLinesTime = endTimeComposingLines - startTimeComposingLines
         print(f"Thread {threadId} composingLinesTime took {composingLinesTime:.4f} Pooling took: {poolingTime:.4f} seconds")
 
-        return HumanReadableTextOutput, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite
+        return HumanReadableTextOutput, pooledHumanReadableLogitsVectorlinesToWrite
 
 

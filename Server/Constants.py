@@ -90,9 +90,13 @@ def GetLogFileMachineReadableVectorsPath(logFilename, userId, temperature):
             
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
     
-    FileNameMachineReadablePooledVectors = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors.dat")
-
-    return FileNameMachineReadablePooledVectors
+    FileNameMachineReadablePooledVectors_first = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_first.dat")
+    FileNameMachineReadablePooledVectors_last  = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_last.dat")
+    FileNameMachineReadablePooledVectors_all   = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_all.dat")
+    
+    FileNameMachineReadablePooledVectorsDict = {"first": FileNameMachineReadablePooledVectors_first, "last": FileNameMachineReadablePooledVectors_last, "all": FileNameMachineReadablePooledVectors_all}
+    
+    return FileNameMachineReadablePooledVectorsDict
 
 def GetLogFileHumanReadableVectorsPath(logFilename, userId, temperature):
     userId = str(userId)

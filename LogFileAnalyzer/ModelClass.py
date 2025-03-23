@@ -187,7 +187,10 @@ class OneStep(tf.keras.Model):
       hiddenStateOfFirstLineInWindow = tf.gather(hidden_state, indices = 0                   , axis=1)
       hiddenStateOfPrediction        = tf.gather(hidden_state, indices = lastItemInWindow    , axis=1)
       hiddenStateOfLastLineInWindow  = tf.gather(hidden_state, indices = lastItemInWindow - 1, axis=1)
-                  
+      
+      # flatten this hidden state here for performance reasons. We will have first the slices in the sequence: for instance [200, 64, 12] will be [200*64, 12]
+      hidden_state = tf.reshape(hidden_state, [hidden_state.shape[0] * hidden_state.shape[1], hidden_state.shape[2]])
+      
       pooledLogitsData = {
                               'hidden_state_prediction': hiddenStateOfPrediction,
                               'hidden_state_first':      hiddenStateOfFirstLineInWindow,
@@ -199,73 +202,67 @@ class OneStep(tf.keras.Model):
     
 
  # @tf.function
-  def generate_steps_optimized(self, inputTensor, nexttokenIds, onlyMachineReadableLogitsVector, window_size, states=None):
+  def generate_steps_optimized(self, inputTensor, nexttokenIds, window_size, states=None):
     with tf.device('/GPU:0'):
 
       predicted_logits_list, pooledLogitsData = self.generate_hidded_states(inputTensor, window_size)
-
-      if (onlyMachineReadableLogitsVector):
-        return pooledLogitsData
-      else:
-          
-        #predicted_logits_list  = self.model(inputs=(inputTensor,inputTensor))  
-        numberOfFeatures       = len(self.Tokens_from_idList)
-        predictions            = []
-        probabilityOfPredictions = None
-        probabilityOfActuals     = None
-        crossEntropyOfActuals    = None
         
-        for index, Tokens_from_ids in enumerate(self.Tokens_from_idList):
-            predicted_logits = predicted_logits_list[index]
-            predicted_logits = predicted_logits[:, -1, :]    # take the last logits, this is the one the model predicts
-            predicted_logits = predicted_logits / self.temperature
-  
-            if (Tokens_from_ids is not None):
-                predicted_id = tf.argmax(predicted_logits, axis=1)
-                prediction = (self.Tokens_from_idList[index])(predicted_id).numpy()
-
-                for i, pred in enumerate(prediction):
-                  prediction[i] = pred.decode('utf-8') 
-
-                softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
-                probabilityOfPrediction = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id).numpy()
-
-            else:
-                predicted_id = predicted_logits
-                predicted_id = tf.reshape(predicted_id, [-1])
-                prediction = predicted_id.numpy()
-                tensor_shape = (inputTensor.shape[0],)
-                probabilityOfPrediction = tf.zeros(shape=tensor_shape) # dit heeft geen zin voor non-cathegorical, maar er moet iets ingevuld zijn
-
-            
-            predictions.append(prediction)
-          
-            
-            if (probabilityOfPredictions is None):
-                probabilityOfPredictions  = probabilityOfPrediction   
-            else:
-                probabilityOfPredictions   = np.append(probabilityOfPredictions, probabilityOfPrediction)
-
-            probabilityOfActual = self.GetProbabilitiesFromLogits(softmaxLogits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
-
-            if (probabilityOfActuals is None):
-                probabilityOfActuals = probabilityOfActual
-            else:
-                probabilityOfActuals   = np.append(probabilityOfActuals, probabilityOfActual)
-
-
-            crossEntropyOfActual = self.GetCrossEntropyromLogits(predicted_logits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
-
-            if (crossEntropyOfActuals is None):
-                crossEntropyOfActuals = crossEntropyOfActual
-            else:
-                crossEntropyOfActuals   = np.append(crossEntropyOfActuals, crossEntropyOfActual)
-        
-        probabilityOfPredictions = np.reshape(probabilityOfPredictions, [numberOfFeatures, int(len(probabilityOfPredictions) / numberOfFeatures)])
-        probabilityOfActuals     = np.reshape(probabilityOfActuals,     [numberOfFeatures, int(len(probabilityOfActuals)     / numberOfFeatures)])
-        crossEntropyOfActuals    = np.reshape(crossEntropyOfActuals,    [numberOfFeatures, int(len(crossEntropyOfActuals)     / numberOfFeatures)])
+      numberOfFeatures       = len(self.Tokens_from_idList)
+      predictions            = []
+      probabilityOfPredictions = None
+      probabilityOfActuals     = None
+      crossEntropyOfActuals    = None
       
+      for index, Tokens_from_ids in enumerate(self.Tokens_from_idList):
+          predicted_logits = predicted_logits_list[index]
+          predicted_logits = predicted_logits[:, -1, :]    # take the last logits, this is the one the model predicts
+          predicted_logits = predicted_logits / self.temperature
+
+          if (Tokens_from_ids is not None):
+              predicted_id = tf.argmax(predicted_logits, axis=1)
+              prediction = (self.Tokens_from_idList[index])(predicted_id).numpy()
+
+              for i, pred in enumerate(prediction):
+                prediction[i] = pred.decode('utf-8') 
+
+              softmaxLogits = tf.nn.softmax(predicted_logits, axis=1)
+              probabilityOfPrediction = self.GetProbabilitiesFromLogits(softmaxLogits, predicted_id).numpy()
+
+          else:
+              predicted_id = predicted_logits
+              predicted_id = tf.reshape(predicted_id, [-1])
+              prediction = predicted_id.numpy()
+              tensor_shape = (inputTensor.shape[0],)
+              probabilityOfPrediction = tf.zeros(shape=tensor_shape) # dit heeft geen zin voor non-cathegorical, maar er moet iets ingevuld zijn
+
+          
+          predictions.append(prediction)
+        
+          
+          if (probabilityOfPredictions is None):
+              probabilityOfPredictions  = probabilityOfPrediction   
+          else:
+              probabilityOfPredictions   = np.append(probabilityOfPredictions, probabilityOfPrediction)
+
+          probabilityOfActual = self.GetProbabilitiesFromLogits(softmaxLogits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
+
+          if (probabilityOfActuals is None):
+              probabilityOfActuals = probabilityOfActual
+          else:
+              probabilityOfActuals   = np.append(probabilityOfActuals, probabilityOfActual)
 
 
-        return predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsData
+          crossEntropyOfActual = self.GetCrossEntropyromLogits(predicted_logits, tf.cast(nexttokenIds[:,index], dtype=tf.int32)).numpy()
+
+          if (crossEntropyOfActuals is None):
+              crossEntropyOfActuals = crossEntropyOfActual
+          else:
+              crossEntropyOfActuals   = np.append(crossEntropyOfActuals, crossEntropyOfActual)
+      
+      probabilityOfPredictions = np.reshape(probabilityOfPredictions, [numberOfFeatures, int(len(probabilityOfPredictions) / numberOfFeatures)])
+      probabilityOfActuals     = np.reshape(probabilityOfActuals,     [numberOfFeatures, int(len(probabilityOfActuals)     / numberOfFeatures)])
+      crossEntropyOfActuals    = np.reshape(crossEntropyOfActuals,    [numberOfFeatures, int(len(crossEntropyOfActuals)     / numberOfFeatures)])
+    
+
+      return predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsData
       

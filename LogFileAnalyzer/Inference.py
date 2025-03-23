@@ -58,7 +58,7 @@ def CreateDataSetFromVerificationFile(LogfileVerification, dataSetFile, itemList
     print(f"Dataset from file  {os.path.basename(LogfileVerification)} saved. to {dataSetFile}\n")
 
 
-def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, inferenceDataSetFile, FileNameAnalyzed, FileNameHumanReadablePooledVectors, FileNameMachineReadablePooledVectors, id_from_tokenList, token_from_idList, temperature, seq_length):
+def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, inferenceDataSetFile, FileNameAnalyzed, FileNameHumanReadablePooledVectors, FileNamesMachineReadablePooledVectors, id_from_tokenList, token_from_idList, temperature, seq_length):
           
     with tf.device('/CPU:0'):
             
@@ -108,12 +108,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         remainingNumberOfLines  = numberOfLines - (window_size + 1)
         
         numberOfParallelExecutions = maxNumberOfParallelExecutions
-        
-        #noMoreReductionPossible, reduced, numberOfParallelExecutions, numberOfThreads = GetInferenceParameters(remainingNumberOfLines, numberOfParallelExecutions, numberOfThreads)
-        
-        noMoreReductionPossible = False
-        reduced = False
-        
+   
+             
         
         datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
                                                                    dataSetFile=inferenceDataSetFile, 
@@ -130,16 +126,14 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         datasetStreamWriter = None
         
-        indexOfFirstPrediction     = window_size
+        indexOfFirstPrediction = window_size
                
-        hiddenVectorSize = GetInitialInference(DataTypeForTensors, inferenceDataSetFile, window_size, one_step_model, itemList)
-               
-        binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
+        hiddenVectorSize = CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, window_size, one_step_model, itemList)
+          
+        binaryFileHandlerFirstLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"], data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
+        binaryFileHandlerLastLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"], data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)        
+        binaryFileHandlerAllLogits  = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] , data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
         
-        if (reduced):
-            print("reduced parameters 1")
-        
-       
         analyzeStartTime   = time.time()
     
         printfList      = []
@@ -207,57 +201,81 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             probabilityOfPredictionsList   = []
             probabilityOfActualsList       = []
             crossEntropyOfActualsList      = []
-            pooledLogitsVectorDataList     = []
+            pooledLogitsVectorLastDataList     = []
+            allLogitsVectorDataList        = []
+            lastLogitsVectorDataList       = []
+            firstLogitsVectorDataList      = []
 
             # Assemble inputs for the next cycle
-            if (not noMoreReductionPossible):
-                indexOfFirstPredictionTemp = indexOfFirstPrediction
-           
-                for threadId in range(0,numberOfThreads):
-                    
-                    inputQueue  = Workers[threadId]["inputQueue"]
-                    startTime = time.time()
-                    print("Starting AssembleInputsThread ")
-                    
-                    inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId,
-                                                                             inferenceDataSetFile, 
-                                                                             itemList, 
-                                                                             DataTypeForTensors, 
-                                                                             seq_length, 
-                                                                             1, 
-                                                                             numberOfThreads, 
-                                                                             indexOfFirstPredictionTemp, 
-                                                                             numberOfParallelExecutions, 
-                                                                             window_size,)))
-                    print("AssembleInputsThread started in time: ", time.time() - startTime) 
 
-                    indexOfFirstPredictionTemp += numberOfParallelExecutions
+            indexOfFirstPredictionTemp = indexOfFirstPrediction
+        
+            for threadId in range(0,numberOfThreads):
+                
+                inputQueue  = Workers[threadId]["inputQueue"]
+                startTime = time.time()
+                print("Starting AssembleInputsThread ")
+                
+                inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId,
+                                                                            inferenceDataSetFile, 
+                                                                            itemList, 
+                                                                            DataTypeForTensors, 
+                                                                            seq_length, 
+                                                                            1, 
+                                                                            numberOfThreads, 
+                                                                            indexOfFirstPredictionTemp, 
+                                                                            numberOfParallelExecutions, 
+                                                                            window_size,)))
+                print("AssembleInputsThread started in time: ", time.time() - startTime) 
+
+                indexOfFirstPredictionTemp += numberOfParallelExecutions
                         
             # Generate inference
             for threadId in range(0, numberOfThreads):
 
                 if (numberOfExecutionsInProgress[threadId] == 0):
                     if (onlyLogLogitsVector):
-                        pooledLogitsVectorDataList.append([])
+                        pooledLogitsVectorLastDataList.append([])
                     else:
+                        allLogitsVectorDataList.append([])
+                        firstLogitsVectorDataList.append([])
+                        lastLogitsVectorDataList.append([])
+                        
                         nextPredictionsList.append([])
                         probabilityOfPredictionsList.append([])
                         probabilityOfActualsList.append([])
                         crossEntropyOfActualsList.append([])
-                        pooledLogitsVectorDataList.append([])
+                        pooledLogitsVectorLastDataList.append([])
 
                 else:
 
                     if (onlyLogLogitsVector):
                         _, pooledLogitsVectorData = one_step_model.generate_hidded_states(idList[threadId], window_size)
+                        
+                        allLogitsVectorsList = pooledLogitsVectorData['hidden_state'].numpy()
+                        firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
+                        lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy() 
+                        
+                        allLogitsVectorDataList.append(allLogitsVectorsList)
+                        firstLogitsVectorDataList.append(firstLogitsVectorsList)
+                        lastLogitsVectorDataList.append(lastLogitsVectorsList)
+                        
                         nextPredictionsList.append([])
                         probabilityOfPredictionsList.append([])
                         probabilityOfActualsList.append([])
                         crossEntropyOfActualsList.append([])
-                        pooledLogitsVectorDataList.append(pooledLogitsVectorData)
+                        pooledLogitsVectorLastDataList.append(pooledLogitsVectorData['hidden_state_last'])
                         
                     else:
-                        predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], onlyLogLogitsVector, window_size=window_size, states=None)
+                        predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], window_size=window_size, states=None)
+                        
+                        allLogitsVectorsList = pooledLogitsVectorData['hidden_state'].numpy()
+                        firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
+                        lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy() 
+                        
+                        allLogitsVectorDataList.append(allLogitsVectorsList)
+                        firstLogitsVectorDataList.append(firstLogitsVectorsList)
+                        lastLogitsVectorDataList.append(lastLogitsVectorsList)
                         
                         # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
                         nextPredictionsList.append(predictions)
@@ -271,7 +289,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                         # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
                         crossEntropyOfActualsList.append(crossEntropyOfActuals)
 
-                        pooledLogitsVectorDataList.append(pooledLogitsVectorData)
+                        pooledLogitsVectorLastDataList.append(pooledLogitsVectorData)
 
 
             # Start output generation
@@ -287,7 +305,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                             None, 
                                                                             None, 
                                                                             None, 
-                                                                            pooledLogitsVectorDataList[threadId], 
+                                                                            pooledLogitsVectorLastDataList[threadId],
                                                                             onlyLogLogitsVector)))
                 else:
                     inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
@@ -298,7 +316,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                     probabilityOfActualsList[threadId], 
                                                     crossEntropyOfActualsList[threadId], 
                                                     probabilityOfPredictionsList[threadId], 
-                                                    pooledLogitsVectorDataList[threadId], 
+                                                    pooledLogitsVectorLastDataList[threadId], 
                                                     onlyLogLogitsVector)))
             
             printfList      = []
@@ -316,21 +334,20 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
     
             indexOfFirstPredictionTemp = indexOfFirstPrediction
             
-            if (not noMoreReductionPossible):
-                for threadId in range(0,numberOfThreads):
-                    outputQueue = Workers[threadId]["outputQueue"]
+            for threadId in range(0,numberOfThreads):
+                outputQueue = Workers[threadId]["outputQueue"]
 
-                    idInnerList, nextIdsInnerList, numberOfSamples = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
-                    
-                    numberOfExecutionsInProgress[threadId] = numberOfSamples
-                    
-                    if (origPrintfList is not None):
-                        nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfSamples]
+                idInnerList, nextIdsInnerList, numberOfSamples = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                 
-                    printfList.append(nextLogs)
-                    idList.append(idInnerList)
-                    nextIdList.append(nextIdsInnerList)
-                    indexOfFirstPredictionTemp += numberOfSamples
+                numberOfExecutionsInProgress[threadId] = numberOfSamples
+                
+                if (origPrintfList is not None):
+                    nextLogs = origPrintfList[indexOfFirstPredictionTemp:indexOfFirstPredictionTemp + numberOfSamples]
+            
+                printfList.append(nextLogs)
+                idList.append(idInnerList)
+                nextIdList.append(nextIdsInnerList)
+                indexOfFirstPredictionTemp += numberOfSamples
 
             # Get outputs to write to file
             outputGenerationStartTime = time.time()
@@ -338,10 +355,16 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             for threadId in range(0, numberOfThreads):
 
                 outputQueue = Workers[threadId]["outputQueue"]
-                HumanReadableTextOutput, pooledHumanReadableLastLogitsVectorlinesToWrite, pooledMachineReadableLastLogitsVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
+                HumanReadableTextOutput, pooledHumanReadableLastLogitsVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
 
-                for index, lineToWrite in enumerate(pooledMachineReadableLastLogitsVectorlinesToWrite):
-                    binaryFileHandler.append(lineToWrite)   # line to write is now suddenly of shape 64,12
+                for _, lineToWrite in enumerate(allLogitsVectorDataList[threadId]):   # this list is a flattened list of allLogitsVectorDataList. Each element is a timeslice of the sequence. Then the next seqenence and so on.
+                    binaryFileHandlerAllLogits.append(lineToWrite)   
+
+                for _, lineToWrite in enumerate(firstLogitsVectorDataList[threadId]):
+                    binaryFileHandlerFirstLogits.append(lineToWrite)   
+
+                for index, lineToWrite in enumerate(lastLogitsVectorDataList[threadId]):
+                    binaryFileHandlerLastLogits.append(lineToWrite)   
                 
                 numberOfAnalyzedLines                += (index + 1)
                 numberOfAnalyzedLinesThisCycle       += (index + 1)
@@ -403,9 +426,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         
         LogfileToAnalyze.close()
         LogfileAnalyzed.close()   
-        binaryFileHandler.close()
+        binaryFileHandlerLastLogits.close()
 
-def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, one_step_model, itemList):
+def CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, seq_length, one_step_model, itemList):
     datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1, numberOfShards=1)
     datasetStreamer = datasetStreamReader.GetStreamingDataset()
     inputTensorList = []
@@ -421,7 +444,7 @@ def GetInitialInference(DataTypeForTensors, inferenceDataSetFile, seq_length, on
     inputTensor = tf.stack(inputTensorList, axis=0)
     nexttokenIds = tf.stack(nexttokenIdsList, axis=0)
     
-    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, onlyMachineReadableLogitsVector = False, window_size = seq_length, states=None)
+    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, window_size = seq_length, states=None)
     numberOfVectors = pooledLogitsVectorData['hidden_state_prediction'].shape[1]
     return numberOfVectors
 

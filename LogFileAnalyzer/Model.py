@@ -78,7 +78,7 @@ def AnalyzePrintfFile(model,
                       inputFile, 
                       inferenceDataSetFile, 
                       LogFileAnalyzedPath, 
-                      FileNameMachineReadablePooledVectors, 
+                      FileNamesMachineReadablePooledVectors, 
                       FileNameHumanReadablePooledVectors, 
                       itemFile, 
                       temperature, 
@@ -104,7 +104,7 @@ def AnalyzePrintfFile(model,
                                                  inferenceDataSetFile=inferenceDataSetFile, 
                                                  FileNameAnalyzed=LogfileAnalyzed, 
                                                  FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors,
-                                                 FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, 
+                                                 FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
                                                  id_from_tokenList=id_from_tokenList, 
                                                  token_from_idList=token_from_idList, 
                                                  temperature=temperature, 
@@ -130,13 +130,20 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         FileNameAnalyzed = Constants.GetLogFileAnalyzedPath(printfFileToProcess, userId)
         inferenceDataSetFile = Constants.GetInferenceDataSetPath(printfFileToProcess, userId, temperature)
         
-        FileNameMachineReadablePooledVectors = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors)), os.path.basename(FileNameMachineReadablePooledVectors))
+        FileNameMachineReadablePooledVectors["first"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["first"])), os.path.basename(FileNameMachineReadablePooledVectors["first"]))
+        FileNameMachineReadablePooledVectors["last"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["last"])), os.path.basename(FileNameMachineReadablePooledVectors["last"]))
+        FileNameMachineReadablePooledVectors["all"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["all"])), os.path.basename(FileNameMachineReadablePooledVectors["all"]))
+        
         FileNameHumanReadablePooledVectors = os.path.join(os.path.basename(os.path.dirname(FileNameHumanReadablePooledVectors)), os.path.basename(FileNameHumanReadablePooledVectors))
         FileNameAnalyzed = os.path.join(os.path.basename(os.path.dirname(FileNameAnalyzed)), os.path.basename(FileNameAnalyzed))
         inferenceDataSetFile = os.path.join(os.path.basename(os.path.dirname(inferenceDataSetFile)), os.path.basename(inferenceDataSetFile))     
         
-        FileNameMachineReadablePooledVectors = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors)
+        FileNameMachineReadablePooledVectors["first"] = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["first"])
+        FileNameMachineReadablePooledVectors["last"]  = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["last"])
+        FileNameMachineReadablePooledVectors["all"]  = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["all"])
+        
         FileNameHumanReadablePooledVectors = os.path.join(outputDirectory, FileNameHumanReadablePooledVectors)
+        
         LogFileAnalyzedPath = os.path.join(outputDirectory, FileNameAnalyzed)
         inferenceDataSetFilePath = os.path.join(outputDirectory, inferenceDataSetFile)
        
@@ -149,7 +156,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
                                                      inferenceDataSetFile=inferenceDataSetFilePath, 
                                                      FileNameAnalyzed=LogFileAnalyzedPath, 
                                                      FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, 
-                                                     FileNameMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, 
+                                                     FileNamesMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, 
                                                      id_from_tokenList=id_from_tokenList, 
                                                      token_from_idList=token_from_idList, 
                                                      temperature=temperature, 

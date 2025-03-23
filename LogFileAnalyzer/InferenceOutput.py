@@ -32,7 +32,7 @@ def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pool
 
         return linesToWrite
 
-def ComposeDensePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
+def ComposeDensePooledLastLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector):
     with tf.device('/CPU:0'):
         vectorsToWrite = []
         for executionIndex in range(numberOfParallelExecutions):
@@ -215,7 +215,7 @@ def InferenceOutputThread(workerParameter,
         endTimeComposingLines = time.time()
         startTimePooling = time.time()
         
-        pooledMachineReadableLogitsVectorlinesToWrite = ComposeDensePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
+        pooledMachineReadableLogitsVectorlinesToWrite = ComposeDensePooledLastLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector)
         endTimePooling = time.time()
         
         poolingTime = endTimePooling - startTimePooling

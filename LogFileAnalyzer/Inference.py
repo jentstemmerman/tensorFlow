@@ -338,9 +338,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             for threadId in range(0, numberOfThreads):
 
                 outputQueue = Workers[threadId]["outputQueue"]
-                HumanReadableTextOutput, pooledHumanReadableLogitsVectorlinesToWrite, pooledMachineReadableLogitsVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
+                HumanReadableTextOutput, pooledHumanReadableLastLogitsVectorlinesToWrite, pooledMachineReadableLastLogitsVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
 
-                for index, lineToWrite in enumerate(pooledMachineReadableLogitsVectorlinesToWrite):
+                for index, lineToWrite in enumerate(pooledMachineReadableLastLogitsVectorlinesToWrite):
                     binaryFileHandler.append(lineToWrite)   # line to write is now suddenly of shape 64,12
                 
                 numberOfAnalyzedLines                += (index + 1)
@@ -357,8 +357,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     numberOfIdenticals                   += numberOfIdenticalsInThisCycle
 
 
-                if (pooledHumanReadableLogitsVectorlinesToWrite is not None):
-                    for lineToWrite in pooledHumanReadableLogitsVectorlinesToWrite:
+                if (pooledHumanReadableLastLogitsVectorlinesToWrite is not None):
+                    for lineToWrite in pooledHumanReadableLastLogitsVectorlinesToWrite:
                         FileHumanReadablePooledVectors.write(lineToWrite)
                     
             print(f"Output generated numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}, time {time.time() - outputGenerationStartTime}")

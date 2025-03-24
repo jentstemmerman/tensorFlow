@@ -119,16 +119,18 @@ with tf.device('/CPU:0'):
         
     def SkipInferenceDatasetStreamer(numberOfSamples, datasetStreamerInterator):
         with tf.device('/CPU:0'):
-            alllSamplesSkipped = True
+            numberOfSamplesTaken = 0
             
             try:
                 for _ in range(numberOfSamples):
                     next(datasetStreamerInterator)
+                    numberOfSamplesTaken += 1
             except StopIteration:
-                print(f"[SkipInferenceDatasetStreamer] End of dataset reached, numberOfSamples: {numberOfSamples}")
-                alllSamplesSkipped = False
-            
-        return datasetStreamerInterator, alllSamplesSkipped
+                print(f"[SkipInferenceDatasetStreamer] End of dataset reached, numberOfSamplesTaken: {numberOfSamplesTaken}")
+
+        allSamplesSkipped = (numberOfSamplesTaken == 0)
+        
+        return datasetStreamerInterator, allSamplesSkipped
 
     #@tf.function   
     def GetInferenceDataFromDatasetStreamer(numberOfSamples, datasetStreamerInterator):

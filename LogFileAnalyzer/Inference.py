@@ -209,13 +209,12 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             # Assemble inputs for the next cycle
 
             indexOfFirstPredictionTemp = indexOfFirstPrediction
-        
+
             for threadId in range(0,numberOfThreads):
                 
                 inputQueue  = Workers[threadId]["inputQueue"]
-                startTime = time.time()
-                print("Starting AssembleInputsThread ")
                 
+               
                 inputQueue.put((InferenceAssembly.AssembleInputsThread, (threadId,
                                                                             inferenceDataSetFile, 
                                                                             itemList, 
@@ -226,10 +225,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                             indexOfFirstPredictionTemp, 
                                                                             numberOfParallelExecutions, 
                                                                             window_size,)))
-                print("AssembleInputsThread started in time: ", time.time() - startTime) 
+
 
                 indexOfFirstPredictionTemp += numberOfParallelExecutions
-                        
+        
             # Generate inference
             for threadId in range(0, numberOfThreads):
 
@@ -255,7 +254,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                         allLogitsVectorsList = pooledLogitsVectorData['hidden_state'].numpy()
                         firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
                         lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy() 
-                        
                         allLogitsVectorDataList.append(allLogitsVectorsList)
                         firstLogitsVectorDataList.append(firstLogitsVectorsList)
                         lastLogitsVectorDataList.append(lastLogitsVectorsList)
@@ -350,24 +348,32 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                 indexOfFirstPredictionTemp += numberOfSamples
 
             # Get outputs to write to file
-            outputGenerationStartTime = time.time()
-            
             for threadId in range(0, numberOfThreads):
 
                 outputQueue = Workers[threadId]["outputQueue"]
                 HumanReadableTextOutput, pooledHumanReadableLastLogitsVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
-
-                for _, lineToWrite in enumerate(allLogitsVectorDataList[threadId]):   # this list is a flattened list of allLogitsVectorDataList. Each element is a timeslice of the sequence. Then the next seqenence and so on.
-                    binaryFileHandlerAllLogits.append(lineToWrite)   
-
-                for _, lineToWrite in enumerate(firstLogitsVectorDataList[threadId]):
-                    binaryFileHandlerFirstLogits.append(lineToWrite)   
-
-                for index, lineToWrite in enumerate(lastLogitsVectorDataList[threadId]):
-                    binaryFileHandlerLastLogits.append(lineToWrite)   
                 
-                numberOfAnalyzedLines                += (index + 1)
-                numberOfAnalyzedLinesThisCycle       += (index + 1)
+                if (len(firstLogitsVectorDataList) > 0):   
+                    try:    
+                        for lineToWrite in firstLogitsVectorDataList[threadId]:
+                            binaryFileHandlerFirstLogits.append(lineToWrite)   
+                    except Exception as e:
+                        print("Error in writing to binary file: ", e)
+                    
+                    try:
+                        for index, lineToWrite in enumerate(lastLogitsVectorDataList[threadId]):
+                            binaryFileHandlerLastLogits.append(lineToWrite)   
+                    except Exception as e:
+                        print("Error in writing to binary file: ", e)
+                    
+                    try:
+                        for _, lineToWrite in enumerate(allLogitsVectorDataList[threadId]):   # this list is a flattened list of allLogitsVectorDataList. Each element is a timeslice of the sequence. Then the next seqenence and so on.
+                            binaryFileHandlerAllLogits.append(lineToWrite)   
+                    except Exception as e:
+                        print("Error in writing to binary file: ", e)
+                
+                    numberOfAnalyzedLines                += (index + 1)
+                    numberOfAnalyzedLinesThisCycle       += (index + 1)
                 
                 if (HumanReadableTextOutput is not None):
                     
@@ -384,8 +390,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     for lineToWrite in pooledHumanReadableLastLogitsVectorlinesToWrite:
                         FileHumanReadablePooledVectors.write(lineToWrite)
                     
-            print(f"Output generated numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}, time {time.time() - outputGenerationStartTime}")
-            
             Endtime = time.time()
             averageNextTokenProbabilities    = accumulatedNextTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
             
@@ -396,7 +400,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             remainingTimeInMinutes           = remainingNumberOfLines / (numberOfAnalyzedLines / (time.time() - analyzeStartTime)) / 60
             
                             
-            print("  annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) +
+            print("Annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) +
                 ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
                 "  Nr Of Ids: " + str(numberOfIdenticals) + 
                 ".".join("  Next token prob = {:2.3f}.".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +
@@ -415,7 +419,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         IdenticalsToNumberOfLinesRatio   = numberOfIdenticals                   / numberOfAnalyzedLines
            
         averageNextTokenProbabilities = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
-        Result = "Total number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) +                \
+        Result = "\nTotal number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) +                \
                     " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) + ".\n Number Of Identicals: " +      \
                     str(numberOfIdenticals) + ", ({:2.3f})".format(IdenticalsToNumberOfLinesRatio) +                                \
                     ".\n".join("Average next token probability = {:2.3f}".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +                            \

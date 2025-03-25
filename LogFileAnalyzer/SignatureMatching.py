@@ -57,18 +57,21 @@ def CalculatePooledVectorsBatched(batchedvectors):
 #  Assume seq_length = 64. 
 def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberOfLines, DataTypeForTensors):
    
-    binaryFileHandlerFirstLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"], data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
-    binaryFileHandlerLastLogits  = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],  data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)        
-    binaryFileHandlerAllLogits   = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] ,  data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
+    binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"],     data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
+    binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],      data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)        
+    binaryFileHandlerPredictedLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["predicted"], data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
+    binaryFileHandlerAllLogits       = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] ,      data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
     
     modelHash1 = binaryFileHandlerFirstLogits.get_modelHash()
     modelHash2 = binaryFileHandlerLastLogits.get_modelHash()
-    modelHash3 = binaryFileHandlerAllLogits.get_modelHash()
+    modelHash3 = binaryFileHandlerPredictedLogits.get_modelHash()
+    modelHash4 = binaryFileHandlerAllLogits.get_modelHash()
     
     assert startLine >= 1, f"Impossible startline {startLine}, line 0 is never predicted!"
     
     assert modelHash1 == modelHash2, f"Model hashes from first and last logits file do not match. {modelHash1} != {modelHash2}"
     assert modelHash1 == modelHash3, f"Model hashes from first and all logits file do not match. {modelHash1} != {modelHash3}"
+    assert modelHash1 == modelHash4, f"Model hashes from first and predicted logits file do not match. {modelHash1} != {modelHash4}"
     
     sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
     

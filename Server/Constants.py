@@ -90,11 +90,12 @@ def GetLogFileMachineReadableVectorsPath(logFilename, userId, temperature):
             
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
     
-    FileNameMachineReadablePooledVectors_first = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_first.dat")
-    FileNameMachineReadablePooledVectors_last  = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_last.dat")
-    FileNameMachineReadablePooledVectors_all   = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_all.dat")
+    FileNameMachineReadablePooledVectors_first     = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_first.dat")
+    FileNameMachineReadablePooledVectors_last      = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_last.dat")
+    FileNameMachineReadablePooledVectors_predicted = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_predicted.dat")
+    FileNameMachineReadablePooledVectors_all       = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_all.dat")
     
-    FileNameMachineReadablePooledVectorsDict = {"first": FileNameMachineReadablePooledVectors_first, "last": FileNameMachineReadablePooledVectors_last, "all": FileNameMachineReadablePooledVectors_all}
+    FileNameMachineReadablePooledVectorsDict = {"first": FileNameMachineReadablePooledVectors_first, "last": FileNameMachineReadablePooledVectors_last, "predicted": FileNameMachineReadablePooledVectors_predicted, "all": FileNameMachineReadablePooledVectors_all}
     
     return FileNameMachineReadablePooledVectorsDict
 

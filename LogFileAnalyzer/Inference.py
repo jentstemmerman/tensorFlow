@@ -130,9 +130,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                
         hiddenVectorSize = CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, window_size, one_step_model, itemList)
           
-        binaryFileHandlerFirstLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"], sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
-        binaryFileHandlerLastLogits  = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],  sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)        
-        binaryFileHandlerAllLogits   = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"],   sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
+        binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"], sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
+        binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],  sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)        
+        binaryFileHandlerPredictedLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["predicted"], sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
+        binaryFileHandlerAllLogits       = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"],   sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
         
         analyzeStartTime   = time.time()
     
@@ -195,17 +196,17 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             
             remainingNumberOfLines = (numberOfLines - indexOfFirstPrediction)
 
-
             numberOfAnalyzedLinesThisCycle = 0
             nextPredictionsList            = []
             probabilityOfPredictionsList   = []
             probabilityOfActualsList       = []
             crossEntropyOfActualsList      = []
-            pooledLogitsVectorLastDataList     = []
+            pooledLogitsVectorLastDataList = []
             allLogitsVectorDataList        = []
             lastLogitsVectorDataList       = []
             firstLogitsVectorDataList      = []
-
+            predictedLogitsVectorsDataList = []
+            
             # Assemble inputs for the next cycle
 
             indexOfFirstPredictionTemp = indexOfFirstPrediction
@@ -239,6 +240,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                         allLogitsVectorDataList.append([])
                         firstLogitsVectorDataList.append([])
                         lastLogitsVectorDataList.append([])
+                        predictedLogitsVectorsDataList.append([])
                         
                         nextPredictionsList.append([])
                         probabilityOfPredictionsList.append([])
@@ -253,10 +255,14 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                         
                         allLogitsVectorsList = pooledLogitsVectorData['hidden_state'].numpy()
                         firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
-                        lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy() 
+                        lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy()
+                        predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()  
+                        
                         allLogitsVectorDataList.append(allLogitsVectorsList)
                         firstLogitsVectorDataList.append(firstLogitsVectorsList)
                         lastLogitsVectorDataList.append(lastLogitsVectorsList)
+                        predictedLogitsVectorsDataList.append(predictedLogitsVectorsList)
+                        
                         
                         nextPredictionsList.append([])
                         probabilityOfPredictionsList.append([])
@@ -270,10 +276,12 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                         allLogitsVectorsList = pooledLogitsVectorData['hidden_state'].numpy()
                         firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
                         lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy() 
+                        predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()
                         
                         allLogitsVectorDataList.append(allLogitsVectorsList)
                         firstLogitsVectorDataList.append(firstLogitsVectorsList)
                         lastLogitsVectorDataList.append(lastLogitsVectorsList)
+                        predictedLogitsVectorsDataList.append(predictedLogitsVectorsList)
                         
                         # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
                         nextPredictionsList.append(predictions)
@@ -366,6 +374,12 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     except Exception as e:
                         print("Error in writing to binary file: ", e)
                     
+                    try:    
+                        for lineToWrite in predictedLogitsVectorsDataList[threadId]:
+                            binaryFileHandlerPredictedLogits.append(lineToWrite)   
+                    except Exception as e:
+                        print("Error in writing to binary file: ", e)
+                    
                     try:
                         for _, lineToWrite in enumerate(allLogitsVectorDataList[threadId]):   # this list is a flattened list of allLogitsVectorDataList. Each element is a timeslice of the sequence. Then the next seqenence and so on.
                             binaryFileHandlerAllLogits.append(lineToWrite)   
@@ -431,6 +445,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         binaryFileHandlerFirstLogits.close()
         binaryFileHandlerLastLogits.close()
         binaryFileHandlerAllLogits.close()
+        binaryFileHandlerPredictedLogits.close()
         
         LogfileToAnalyze.close()
         LogfileAnalyzed.close()   

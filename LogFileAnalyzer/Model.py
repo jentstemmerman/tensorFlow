@@ -133,6 +133,8 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         FileNameMachineReadablePooledVectors["first"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["first"])), os.path.basename(FileNameMachineReadablePooledVectors["first"]))
         FileNameMachineReadablePooledVectors["last"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["last"])), os.path.basename(FileNameMachineReadablePooledVectors["last"]))
         FileNameMachineReadablePooledVectors["all"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["all"])), os.path.basename(FileNameMachineReadablePooledVectors["all"]))
+        FileNameMachineReadablePooledVectors["predicted"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["predicted"])), os.path.basename(FileNameMachineReadablePooledVectors["predicted"]))
+        
         
         FileNameHumanReadablePooledVectors = os.path.join(os.path.basename(os.path.dirname(FileNameHumanReadablePooledVectors)), os.path.basename(FileNameHumanReadablePooledVectors))
         FileNameAnalyzed = os.path.join(os.path.basename(os.path.dirname(FileNameAnalyzed)), os.path.basename(FileNameAnalyzed))
@@ -140,6 +142,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         
         FileNameMachineReadablePooledVectors["first"] = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["first"])
         FileNameMachineReadablePooledVectors["last"]  = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["last"])
+        FileNameMachineReadablePooledVectors["predicted"]  = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["predicted"])
         FileNameMachineReadablePooledVectors["all"]  = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["all"])
         
         FileNameHumanReadablePooledVectors = os.path.join(outputDirectory, FileNameHumanReadablePooledVectors)

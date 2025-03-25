@@ -368,9 +368,9 @@ def create_file():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-@WebServer.route("/api/uploadSignatureFile", methods=["POST"])
+@WebServer.route("/api/createSignatureFile", methods=["POST"])
 def upload_signature():
-    print("/api/uploadSignatureFile")
+    print("/api/createSignatureFile")
 
     try:
         signature_name = request.form["signature_name"]
@@ -385,7 +385,6 @@ def upload_signature():
         print("uploadSignature: ",
             "signature_name: ",
             signature_name,
-
             "userId: ",
             userId,
             "modelDirectory: ",
@@ -402,12 +401,12 @@ def upload_signature():
         
         temperature = 1
         Constants.LOG_FILE_ANALYZER_DIRECTORY
-        FileNameMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId, temperature)
+        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId, temperature)
         DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
         modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
    
         # the modelHash is taken from the header of the machineReadablePooledVectors file
-        signature, modelHash = SignatureMatching.CalculateSignature(FileNameMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
+        signature, modelHash = SignatureMatching.CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
 
         # Pack all these values into a json and save that to the file
         signature_data = {

@@ -130,9 +130,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                
         hiddenVectorSize = CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, window_size, one_step_model, itemList)
           
-        binaryFileHandlerFirstLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"], data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
-        binaryFileHandlerLastLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"], data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)        
-        binaryFileHandlerAllLogits  = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] , data_type="float32", numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
+        binaryFileHandlerFirstLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"], sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
+        binaryFileHandlerLastLogits  = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],  sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)        
+        binaryFileHandlerAllLogits   = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"],   sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
         
         analyzeStartTime   = time.time()
     
@@ -428,9 +428,12 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         print(Result)
         LogfileAnalyzed.write(Result)
         
+        binaryFileHandlerFirstLogits.close()
+        binaryFileHandlerLastLogits.close()
+        binaryFileHandlerAllLogits.close()
+        
         LogfileToAnalyze.close()
         LogfileAnalyzed.close()   
-        binaryFileHandlerLastLogits.close()
 
 def CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, seq_length, one_step_model, itemList):
     datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1, numberOfShards=1)

@@ -52,13 +52,51 @@ def CalculatePooledVectorsBatched(batchedvectors):
     
     return pooledVector
 
-def CalculateSignature(FileNameMachineReadablePooledVectors, startVectorOffset, numberOfHiddenVectors, DataTypeForTensors):
-    binaryFileHandler = BinaryFileHandler.BinaryFileHandler(FileNameMachineReadablePooledVectors, data_type=DataTypeForTensors, numbers_per_line=None)
+
+#  startVectorOffset 0 means the first line in the logfile
+#  Assume seq_length = 64. 
+def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberOfLines, DataTypeForTensors):
+   
+    binaryFileHandlerFirstLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"], data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
+    binaryFileHandlerLastLogits  = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],  data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)        
+    binaryFileHandlerAllLogits   = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] ,  data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
     
-    modelHash = binaryFileHandler.get_modelHash()
+    modelHash1 = binaryFileHandlerFirstLogits.get_modelHash()
+    modelHash2 = binaryFileHandlerLastLogits.get_modelHash()
+    modelHash3 = binaryFileHandlerAllLogits.get_modelHash()
+    
+    assert startLine >= 1, f"Impossible startline {startLine}, line 0 is never predicted!"
+    
+    assert modelHash1 == modelHash2, f"Model hashes from first and last logits file do not match. {modelHash1} != {modelHash2}"
+    assert modelHash1 == modelHash3, f"Model hashes from first and all logits file do not match. {modelHash1} != {modelHash3}"
+    
+    sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
+    
+    startVectorOffsetInAllLogitsFile  = (startLine - 1) * sequence_length
+    startVectorOffsetInLastLogitsFile = startLine - sequence_length 
+    nextVectorOffsetInLastLogitsFile  = startVectorOffsetInLastLogitsFile + 1
+
+    if (startVectorOffsetInLastLogitsFile >= 0):
+        hiddenVectorsCheckForCorruption = binaryFileHandlerLastLogits.read_records(startVectorOffsetInLastLogitsFile, 2) # first one should be equal to the last vector in the all logits read, second on to the first of hiddenVectorsPart_2
+
+    if numberOfLines <= sequence_length:
+           # this is not a typo. It should be - and not %
+        hiddenVectorsPart_1 = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, numberOfLines)
+        
+        numberOfLinesRemainder = 0
+    else:
+        numberOfLinesRemainder = numberOfLines - sequence_length
+        
+    if (numberOfLinesRemainder > 0):
+        hiddenVectorsPart_2 = binaryFileHandlerFirstLogits.read_records(startVectorOffsetInLastLogitsFile, numberOfLinesRemainder)
+
+    
+    
+    
+    
     print(f"[CalculateSignature] ModelHash from pooled vector file: {modelHash}")
     
-    vectors = binaryFileHandler.read_records(startVectorOffset, numberOfHiddenVectors)
+    vectors = binaryFileHandler.read_records(startVectorOffset, numberOfLines)
         
     signature = CalculatePooledVectors(vectors)
    
@@ -273,7 +311,6 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         #    continue
         
         numberOfSignatureFiles += 1
-        
       
         machineReadableOutputFiles.append(machineReadableOutputFile)
         humanReadableOutputFiles.append(humanReadableOutputFile)

@@ -14,8 +14,9 @@ class BinaryFileHandler:
         "float64": "d"
     }
 
-    def __init__(self, filename, data_type="float32", numbers_per_line=3, modelHash=""):
+    def __init__(self, filename, sequence_length, data_type="float32", numbers_per_line=3, modelHash=""):
         self.filename = filename
+        self.sequence_length = sequence_length
         self.modelHash = modelHash
         self.data_type = data_type
         self.numbers_per_line = numbers_per_line
@@ -23,6 +24,7 @@ class BinaryFileHandler:
         self.write_file_handler = None
         self._header_cache = {}
         self._read_header()
+        self.sequence_length = self._header_cache.get("sequence_length", self.sequence_length)
         self.numbers_per_line = self._header_cache.get("numbers_per_line", self.numbers_per_line)
         self.record_size = struct.calcsize(self.TYPE_MAP[data_type]) * self.numbers_per_line
         self.fmt = self.TYPE_MAP[data_type] * self.numbers_per_line
@@ -48,7 +50,7 @@ class BinaryFileHandler:
     def _read_header(self):
         try:
             if not os.path.exists(self.filename):
-                self._header_cache = {"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line, "modelHash": self.modelHash}
+                self._header_cache = {"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line, "modelHash": self.modelHash, "sequence_length": self.sequence_length}
                 self._write_header(self._header_cache, flush=True)
                 
             if self.read_file_handler is None:
@@ -75,7 +77,11 @@ class BinaryFileHandler:
         header = self._get_header()
        
         return header.get("record_count", 0)
-
+    
+    def get_sequenceLength(self):
+        header = self._get_header()
+       
+        return header.get("sequence_length", 0)
 
     def get_numbersPerLine(self):
         return self.numbers_per_line
@@ -93,7 +99,7 @@ class BinaryFileHandler:
         """Clear the binary file and reset the JSON header."""
         self.modelHash = ""
         with open(self.filename, "wb") as f:
-            header = json.dumps({"record_count": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line, "modelHash": self.modelHash}).ljust(self.HEADER_SIZE)
+            header = json.dumps({"record_count": 0, "sequence_length": 0, "version": 1.0, "description": "Binary data file", "numbers_per_line": self.numbers_per_line, "modelHash": self.modelHash}).ljust(self.HEADER_SIZE)
             f.write(header.encode('utf-8'))
             
 
@@ -150,6 +156,7 @@ class BinaryFileHandler:
         print(f"Header size: {self.HEADER_SIZE}")
         print(f"Record size: {self.record_size}")
         print(f"Index: {index}")
+        print(f"sequence_length: {self.sequence_length}") 
         print(f"Data length: {len(data)}")
         print(f"Expected data length: {self.record_size}")
 

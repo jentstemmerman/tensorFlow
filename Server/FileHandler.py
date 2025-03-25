@@ -6,6 +6,7 @@ import OffsetArrayManager
 import AnnotationManager
 import time
 import Constants
+import LogFileIterator    # type: ignore
 
 fileHandle = None
 file = "./Server/large-file.txt"
@@ -192,9 +193,6 @@ def PostProcessLogFiles(fileName, userId, DataTypeForTensors, similaritythreshol
     except Exception as e:
         print(f"Error processing log files for user {userId}: {e}")
         
-     
-     
-        
 def CreateSimularityFiles(logFileName, userId, DataTypeForTensors, similaritythreshold):
     import SignatureMatching  # type: ignore
     logfileBaseDirectory = Constants.GetUserSpecificBaseDirectory("LogType", userId)
@@ -218,13 +216,11 @@ def CreateAnnotationListFromSimularityFile(logFileName, signature_file, userId, 
     SignatureMatching.CreateAnnotationListFromSimularitiesFile(simularitiesMachineReadableFileName, annotationsOutputFile, DataTypeForTensors, annotationId = annotation_id, threshold = similaritythreshold, comment = signature_name)
 
     
-
 def PostProcessLogFile(logFileName, userId, DataTypeForTensors, similaritythreshold):
-    import LogFileIterator    # type: ignore
-    
     try:
 
-        print(f"async_preprocess_log_files {logFileName} user {userId}")
+        print(f"PostProcessLogFile {logFileName} user {userId}")
+        
         CreateSimularityFiles(logFileName, userId, DataTypeForTensors, similaritythreshold)
             
         signatureDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)

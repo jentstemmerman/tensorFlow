@@ -75,35 +75,27 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
     
     sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
     
-    startVectorOffsetInAllLogitsFile  = (startLine - 1) * sequence_length
-    startVectorOffsetInLastLogitsFile = startLine - sequence_length 
-    nextVectorOffsetInLastLogitsFile  = startVectorOffsetInLastLogitsFile + 1
-
-    if (startVectorOffsetInLastLogitsFile >= 0):
-        hiddenVectorsCheckForCorruption = binaryFileHandlerLastLogits.read_records(startVectorOffsetInLastLogitsFile, 2) # first one should be equal to the last vector in the all logits read, second on to the first of hiddenVectorsPart_2
+    startVectorOffsetInAllLogitsFile       = (startLine - 1) * sequence_length   #this is the transformation to get the hidden vector of startLine as it is generated in the first timeslice of the sequence
+    #startVectorOffsetInPredictedLogitsFile = startLine - sequence_length         # ok
+    startVectorOffsetInLastLogitsFile      = startLine - sequence_length + 1     # ok
 
     if numberOfLines <= sequence_length:
            # this is not a typo. It should be - and not %
         hiddenVectorsPart_1 = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, numberOfLines)
-        
         numberOfLinesRemainder = 0
     else:
+        hiddenVectorsPart_1 = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, sequence_length)
         numberOfLinesRemainder = numberOfLines - sequence_length
         
     if (numberOfLinesRemainder > 0):
-        hiddenVectorsPart_2 = binaryFileHandlerFirstLogits.read_records(startVectorOffsetInLastLogitsFile, numberOfLinesRemainder)
-
-    
-    
-    
-    
-    print(f"[CalculateSignature] ModelHash from pooled vector file: {modelHash}")
-    
-    vectors = binaryFileHandler.read_records(startVectorOffset, numberOfLines)
+        hiddenVectorsPart_2 = binaryFileHandlerFirstLogits.read_records(startVectorOffsetInLastLogitsFile + 1, numberOfLinesRemainder)
+        hiddenVectors = tf.concat([hiddenVectorsPart_1, hiddenVectorsPart_2], axis=0)
+    else:
+        hiddenVectors = hiddenVectorsPart_1
         
-    signature = CalculatePooledVectors(vectors)
+    signature = CalculatePooledVectors(hiddenVectors)
    
-    return signature, modelHash
+    return signature, modelHash1, hiddenVectors
 
 
 

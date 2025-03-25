@@ -400,13 +400,13 @@ def upload_signature():
         )
         
         temperature = 1
-        Constants.LOG_FILE_ANALYZER_DIRECTORY
+
         FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId, temperature)
         DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
         modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
    
         # the modelHash is taken from the header of the machineReadablePooledVectors file
-        signature, modelHash = SignatureMatching.CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
+        signature, modelHash, hiddenVectors = SignatureMatching.CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
 
         # Pack all these values into a json and save that to the file
         signature_data = {
@@ -419,6 +419,7 @@ def upload_signature():
             "DataTypeForTensors" : DataTypeForTensors,
             "modelHash": modelHash,
             "signature": signature.numpy().tolist(),
+            "hiddenVectors": hiddenVectors.numpy().tolist(),
         }
 
         file_path= Constants.GetSignatureFilePath(signature_name, userId)

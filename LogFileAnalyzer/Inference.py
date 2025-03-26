@@ -63,7 +63,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
     with tf.device('/CPU:0'):
             
         maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
-        onlyLogLogitsVector                  = True
+        onlyLogLogitsVector                  = False
         
         numberOfFeatures = len(id_from_tokenList)
         queueTimeout                         = 50000
@@ -201,7 +201,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             probabilityOfPredictionsList   = []
             probabilityOfActualsList       = []
             crossEntropyOfActualsList      = []
-            pooledLogitsVectorLastDataList = []
             allLogitsVectorDataList        = []
             lastLogitsVectorDataList       = []
             firstLogitsVectorDataList      = []
@@ -235,7 +234,10 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
 
                 if (numberOfExecutionsInProgress[threadId] == 0):
                     if (onlyLogLogitsVector):
-                        pooledLogitsVectorLastDataList.append([])
+                        allLogitsVectorDataList.append([])
+                        firstLogitsVectorDataList.append([])
+                        lastLogitsVectorDataList.append([])
+                        predictedLogitsVectorsDataList.append([])
                     else:
                         allLogitsVectorDataList.append([])
                         firstLogitsVectorDataList.append([])
@@ -246,8 +248,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                         probabilityOfPredictionsList.append([])
                         probabilityOfActualsList.append([])
                         crossEntropyOfActualsList.append([])
-                        pooledLogitsVectorLastDataList.append([])
-
                 else:
 
                     if (onlyLogLogitsVector):
@@ -268,7 +268,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                         probabilityOfPredictionsList.append([])
                         probabilityOfActualsList.append([])
                         crossEntropyOfActualsList.append([])
-                        pooledLogitsVectorLastDataList.append(pooledLogitsVectorData['hidden_state_last'])
                         
                     else:
                         predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], window_size=window_size, states=None)
@@ -295,8 +294,6 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                         # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
                         crossEntropyOfActualsList.append(crossEntropyOfActuals)
 
-                        pooledLogitsVectorLastDataList.append(pooledLogitsVectorData)
-
 
             # Start output generation
             for threadId in range(0, numberOfThreads):
@@ -311,7 +308,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                             None, 
                                                                             None, 
                                                                             None, 
-                                                                            pooledLogitsVectorLastDataList[threadId],
+                                                                            None,
                                                                             onlyLogLogitsVector)))
                 else:
                     inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
@@ -322,7 +319,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                     probabilityOfActualsList[threadId], 
                                                     crossEntropyOfActualsList[threadId], 
                                                     probabilityOfPredictionsList[threadId], 
-                                                    pooledLogitsVectorLastDataList[threadId], 
+                                                    lastLogitsVectorDataList[threadId], 
                                                     onlyLogLogitsVector)))
             
             printfList      = []

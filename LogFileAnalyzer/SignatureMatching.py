@@ -52,11 +52,10 @@ def CalculatePooledVectorsBatched(batchedvectors):
     
     return pooledVector
 
-
 #  startVectorOffset 0 means the first line in the logfile
 #  Assume seq_length = 64. 
-def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberOfLines, DataTypeForTensors):
-   
+def CalculateSignatureFromFiles(FileNamesMachineReadablePooledVectors, startLine, numberOfLines, DataTypeForTensors):
+    
     binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"],     data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
     binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],      data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)        
     binaryFileHandlerPredictedLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["predicted"], data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
@@ -76,7 +75,7 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
     sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
     
     startVectorOffsetInAllLogitsFile       = (startLine - 1) * sequence_length   #this is the transformation to get the hidden vector of startLine as it is generated in the first timeslice of the sequence
-    #startVectorOffsetInPredictedLogitsFile = startLine - sequence_length         # ok
+    #startVectorOffsetInPredictedLogitsFile = startLine - sequence_length        # ok
     startVectorOffsetInLastLogitsFile      = startLine - sequence_length + 1     # ok
 
     if numberOfLines <= sequence_length:
@@ -88,7 +87,7 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
         numberOfLinesRemainder = numberOfLines - sequence_length
         
     if (numberOfLinesRemainder > 0):
-        hiddenVectorsPart_2 = binaryFileHandlerFirstLogits.read_records(startVectorOffsetInLastLogitsFile + 1, numberOfLinesRemainder)
+        hiddenVectorsPart_2 = binaryFileHandlerLastLogits.read_records(startVectorOffsetInLastLogitsFile + 1, numberOfLinesRemainder)
         hiddenVectors = tf.concat([hiddenVectorsPart_1, hiddenVectorsPart_2], axis=0)
     else:
         hiddenVectors = hiddenVectorsPart_1
@@ -99,65 +98,10 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
 
 
 
-"""
-Reads hidden state vectors, computes a rolling mean-pooled vector using TensorFlow's 
-GlobalAveragePooling1D, calculates cosine similarity with the signature vector, 
-and writes results to a file.
 
-Args:
-    signature_vector (tf.Tensor): The signature vector (1D TensorFlow tensor).
-    num_vectors_to_pool (int): Number of vectors to pool before computing similarity.
-    output_file (str): Path to the file where similarity scores will be saved.
-"""
-def search_signature(hiddenVectorFileName, output_file, signature_vector, num_vectors_to_pool, data_type):
-    binary_file = BinaryFileHandler(hiddenVectorFileName, data_type=data_type, numbers_per_line=num_vectors_to_pool)
-    window = []  # Rolling window to store the last `num_vectors_to_pool` vectors
-    signature_vector = tf.convert_to_tensor(signature_vector, dtype=tf.float32)  # Ensure TensorFlow format
 
-    # Create a GlobalAveragePooling1D layer
-    pooling_layer = tf.keras.layers.GlobalAveragePooling1D()
 
-    similarities = np.array([])
 
-    with open(output_file, 'w') as f:
-        while True:
-            vector = binary_file.read_next()  
-
-            if vector is None:  # Stop if there are no more vectors
-                break
-
-            vector = tf.convert_to_tensor(vector, dtype=tf.float32)  # Ensure TensorFlow tensor
-            window.append(vector)
-
-            if len(window) > num_vectors_to_pool:
-                window.pop(0)  # Maintain window size
-
-            if len(window) == num_vectors_to_pool:
-                # Stack the vectors in the window and apply GlobalAveragePooling1D
-                pooled_vector = pooling_layer(tf.stack(window, axis=0)[None, ...])  # Add batch dimension
-
-                # Compute cosine similarity
-                similarity = tf.keras.losses.cosine_similarity(pooled_vector[0], signature_vector)
-                
-                similarity_value = -similarity.numpy()  # Convert to positive similarity (cosine similarity loss returns negative values)
-                similarities = np.append(similarities, similarity_value)
-                f.write(f"{similarity_value}\n")  # Save result
-
-    # Calculate statistics
-    max_similarity = np.max(similarities)
-    min_similarity = np.min(similarities)
-    stddev_similarity = np.std(similarities)
-    num_pooled_vectors = len(similarities)
-
-    # Write header
-    with open(output_file, 'r+') as f:
-        content = f.read()
-        f.seek(0, 0)
-        f.write(f"Max Similarity: {max_similarity}\n")
-        f.write(f"Min Similarity: {min_similarity}\n")
-        f.write(f"Stddev Similarity: {stddev_similarity}\n")
-        f.write(f"Number of Pooled Vectors: {num_pooled_vectors}\n")
-        f.write(content)
 
 def CalculateSimularity(signature, tensor, data_type):
     signature_tensor = tf.convert_to_tensor(signature, dtype=tf.float32)
@@ -209,15 +153,22 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     humanReadableOutputFileHandler.write(f"The following simularities were calculated starting from line number {num_vectors_to_pool}\n")
     humanReadableOutputFileHandler.write(f"Model hash used to create signature: {modelHashFromSignature}\n")
     
-    inputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(hiddenVectorsFile, data_type=dataType, numbers_per_line=num_vectors_to_pool)
-    modelHashFromHiddenVectorsFile = inputBinaryFileHandler.get_modelHash()    
+    #binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"],     data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
+    #binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],      data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)        
+    #binaryFileHandlerPredictedLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["predicted"], data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
+    #binaryFileHandlerAllLogits       = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] ,      data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
+    
+    
+    binaryFileHandlerPredictedLogits = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile["predicted"], data_type=dataType, sequence_length=None, numbers_per_line=None)  
+    
+    modelHashFromHiddenVectorsFile = binaryFileHandlerPredictedLogits.get_modelHash()    
     humanReadableOutputFileHandler.write(f"Model hash from pooled vector file: {modelHashFromHiddenVectorsFile}\n")
     
     if (modelHashFromSignature != modelHashFromHiddenVectorsFile):
         print(f"WARNING! Model hashes from signature file {modelHashFromSignature} and hidden vectors file {modelHashFromHiddenVectorsFile} do not match.")
         
         
-    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1, modelHash=modelHashFromSignature)
+    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1, sequence_length=None, modelHash=modelHashFromSignature)
     
     index = 0
     start_time = time.time()
@@ -225,8 +176,8 @@ def CreateSimularitiesFile(LogFileName, signatureFile, machineReadableOutputFile
     while True:
         
         try:
-            inputTensor = inputBinaryFileHandler.read_records(index, numberOfPooledVectors)
-            inputTensor2 = inputBinaryFileHandler.read_records_optimised(index, numberOfPooledVectors)
+            inputTensor = binaryFileHandlerPredictedLogits.read_records(index, numberOfPooledVectors)
+            inputTensor2 = binaryFileHandlerPredictedLogits.read_records_optimised(index, numberOfPooledVectors)   # JENTS
             
             if not tf.reduce_all(tf.equal(inputTensor, inputTensor2)):
                 print(f"Tensors are not equal at index {index}")
@@ -318,7 +269,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         numberOfPooledVectors, _, signature_tensor, modelHashFromSignature = SignatureMatching.read_signature_from_file(signature_file)
         modelHashFromSignatureFileList.append(modelHashFromSignature)
         
-        outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1, modelHash=modelHashFromSignature)
+        outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1, sequence_length=None, modelHash=modelHashFromSignature)
         
         outputBinaryFileHandlers.append(outputBinaryFileHandler)
         
@@ -337,11 +288,16 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     if (numberOfSignatureFiles == 0):
         return False    
    
-    hiddenVectorsFile = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId, temperature)
+    FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId, temperature)
     
-    inputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(hiddenVectorsFile, data_type=dataType, numbers_per_line=numberOfPooledVectors)
-    numberOfLines = inputBinaryFileHandler.get_recordCount()
-    modelHashFromPooledVectorsFile = inputBinaryFileHandler.get_modelHash()
+    binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"],     data_type=dataType, sequence_length=None, numbers_per_line=None)  
+    binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],      data_type=dataType, sequence_length=None, numbers_per_line=None)        
+    binaryFileHandlerPredictedLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["predicted"], data_type=dataType, sequence_length=None, numbers_per_line=None)  
+    binaryFileHandlerAllLogits       = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] ,      data_type=dataType, sequence_length=None, numbers_per_line=None)  
+      
+    sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
+    numberOfLines = binaryFileHandlerFirstLogits.get_recordCount()
+    modelHashFromPooledVectorsFile = binaryFileHandlerFirstLogits.get_modelHash()
     
     maxNumberOfLinesPerRead = 2048
     numberOfSimularityCalculationsPerRead = maxNumberOfLinesPerRead - max_SignatureLength + 1   # we moeten voor het einde van de read stoppen, omdat we anders niet genoeg data hebben om de signature te vergelijken. Stel: read is 6 groot en signaturelength is 5 -> je kan er maar 2 berekenen
@@ -359,7 +315,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
 
         humanReadableOutputFileHandlers[signatureIndex].write("\n")
         
-    recordReadStart = 0
+    lineNumber = 1
     start_time = time.time()
     simularityCalculationIndexes = np.zeros(numberOfSignatureFiles, dtype=int)
     
@@ -374,12 +330,14 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 numberOfLinesToRead = maxNumberOfLinesPerRead
                 
             numberOfSimularityCalculationsPerRead = numberOfLinesToRead - max_SignatureLength + 1
-            
-            inputTensor = inputBinaryFileHandler.read_records(recordReadStart, numberOfLinesToRead)
+             
+            inputTensor = binaryFileHandlerPredictedLogits.read_records(lineNumber, numberOfLinesToRead)
 
             for signatureIndex in range(numberOfSignatureFiles):
                 signature_tensor = signatureTensors[signatureIndex]
                 signatureLength = numberOfPooledVectorsList[signatureIndex]
+                
+                inputTensorTest2 = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, lineNumber, signatureLength, sequence_length, numberOfSimularityCalculationsPerRead)
                 
                 # New approach using tf.signal.frame
                 batchedTestTensor_new = tf.signal.frame(inputTensor, signatureLength, 1, axis=0)
@@ -399,7 +357,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 
                 start_time = time.time()
                 
-            recordReadStart += numberOfSimularityCalculationsPerRead
+            lineNumber += numberOfSimularityCalculationsPerRead
                 
         for signatureIndex in range(numberOfSignatureFiles):   
             outputBinaryFileHandlers[signatureIndex].close()
@@ -409,10 +367,41 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         print(f"IndexError: {e}")
         return False
 
+# This function returns a batch of hidden vectors, starting from startLine, each with a length of numberOfLines
+def GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, startLine, numberOfLines, sequence_length, batch_size):
+    startVectorOffsetInAllLogitsFile       = (startLine - 1) * sequence_length   #this is the transformation to get the hidden vector of startLine as it is generated in the first timeslice of the sequence
+    #startVectorOffsetInPredictedLogitsFile = startLine - sequence_length         # ok
+    startVectorOffsetInLastLogitsFile      = startLine - sequence_length + 1     # ok
+
+    if (numberOfLines < sequence_length):
+        
+        hiddenVectors = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, sequence_length * batch_size)
+        hiddenVectors = tf.reshape(hiddenVectors, (batch_size, sequence_length, -1))
+    else:
+        numberOfLinesRemainder = numberOfLines - sequence_length
+        
+    if numberOfLines <= sequence_length:
+           # this is not a typo. It should be - and not %
+        hiddenVectorsPart_1 = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, numberOfLines)
+        numberOfLinesRemainder = 0
+    else:
+        hiddenVectorsPart_1 = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, sequence_length)
+        numberOfLinesRemainder = numberOfLines - sequence_length
+        
+    if (numberOfLinesRemainder > 0):
+        hiddenVectorsPart_2 = binaryFileHandlerLastLogits.read_records(startVectorOffsetInLastLogitsFile + 1, numberOfLinesRemainder)
+        hiddenVectors = tf.concat([hiddenVectorsPart_1, hiddenVectorsPart_2], axis=0)
+    else:
+        hiddenVectors = hiddenVectorsPart_1
+        
+    signature = CalculatePooledVectors(hiddenVectors)
+   
+    return signature, hiddenVectors
+
 
 def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = 0, threshold = 0.5, comment = ""):
     
-    inputFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableSimularityFile, data_type=data_type, numbers_per_line=1)
+    inputFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableSimularityFile, data_type=data_type, sequence_length=None, numbers_per_line=1)
     modelHashFromSimularityFile = inputFileHandler.get_modelHash()
     annotationHeader = { "annotationId": annotationId, "threshold": threshold, "modelHashFromSimularityFile": modelHashFromSimularityFile, "comment": comment}
     annotationList = []

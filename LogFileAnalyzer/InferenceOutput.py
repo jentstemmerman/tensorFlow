@@ -26,7 +26,7 @@ def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pool
     with tf.device('/CPU:0'):
         linesToWrite = []
         for executionIndex in range(numberOfParallelExecutions):
-            arrayString = np.array2string(pooledLogitsVector_hidden_state_last[executionIndex].numpy(), max_line_width=80, threshold=1000)
+            arrayString = np.array2string(pooledLogitsVector_hidden_state_last[executionIndex], max_line_width=80, threshold=1000)
             line = arrayString + "\n"
             linesToWrite.append(line)
 
@@ -121,7 +121,7 @@ def ComposeLineList(numberOfParallelExecutions,
             
             
             printf = PrintfList[executionIndex]
-            lineToWrite = AccuracyOfPredictionString + SimilarityString + actualsString + predictionsString + ProbabilityOfActualsString + crossEntropyOfActualString + "  "  + ProbabilityOfPredictionsString + printf
+            lineToWrite = AccuracyOfPredictionString + actualsString + predictionsString + ProbabilityOfActualsString + crossEntropyOfActualString + "  "  + ProbabilityOfPredictionsString + printf
  
             linesToWrite.append(lineToWrite)
 
@@ -175,28 +175,23 @@ def InferenceOutputThread(workerParameter,
                           onlyLogLogitsVectors=False):
     
     with tf.device('/CPU:0'):
-        id_from_tokenList = workerParameter[0]
-        
-        token_from_idList = workerParameter[1]
-
-        startTimeComposingLines = time.time()
-        
-        if not onlyLogLogitsVectors:
-            HumanReadableTextOutput = ComposeLineList(numberOfParallelExecutions=numberOfParallelExecutions, 
-                                    id_from_tokenList=id_from_tokenList, 
-                                    token_from_idList=token_from_idList,
-                                    predictions=predictions, 
-                                    actualNextIdList=actualNextIdList, 
-                                    PrintfList=PrintfList, 
-                                    probabilityOfActuals=probabilityOfActuals, 
-                                    crossEntropyOfActuals=crossEntropyOfActuals, 
-                                    probabilityOfPredictions=probabilityOfPredictions)
-            
-
-            
-            pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector_hidden_state_last)
-        else:
+       
+        if onlyLogLogitsVectors:
             HumanReadableTextOutput = None
+            pooledHumanReadableLogitsVectorlinesToWrite = None
+        else:
+            id_from_tokenList = workerParameter[0]
+            token_from_idList = workerParameter[1]
+            
+            HumanReadableTextOutput = ComposeLineList(  numberOfParallelExecutions=numberOfParallelExecutions, 
+                                                        id_from_tokenList=id_from_tokenList, 
+                                                        token_from_idList=token_from_idList,
+                                                        predictions=predictions, 
+                                                        actualNextIdList=actualNextIdList, 
+                                                        PrintfList=PrintfList, 
+                                                        probabilityOfActuals=probabilityOfActuals, 
+                                                        crossEntropyOfActuals=crossEntropyOfActuals, 
+                                                        probabilityOfPredictions=probabilityOfPredictions)
             
             pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector_hidden_state_last)
 

@@ -201,7 +201,7 @@ class OneStep(tf.keras.Model):
       return predicted_logits_list, pooledLogitsData
     
 
- # @tf.function
+  #@tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, window_size, states=None):
     with tf.device('/GPU:0'):
 

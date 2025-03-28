@@ -5,7 +5,7 @@ import worker
 import TokenParser
 import Dataset
 
-def AnalyzeFile(modelDirectory, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, FileNamesMachineReadablePooledVectors, FileNameHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
+def AnalyzeFile(modelDirectory, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, FileNamesMachineReadablePooledVectors, FileNamesHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
      
     success = False
     physical_devices = tf.config.list_physical_devices("CPU")
@@ -31,7 +31,7 @@ def AnalyzeFile(modelDirectory, inputFile, inferenceDataSetFile, LogFileAnalyzed
                                     inferenceDataSetFile=inferenceDataSetFile,
                                     LogFileAnalyzedPath=LogFileAnalyzedPath,
                                     FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
-                                    FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors,
+                                    FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors,
                                     itemFile=itemFile, 
                                     temperature=temperature, 
                                     seq_length=TrainingsParameter["Model"]["seq_length"], 

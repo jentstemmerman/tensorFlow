@@ -79,7 +79,7 @@ def AnalyzePrintfFile(model,
                       inferenceDataSetFile, 
                       LogFileAnalyzedPath, 
                       FileNamesMachineReadablePooledVectors, 
-                      FileNameHumanReadablePooledVectors, 
+                      FileNamesHumanReadablePooledVectors, 
                       itemFile, 
                       temperature, 
                       seq_length, 
@@ -103,7 +103,7 @@ def AnalyzePrintfFile(model,
                                                  LogfileVerification=printfFileToProcess, 
                                                  inferenceDataSetFile=inferenceDataSetFile, 
                                                  FileNameAnalyzed=LogfileAnalyzed, 
-                                                 FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors,
+                                                 FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors,
                                                  FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
                                                  id_from_tokenList=id_from_tokenList, 
                                                  token_from_idList=token_from_idList, 
@@ -125,27 +125,33 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         userId = 0
         temperature = 1
         
-        FileNameMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(printfFileToProcess, userId, temperature)
-        FileNameHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(printfFileToProcess, userId, temperature)
+        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(printfFileToProcess, userId, temperature)
+        FileNamesHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(printfFileToProcess, userId, temperature)
         FileNameAnalyzed = Constants.GetLogFileAnalyzedPath(printfFileToProcess, userId)
         inferenceDataSetFile = Constants.GetInferenceDataSetPath(printfFileToProcess, userId, temperature)
         
-        FileNameMachineReadablePooledVectors["first"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["first"])), os.path.basename(FileNameMachineReadablePooledVectors["first"]))
-        FileNameMachineReadablePooledVectors["last"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["last"])), os.path.basename(FileNameMachineReadablePooledVectors["last"]))
-        FileNameMachineReadablePooledVectors["all"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["all"])), os.path.basename(FileNameMachineReadablePooledVectors["all"]))
-        FileNameMachineReadablePooledVectors["predicted"] = os.path.join(os.path.basename(os.path.dirname(FileNameMachineReadablePooledVectors["predicted"])), os.path.basename(FileNameMachineReadablePooledVectors["predicted"]))
+        FileNamesMachineReadablePooledVectors["first"]     = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["first"])), os.path.basename(FileNamesMachineReadablePooledVectors["first"]))
+        FileNamesMachineReadablePooledVectors["last"]      = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["last"])), os.path.basename(FileNamesMachineReadablePooledVectors["last"]))
+        FileNamesMachineReadablePooledVectors["all"]       = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["all"])), os.path.basename(FileNamesMachineReadablePooledVectors["all"]))
+        FileNamesMachineReadablePooledVectors["predicted"] = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["predicted"])), os.path.basename(FileNamesMachineReadablePooledVectors["predicted"]))
+    
+        FileNamesHumanReadablePooledVectors["first"]     = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["first"])), os.path.basename(FileNamesHumanReadablePooledVectors["first"]))
+        FileNamesHumanReadablePooledVectors["last"]      = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["last"])), os.path.basename(FileNamesHumanReadablePooledVectors["last"]))
+        FileNamesHumanReadablePooledVectors["all"]       = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["all"])), os.path.basename(FileNamesHumanReadablePooledVectors["all"]))
+        FileNamesHumanReadablePooledVectors["predicted"] = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["predicted"])), os.path.basename(FileNamesHumanReadablePooledVectors["predicted"]))
         
-        
-        FileNameHumanReadablePooledVectors = os.path.join(os.path.basename(os.path.dirname(FileNameHumanReadablePooledVectors)), os.path.basename(FileNameHumanReadablePooledVectors))
         FileNameAnalyzed = os.path.join(os.path.basename(os.path.dirname(FileNameAnalyzed)), os.path.basename(FileNameAnalyzed))
         inferenceDataSetFile = os.path.join(os.path.basename(os.path.dirname(inferenceDataSetFile)), os.path.basename(inferenceDataSetFile))     
         
-        FileNameMachineReadablePooledVectors["first"] = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["first"])
-        FileNameMachineReadablePooledVectors["last"]  = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["last"])
-        FileNameMachineReadablePooledVectors["predicted"]  = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["predicted"])
-        FileNameMachineReadablePooledVectors["all"]  = os.path.join(outputDirectory, FileNameMachineReadablePooledVectors["all"])
+        FileNamesMachineReadablePooledVectors["first"]     = os.path.join(outputDirectory, FileNamesMachineReadablePooledVectors["first"])
+        FileNamesMachineReadablePooledVectors["last"]      = os.path.join(outputDirectory, FileNamesMachineReadablePooledVectors["last"])
+        FileNamesMachineReadablePooledVectors["predicted"] = os.path.join(outputDirectory, FileNamesMachineReadablePooledVectors["predicted"])
+        FileNamesMachineReadablePooledVectors["all"]       = os.path.join(outputDirectory, FileNamesMachineReadablePooledVectors["all"])
         
-        FileNameHumanReadablePooledVectors = os.path.join(outputDirectory, FileNameHumanReadablePooledVectors)
+        FileNamesHumanReadablePooledVectors["first"]     = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["first"])
+        FileNamesHumanReadablePooledVectors["last"]      = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["last"])
+        FileNamesHumanReadablePooledVectors["predicted"] = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["predicted"])
+        FileNamesHumanReadablePooledVectors["all"]       = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["all"])
         
         LogFileAnalyzedPath = os.path.join(outputDirectory, FileNameAnalyzed)
         inferenceDataSetFilePath = os.path.join(outputDirectory, inferenceDataSetFile)
@@ -158,8 +164,8 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
                                                      LogfileVerification=printfFileToProcess, 
                                                      inferenceDataSetFile=inferenceDataSetFilePath, 
                                                      FileNameAnalyzed=LogFileAnalyzedPath, 
-                                                     FileNameHumanReadablePooledVectors=FileNameHumanReadablePooledVectors, 
-                                                     FileNamesMachineReadablePooledVectors=FileNameMachineReadablePooledVectors, 
+                                                     FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors, 
+                                                     FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
                                                      id_from_tokenList=id_from_tokenList, 
                                                      token_from_idList=token_from_idList, 
                                                      temperature=temperature, 

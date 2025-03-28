@@ -26,10 +26,38 @@ def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pool
     with tf.device('/CPU:0'):
         linesToWrite = []
         for executionIndex in range(numberOfParallelExecutions):
-            arrayString = np.array2string(pooledLogitsVector_hidden_state_last[executionIndex], max_line_width=80, threshold=1000)
+            arrayString = np.array2string(
+                    pooledLogitsVector_hidden_state_last[executionIndex], 
+                    max_line_width=800, 
+                    threshold=1000, 
+                    separator=' ',  # Ensure consistent separation
+                    formatter={'float_kind': lambda x: f"{x:8.2f}"}  # Adjust width (e.g., 6 chars wide, 2 decimals)
+                )
+            
             line = arrayString + "\n"
             linesToWrite.append(line)
 
+        return linesToWrite
+
+def ComposeHumanReadablePooledLogitsAllVectorsList(numberOfParallelExecutions, sequenceLength, pooledLogitsVector_hidden_state_last):
+    with tf.device('/CPU:0'):
+        linesToWrite = []
+        index = 0
+        
+        for lineIndex in range(numberOfParallelExecutions):
+            linesToWrite.append(f"Line {lineIndex}:\n") 
+            for sequenceIndex in range(sequenceLength):
+                arrayString = np.array2string(
+                    pooledLogitsVector_hidden_state_last[index], 
+                    max_line_width=800, 
+                    threshold=1000, 
+                    separator=' ',  # Ensure consistent separation
+                    formatter={'float_kind': lambda x: f"{x:8.2f}"}  # Adjust width (e.g., 6 chars wide, 2 decimals)
+                )
+
+                linesToWrite.append(f"{sequenceIndex:04d}: {arrayString} \n")
+                index += 1
+      
         return linesToWrite
     
 def ComposeLineList(numberOfParallelExecutions, 
@@ -171,14 +199,20 @@ def InferenceOutputThread(workerParameter,
                           probabilityOfActuals, 
                           crossEntropyOfActuals, 
                           probabilityOfPredictions, 
+                          pooledLogitsVector_hidden_state_all,
                           pooledLogitsVector_hidden_state_last,
+                          sequenceLength,
                           onlyLogLogitsVectors=False):
     
     with tf.device('/CPU:0'):
        
         if onlyLogLogitsVectors:
             HumanReadableTextOutput = None
-            pooledHumanReadableLogitsVectorlinesToWrite = None
+            pooledHumanReadableLogitsLastVectorlinesToWrite = None
+            pooledHumanReadableLogitsLastVectorlinesToWrite = None
+            pooledHumanReadableLogitsLastVectorlinesToWrite = None
+            pooledHumanReadableLogitsLastVectorlinesToWrite = None
+            pooledHumanReadableLogitsAllVectorlinesToWrite = None
         else:
             id_from_tokenList = workerParameter[0]
             token_from_idList = workerParameter[1]
@@ -193,8 +227,9 @@ def InferenceOutputThread(workerParameter,
                                                         crossEntropyOfActuals=crossEntropyOfActuals, 
                                                         probabilityOfPredictions=probabilityOfPredictions)
             
-            pooledHumanReadableLogitsVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector_hidden_state_last)
-
-        return HumanReadableTextOutput, pooledHumanReadableLogitsVectorlinesToWrite
+            pooledHumanReadableLogitsLastVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector_hidden_state_last)
+            pooledHumanReadableLogitsAllVectorlinesToWrite  = ComposeHumanReadablePooledLogitsAllVectorsList(numberOfParallelExecutions, sequenceLength, pooledLogitsVector_hidden_state_all)
+            
+        return HumanReadableTextOutput, pooledHumanReadableLogitsLastVectorlinesToWrite, pooledHumanReadableLogitsAllVectorlinesToWrite
 
 

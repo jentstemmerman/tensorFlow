@@ -58,7 +58,20 @@ def CreateDataSetFromVerificationFile(LogfileVerification, dataSetFile, itemList
     print(f"Dataset from file  {os.path.basename(LogfileVerification)} saved. to {dataSetFile}\n")
 
 
-def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList, DataTypeForTensors, LogfileVerification, inferenceDataSetFile, FileNameAnalyzed, FileNameHumanReadablePooledVectors, FileNamesMachineReadablePooledVectors, id_from_tokenList, token_from_idList, temperature, seq_length):
+def AddProbabilitiesPrintfFileParallel(model, 
+                                       numberOfThreads, 
+                                       Workers, 
+                                       itemList, 
+                                       DataTypeForTensors, 
+                                       LogfileVerification, 
+                                       inferenceDataSetFile, 
+                                       FileNameAnalyzed, 
+                                       FileNamesHumanReadablePooledVectors, 
+                                       FileNamesMachineReadablePooledVectors, 
+                                       id_from_tokenList,
+                                       token_from_idList, 
+                                       temperature, 
+                                       seq_length):
           
     with tf.device('/CPU:0'):
             
@@ -91,14 +104,24 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         LogfileAnalyzed.write("Analyzed file at temperature " + str(temperature) + "\n")
         LogfileCompared.write("Analyzed file at temperature " + str(temperature) + "\n")
 
-        file = Path(FileNameHumanReadablePooledVectors)
+        file = Path(FileNamesHumanReadablePooledVectors["all"])
         file.parent.mkdir(parents=True, exist_ok=True)
-        FileHumanReadablePooledVectors  = open(FileNameHumanReadablePooledVectors, "w")
+
+        FileHumanReadablePooledFirstVectors =     open(FileNamesHumanReadablePooledVectors["first"],     "w")      
+        FileHumanReadablePooledLastVectors =      open(FileNamesHumanReadablePooledVectors["last"],      "w")      
+        FileHumanReadablePooledPredictedVectors = open(FileNamesHumanReadablePooledVectors["predicted"], "w")  
+        FileHumanReadablePooledAllVectors =       open(FileNamesHumanReadablePooledVectors["all"],       "w")        
+
 
         modelHash = Model.GetHashFromModel(model)
         LogfileAnalyzed.write("Model hash: " + modelHash + "\n")
         LogfileCompared.write("Model hash: " + modelHash + "\n")
-        FileHumanReadablePooledVectors.write("Model hash: " + modelHash + "\n")
+        
+        FileHumanReadablePooledFirstVectors.write("Model hash: " + modelHash + "\n")
+        FileHumanReadablePooledLastVectors.write("Model hash: " + modelHash + "\n")
+        FileHumanReadablePooledPredictedVectors.write("Model hash: " + modelHash + "\n")
+        FileHumanReadablePooledAllVectors.write("Model hash: " + modelHash + "\n")
+       
         
         one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
        
@@ -309,6 +332,8 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                                             None, 
                                                                             None, 
                                                                             None,
+                                                                            None,
+                                                                            window_size,
                                                                             onlyLogLogitsVector)))
                 else:
                     inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
@@ -319,7 +344,9 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                                                     probabilityOfActualsList[threadId], 
                                                     crossEntropyOfActualsList[threadId], 
                                                     probabilityOfPredictionsList[threadId], 
+                                                    allLogitsVectorDataList[threadId],
                                                     lastLogitsVectorDataList[threadId], 
+                                                    window_size,
                                                     onlyLogLogitsVector)))
             
             printfList      = []
@@ -356,7 +383,7 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
             for threadId in range(0, numberOfThreads):
 
                 outputQueue = Workers[threadId]["outputQueue"]
-                HumanReadableTextOutput, pooledHumanReadableLastLogitsVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
+                HumanReadableTextOutput, pooledHumanReadableLogitsLastVectorlinesToWrite, pooledHumanReadableLogitsAllVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
                 
                 if (len(firstLogitsVectorDataList) > 0):   
                     try:    
@@ -397,9 +424,13 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
                     numberOfIdenticals                   += numberOfIdenticalsInThisCycle
 
 
-                if (pooledHumanReadableLastLogitsVectorlinesToWrite is not None):
-                    for lineToWrite in pooledHumanReadableLastLogitsVectorlinesToWrite:
-                        FileHumanReadablePooledVectors.write(lineToWrite)
+                if (pooledHumanReadableLogitsLastVectorlinesToWrite is not None):
+                    for lineToWrite in pooledHumanReadableLogitsLastVectorlinesToWrite:
+                        FileHumanReadablePooledLastVectors.write(lineToWrite)
+                
+                if (pooledHumanReadableLogitsAllVectorlinesToWrite is not None):
+                    for lineToWrite in pooledHumanReadableLogitsAllVectorlinesToWrite:
+                        FileHumanReadablePooledAllVectors.write(lineToWrite)
                     
             Endtime = time.time()
             averageNextTokenProbabilities    = accumulatedNextTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
@@ -443,6 +474,12 @@ def AddProbabilitiesPrintfFileParallel(model, numberOfThreads, Workers, itemList
         binaryFileHandlerLastLogits.close()
         binaryFileHandlerAllLogits.close()
         binaryFileHandlerPredictedLogits.close()
+        
+        FileHumanReadablePooledLastVectors.close()
+        FileHumanReadablePooledFirstVectors.close()
+        FileHumanReadablePooledPredictedVectors.close()
+        FileHumanReadablePooledAllVectors.close()
+        
         
         LogfileToAnalyze.close()
         LogfileAnalyzed.close()   

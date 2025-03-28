@@ -218,12 +218,12 @@ def analyze_file(file_name):
         temperature = 1
          
         FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId, temperature)
-        FileNameHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId, temperature)
+        FileNamesHumanReadablePooledVectors   = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId, temperature)
         
         # Clear directories
         directories_to_clear = [
             os.path.dirname(FileNamesMachineReadablePooledVectors["all"]),
-            os.path.dirname(FileNameHumanReadablePooledVectors)
+            os.path.dirname(FileNamesHumanReadablePooledVectors["all"])
         ]
 
         for directory in directories_to_clear:
@@ -238,7 +238,7 @@ def analyze_file(file_name):
                                        inferenceDataSetFile, 
                                        LogFileAnalyzedPath, 
                                        FileNamesMachineReadablePooledVectors, 
-                                       FileNameHumanReadablePooledVectors, 
+                                       FileNamesHumanReadablePooledVectors, 
                                        OriginalTokenFileDirectory, 
                                        itemFile, 
                                        temperature=1)
@@ -443,51 +443,6 @@ def upload_signature():
         print("Error uploading signature:", e)
         return jsonify({"message": "Error uploading signature", "error": str(e)}), 500
 
-@WebServer.route("/api/enableSignature", methods=["POST"])
-def enable_signature():
-    print("api/enableSignature")
-
-    try:
-        signature_name = request.form["signature_name"]
-        logFileName = request.form["logFileName"]
-        userId = request.form["userId"]
-        path = request.form["path"]
-        similaritythreshold = float(request.form["similarityThreshold"])
-        
-        print("enable_signature: "
-            "signature_name: ",
-            signature_name,
-            "similaritythreshold: ",
-            similaritythreshold,
-            "path: ",
-            path,
-            "userId: ",
-            userId,
-            "logFileName: ",
-            logFileName,
-        )
-        
-        baseDirectory = Constants.GetSignatureDirectoryPath(userId)
-        signature_file = os.path.join(baseDirectory, signature_name)
-        simularitiesMachineReadableFileName = Constants.GetMachineReadableSimularitiesFile(logFileName, userId, signature_name)
-        simularitiesHumanReadableFileName = Constants.GetHumanReadableSimularitiesFile(logFileName, userId, signature_name)
-        DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
-        
-        SignatureMatching.CreateSimularitiesFile(logFileName, signature_file, simularitiesMachineReadableFileName, simularitiesHumanReadableFileName, userId, similaritythreshold, DataTypeForTensors)
-        annotation_id = 0
-        outputFile = AnnotationManager.AnnotationCacheManager.get_annotation_file_path(logFileName, annotation_id, userId)
-        SignatureMatching.CreateAnnotationListFromSimularitiesFile(simularitiesMachineReadableFileName, outputFile, DataTypeForTensors, annotationId = annotation_id, threshold = 0.8, comment = "")
-        
-        return jsonify(
-            {
-                "message": "Signature uploaded successfully",
-                "signature_name": signature_name,
-            }
-        )
-
-    except Exception as e:
-        print("Error enable_signature:", e)
-        return jsonify({"message": "Error enable_signature", "error": str(e)}), 500
 
 @WebServer.route("/api/PostProcessLogFiles", methods=["GET"])
 def PostProcessLogFiles():

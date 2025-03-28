@@ -105,7 +105,12 @@ def GetLogFileHumanReadableVectorsPath(logFilename, userId, temperature):
             
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
     
-    FileNameHumanReadablePooledVectors = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors.txt")
+    FileNameHumanReadablePooledVectors_first     = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_first.txt")
+    FileNameHumanReadablePooledVectors_last      = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_last.txt")
+    FileNameHumanReadablePooledVectors_predicted = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_predicted.txt")
+    FileNameHumanReadablePooledVectors_all       = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_all.txt")
+        
+    FileNameHumanReadablePooledVectors = {"first": FileNameHumanReadablePooledVectors_first, "last": FileNameHumanReadablePooledVectors_last, "predicted": FileNameHumanReadablePooledVectors_predicted, "all": FileNameHumanReadablePooledVectors_all}
 
     return FileNameHumanReadablePooledVectors
 

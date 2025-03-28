@@ -6,6 +6,7 @@ import MultiDimensionalModel
 
 
 # JENTS: this looks like the classic positional encoding. 
+@tf.function
 def positional_encoding(length, depth): # lenght is the sequence lenght, depth the embedding dimension
   """
   Generates a matrix of position encodings for an input sequence.
@@ -496,7 +497,7 @@ class Transformer(tf.keras.Model):
                seq_length=seq_length, dropout_rate=0.1)
 
   
-  # @tf.function
+  @tf.function
   def call(self, inputs, training=False):
     logits, hidden_state = self.decoderOnlyTransformerLayer(inputs)
     

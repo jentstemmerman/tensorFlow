@@ -72,7 +72,7 @@ class CustomIdentityLayer(tf.keras.layers.Layer):
     def get_config(self):
         return {"factor": self.factor}
      
-    
+    @tf.function
     def call(self, input, training=False):
         input = tf.cast(input, dtype=self.datatype)
         input = self.normalisationLayer(input, training=training)
@@ -87,7 +87,8 @@ class CustomDenseLayer(tf.keras.layers.Layer):
         self.dense_output_layer2 = tf.keras.layers.Dense(units=1, input_shape=(numberOfOutputs,))
     def get_config(self):
         return {"layer1": self.dense_output_layer1, "layer2": self.dense_output_layer2}
-         
+    
+    @tf.function     
     def call(self, input, training=False):
         input = self.dense_output_layer1(input, training=training)
         input = self.dense_output_layer2(input, training=training)

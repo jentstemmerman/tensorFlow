@@ -331,18 +331,15 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 
             numberOfSimularityCalculationsPerRead = numberOfLinesToRead - max_SignatureLength + 1
              
-            inputTensor = binaryFileHandlerPredictedLogits.read_records(lineNumber, numberOfLinesToRead)
-
             for signatureIndex in range(numberOfSignatureFiles):
                 signature_tensor = signatureTensors[signatureIndex]
                 signatureLength = numberOfPooledVectorsList[signatureIndex]
                 
-                inputTensorTest2 = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, lineNumber, signatureLength, sequence_length, numberOfSimularityCalculationsPerRead)
+                batched_signature_tensor = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, lineNumber, signatureLength, sequence_length, numberOfSimularityCalculationsPerRead)
                 
-                # New approach using tf.signal.frame
-                batchedTestTensor_new = tf.signal.frame(inputTensor, signatureLength, 1, axis=0)
-                batched_signature_tensor_new = tf.stack([signature_tensor] * batchedTestTensor_new.shape[0], axis=0)
-                simularity = CalculateSimularityBatched(batched_signature_tensor_new, batchedTestTensor_new)
+                batched_signature_tensor_new = tf.stack([signature_tensor] * batched_signature_tensor.shape[0], axis=0)
+                
+                simularity = CalculateSimularityBatched(batched_signature_tensor_new, batched_signature_tensor)
 
                 for index in range(numberOfSimularityCalculationsPerRead):
                     humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
@@ -368,35 +365,32 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         return False
 
 # This function returns a batch of hidden vectors, starting from startLine, each with a length of numberOfLines
+# @tf.function
 def GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, startLine, numberOfLines, sequence_length, batch_size):
     startVectorOffsetInAllLogitsFile       = (startLine - 1) * sequence_length   #this is the transformation to get the hidden vector of startLine as it is generated in the first timeslice of the sequence
     #startVectorOffsetInPredictedLogitsFile = startLine - sequence_length         # ok
-    startVectorOffsetInLastLogitsFile      = startLine - sequence_length + 1     # ok
-
-    if (numberOfLines < sequence_length):
-        
-        hiddenVectors = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, sequence_length * batch_size)
-        hiddenVectors = tf.reshape(hiddenVectors, (batch_size, sequence_length, -1))
-    else:
+         # ok
+    hiddenVectors = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, sequence_length * batch_size)
+    hiddenVectors = tf.reshape(hiddenVectors, (batch_size, sequence_length, -1))
+    hiddenVectors = hiddenVectors[:, 0 : numberOfLines, :]    
+    
+    if (numberOfLines >= sequence_length):
+        hiddenVectorsPart_1 = hiddenVectors
+        newStartLine = startLine + sequence_length - 1
+        startVectorOffsetInLastLogitsFile = newStartLine - sequence_length + 1
         numberOfLinesRemainder = numberOfLines - sequence_length
         
-    if numberOfLines <= sequence_length:
-           # this is not a typo. It should be - and not %
-        hiddenVectorsPart_1 = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, numberOfLines)
-        numberOfLinesRemainder = 0
-    else:
-        hiddenVectorsPart_1 = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, sequence_length)
-        numberOfLinesRemainder = numberOfLines - sequence_length
+        hiddenVectorsPart_2 = binaryFileHandlerLastLogits.read_records(startVectorOffsetInLastLogitsFile, numberOfLinesRemainder * batch_size)
+        hiddenVectorsPart_2 = tf.signal.frame(hiddenVectorsPart_2, numberOfLinesRemainder, 1, axis=0)
         
-    if (numberOfLinesRemainder > 0):
-        hiddenVectorsPart_2 = binaryFileHandlerLastLogits.read_records(startVectorOffsetInLastLogitsFile + 1, numberOfLinesRemainder)
+        hiddenVectorsPart_2 = tf.reshape(hiddenVectorsPart_2, (batch_size, sequence_length, -1))
+        hiddenVectorsPart_2 = hiddenVectorsPart_1[:, 0 : numberOfLinesRemainder, :]
+        
         hiddenVectors = tf.concat([hiddenVectorsPart_1, hiddenVectorsPart_2], axis=0)
-    else:
-        hiddenVectors = hiddenVectorsPart_1
-        
-    signature = CalculatePooledVectors(hiddenVectors)
-   
-    return signature, hiddenVectors
+        assert False, "Not validated yet. Check this code"
+
+  
+    return hiddenVectors
 
 
 def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = 0, threshold = 0.5, comment = ""):

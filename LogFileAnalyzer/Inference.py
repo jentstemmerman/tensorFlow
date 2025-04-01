@@ -334,6 +334,7 @@ def AddProbabilitiesPrintfFileParallel(model,
                                                                             None,
                                                                             None,
                                                                             window_size,
+                                                                            numberOfAnalyzedLines,
                                                                             onlyLogLogitsVector)))
                 else:
                     inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
@@ -347,6 +348,7 @@ def AddProbabilitiesPrintfFileParallel(model,
                                                     allLogitsVectorDataList[threadId],
                                                     lastLogitsVectorDataList[threadId], 
                                                     window_size,
+                                                    numberOfAnalyzedLines,
                                                     onlyLogLogitsVector)))
             
             printfList      = []

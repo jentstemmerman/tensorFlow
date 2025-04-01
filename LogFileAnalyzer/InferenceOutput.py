@@ -39,13 +39,15 @@ def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pool
 
         return linesToWrite
 
-def ComposeHumanReadablePooledLogitsAllVectorsList(numberOfParallelExecutions, sequenceLength, pooledLogitsVector_hidden_state_last):
+def ComposeHumanReadablePooledLogitsAllVectorsList(numberOfParallelExecutions, numberOfAnalyzedLines, sequenceLength, pooledLogitsVector_hidden_state_last):
     with tf.device('/CPU:0'):
         linesToWrite = []
         index = 0
         
+        analyzedLine = numberOfAnalyzedLines + 1 # +1 because we predict the next token
+        
         for lineIndex in range(numberOfParallelExecutions):
-            linesToWrite.append(f"Line {lineIndex}:\n") 
+            linesToWrite.append(f"Lines [{analyzedLine} - {analyzedLine + sequenceLength - 1}]:\n") 
             for sequenceIndex in range(sequenceLength):
                 arrayString = np.array2string(
                     pooledLogitsVector_hidden_state_last[index], 
@@ -55,8 +57,10 @@ def ComposeHumanReadablePooledLogitsAllVectorsList(numberOfParallelExecutions, s
                     formatter={'float_kind': lambda x: f"{x:8.3f}"}  # Adjust width (e.g., 6 chars wide, 2 decimals)
                 )
 
-                linesToWrite.append(f"{sequenceIndex:04d}: {arrayString} \n")
+                linesToWrite.append(f"{analyzedLine + sequenceIndex:04d}: {arrayString} \n")
                 index += 1
+            
+            analyzedLine += 1
       
         return linesToWrite
     
@@ -202,6 +206,7 @@ def InferenceOutputThread(workerParameter,
                           pooledLogitsVector_hidden_state_all,
                           pooledLogitsVector_hidden_state_last,
                           sequenceLength,
+                          numberOfAnalyzedLines,
                           onlyLogLogitsVectors=False):
     
     with tf.device('/CPU:0'):
@@ -228,7 +233,7 @@ def InferenceOutputThread(workerParameter,
                                                         probabilityOfPredictions=probabilityOfPredictions)
             
             pooledHumanReadableLogitsLastVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector_hidden_state_last)
-            pooledHumanReadableLogitsAllVectorlinesToWrite  = ComposeHumanReadablePooledLogitsAllVectorsList(numberOfParallelExecutions, sequenceLength, pooledLogitsVector_hidden_state_all)
+            pooledHumanReadableLogitsAllVectorlinesToWrite  = ComposeHumanReadablePooledLogitsAllVectorsList(numberOfParallelExecutions, numberOfAnalyzedLines, sequenceLength, pooledLogitsVector_hidden_state_all)
             
         return HumanReadableTextOutput, pooledHumanReadableLogitsLastVectorlinesToWrite, pooledHumanReadableLogitsAllVectorlinesToWrite
 

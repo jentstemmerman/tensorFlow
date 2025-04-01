@@ -416,10 +416,10 @@ def upload_signature():
             "signature_text": signature_text,
             "startLine": startLine,
             "endLine": endLine,
-            "DataTypeForTensors" : DataTypeForTensors,
+            "DataTypeForTensors": DataTypeForTensors,
             "modelHash": modelHash,
             "signature": signature.numpy().tolist(),
-            "hiddenVectors": hiddenVectors.numpy().tolist(),
+            "hiddenVectors": [[float(f"{x:8.3f}") for x in row] for row in hiddenVectors.numpy()],
         }
 
         file_path= Constants.GetSignatureFilePath(signature_name, userId)
@@ -428,7 +428,7 @@ def upload_signature():
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
         with open(file_path, "w") as file:
-            json.dump(signature_data, file)
+            json.dump(signature_data, file, indent=4, sort_keys=True)
 
         print("Signature saved. modelHash: ", modelHash) 
        

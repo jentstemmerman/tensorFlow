@@ -96,27 +96,19 @@ def CalculateSignatureFromFiles(FileNamesMachineReadablePooledVectors, startLine
    
     return signature, modelHash1, hiddenVectors
 
-
-
-
-
-
-
-
-def CalculateSimularity(signature, tensor, data_type):
-    signature_tensor = tf.convert_to_tensor(signature, dtype=data_type)
-    tensor = tf.convert_to_tensor(tensor, dtype=data_type)
-    
-    pooledVector = CalculatePooledVectors(tensor)
-    
-    similarity = tf.keras.losses.cosine_similarity(signature_tensor, pooledVector)
-    
-    return similarity
-
 # @tf.function
 def CalculateSimularityBatched(signature, tensor):
    
     pooledVector = CalculatePooledVectorsBatched(tensor)
+    pooledVectorOld = pooledVector
+    signatureOld = signature
+    
+    
+    
+    
+    similarityOld = tf.keras.losses.cosine_similarity(signatureOld, pooledVectorOld)
+    signature = tf.linalg.l2_normalize(signature, axis=-1)
+    pooledVector = tf.linalg.l2_normalize(pooledVector, axis=-1)
     
     similarity = tf.keras.losses.cosine_similarity(signature, pooledVector)
     

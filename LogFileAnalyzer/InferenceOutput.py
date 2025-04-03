@@ -149,10 +149,11 @@ def ComposeLineList(numberOfParallelExecutions,
             #print(f"PrintfList[{executionIndex}], numberOfParallelExecutions = {numberOfParallelExecutions} len(PrintfList) = {len(PrintfList)}")
             
             if (executionIndex >= len(PrintfList)):
-                print(f"Error")
-            
-            
-            printf = PrintfList[executionIndex]
+                print(f"Warning (executionIndex >= len(PrintfList))")
+                printf = "No printf left"
+            else:
+                printf = PrintfList[executionIndex]
+                
             lineToWrite = AccuracyOfPredictionString + actualsString + predictionsString + ProbabilityOfActualsString + crossEntropyOfActualString + "  "  + ProbabilityOfPredictionsString + printf
  
             linesToWrite.append(lineToWrite)

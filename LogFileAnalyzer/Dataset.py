@@ -72,7 +72,10 @@ def PrepareDataSetForTraining(dataset, batch_size, shuffle=False, buffer_size=0)
 
     dataset = dataset.batch(batch_size, drop_remainder=True)
     dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
+    options = tf.data.Options()    
+    #options.autotune.cpu_budget = 8
     
+    dataset = dataset.with_options(options)
     return dataset
 
 def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, dual_input = False, forTraining=True, verbose=False):

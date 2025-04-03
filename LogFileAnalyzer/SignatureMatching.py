@@ -311,6 +311,8 @@ def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outp
     annotationStart = 0
     annotationLineCount = 0
     withinAnnotation = False
+    simularitySummed = 0
+    simularityMax = -1
     
     while True:
         simularity = inputFileHandler.read_next()
@@ -321,6 +323,8 @@ def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outp
             simularity = -(simularity[0])
         
         if simularity >= threshold:
+            simularitySummed += simularity
+            simularityMax = max(simularityMax, simularity)
             if withinAnnotation:
                 annotationLineCount += 1
             else:
@@ -329,11 +333,13 @@ def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outp
                 withinAnnotation = True
         else:
             if withinAnnotation:
-                annotation = { "lineNumber": annotationStart,  "lineCount": annotationLineCount, "simularity": simularity, "AnnotationId": annotationId}
+                annotation = { "lineNumber": annotationStart,  "lineCount": annotationLineCount, "simularity": simularitySummed / annotationLineCount, "simularityMax": simularityMax, "AnnotationId": annotationId}
                 annotationInformation["annotationList"].append(annotation)
                 withinAnnotation = False
                 annotationLineCount = 0
-
+                simularitySummed = 0
+                simularityMax = -1
+                
         lineNumber += 1
     
     if outputFile is not None:

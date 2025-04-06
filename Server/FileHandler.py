@@ -153,7 +153,7 @@ def PostProcessLogFiles(fileName, userId, DataTypeForTensors, similaritythreshol
         
         logFileIterator = LogFileIterator.FileIterator(logfileBaseDirectory,  Constants.GetLogFilesExtention())
                 
-        logFileName      = logFileIterator.get_first_tokenlogfile()
+        logFileName      = logFileIterator.get_first_file()
         
         while (logFileName is not None):
                
@@ -165,12 +165,12 @@ def PostProcessLogFiles(fileName, userId, DataTypeForTensors, similaritythreshol
             
             print(f"Finished Creating SimularitiesFile of logfile {logFileName_name}")
                 
-            logFileName = logFileIterator.get_next_tokenlogfile()
+            logFileName = logFileIterator.get_next_file()
                 
-        logFileName      = logFileIterator.get_first_tokenlogfile()
+        logFileName      = logFileIterator.get_first_file()
         
         signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
-        signature_file   = signatureIterator.get_first_tokenlogfile()
+        signature_file   = signatureIterator.get_first_file()
         
         while (logFileName is not None):
             while (signature_file is not None):                
@@ -185,9 +185,9 @@ def PostProcessLogFiles(fileName, userId, DataTypeForTensors, similaritythreshol
 
                 print(f"Finished Creating AnnotationList of logfile {logFileName_name} for signature{signature_name}")
                 
-                signature_file = signatureIterator.get_next_tokenlogfile()
+                signature_file = signatureIterator.get_next_file()
 
-            logFileName = logFileIterator.get_next_tokenlogfile()
+            logFileName = logFileIterator.get_next_file()
         
         print(f"Finished processing log files for user {userId}")
     except Exception as e:
@@ -226,12 +226,12 @@ def PostProcessLogFile(logFileName, userId, DataTypeForTensors, similaritythresh
         signatureDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
         signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
         
-        signature_file   = signatureIterator.get_first_tokenlogfile()
+        signature_file   = signatureIterator.get_first_file()
        
 
         while (signature_file is not None):                
             CreateAnnotationListFromSimularityFile(logFileName, signature_file, userId, DataTypeForTensors, similaritythreshold)
-            signature_file = signatureIterator.get_next_tokenlogfile()
+            signature_file = signatureIterator.get_next_file()
 
         
         print(f"Finished processing log files for user {userId}")

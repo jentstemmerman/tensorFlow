@@ -161,7 +161,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
 
         #if log_file_mtime < machine_readable_mtime and log_file_mtime < human_readable_mtime:
         #    print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
-         #   signature_file = signatureIterator.get_next_tokenlogfile()
+         #   signature_file = signatureIterator.get_next_file()
         #    continue
         
         numberOfSignatureFiles += 1

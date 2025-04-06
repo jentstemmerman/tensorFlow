@@ -179,7 +179,7 @@ def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperatur
 
     if (calculateAverage):
         verificationFileIterator = TokenParser.FileIterator(OutputDirectoryVerification)
-        tokenLogfileToProcess    = verificationFileIterator.get_first_tokenlogfile()
+        tokenLogfileToProcess    = verificationFileIterator.get_first_file()
 
         if (tokenLogfileToProcess == None):
             exit()

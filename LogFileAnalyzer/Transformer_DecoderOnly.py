@@ -353,7 +353,7 @@ class Decoder(tf.keras.layers.Layer):
 
     output_dimension = 0
 
-    embeddingDimensionList = MultiDimensionalModel.CalculateEmbeddingDimensions(featureList)
+    embeddingDimensionList = self.CalculateEmbeddingDimensions(featureList)
 
     self.input_layerList  = []
 
@@ -387,6 +387,28 @@ class Decoder(tf.keras.layers.Layer):
 
 
     self.last_attn_scores = None
+
+
+  def CalculateEmbeddingDimensions(self, featureList):
+    embeddingDimension = []
+    total_output_dimensions = 0
+
+    for i, feature in enumerate(featureList):
+        if (feature["embedded"]):
+            import math
+            output_dimension = math.ceil(feature["vocab_size"]**0.25) * 2
+        else:
+            output_dimension = 1
+
+        # the positional encoder heeft een getal deelbaar door 2 nodig
+        if (output_dimension % 2 == 1):
+            output_dimension += 1
+        
+        embeddingDimension.append(output_dimension)
+        total_output_dimensions += output_dimension
+
+    return embeddingDimension
+
 
   @tf.function
   def call(self, inputs, training=False):

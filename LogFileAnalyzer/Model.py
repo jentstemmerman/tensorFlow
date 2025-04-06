@@ -245,7 +245,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
         num_heads = 32
         dropout_rate = 0.1
         import Transformer
-        d_model=Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
+        d_model = Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
         dff = d_model * 4
         # Parameters, only one feature supported yet (don't know whether it will ever be possible)
         input_vocab_size = modelFeatureList[0]["vocab_size"]

@@ -225,7 +225,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         
     lineNumber = 1
     start_time = time.time()
-    simularityCalculationIndexes = np.zeros(numberOfSignatureFiles, dtype=int)
+    simularityCalculationIndexes = np.ones(numberOfSignatureFiles, dtype=int) # because the output of the model starts at line 1
     
     try:
         for i in range(numberOfReads):

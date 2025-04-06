@@ -7,15 +7,15 @@ class FileIterator():
         self.counter = 0
         self.extention = extention
         
-    def get_first_tokenlogfile(self):
+    def get_first_file(self):
         self.counter = 0
-        return self.get_tokenlogfile(self.counter)
+        return self.get_file(self.counter)
 
-    def get_next_tokenlogfile(self):
+    def get_next_file(self):
         self.counter = self.counter + 1
-        return self.get_tokenlogfile(self.counter)
+        return self.get_file(self.counter)
 
-    def get_tokenlogfile(self, requested_counter):
+    def get_file(self, requested_counter):
         counter = 0
         for root, dirs, files in os.walk(self.directory):
             for filename in files:

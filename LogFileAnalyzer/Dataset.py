@@ -81,13 +81,13 @@ def PrepareDataSetForTraining(dataset, batch_size, shuffle=False, buffer_size=0)
 def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, dual_input = False, forTraining=True, verbose=False):
     
     fileIterator = LogFileIterator.FileIterator(InputDirectory, ".log")
-    InputFile   = fileIterator.get_first_tokenlogfile()
+    InputFile   = fileIterator.get_first_file()
 
     import concurrent.futures
     from concurrent.futures import ThreadPoolExecutor
 
     with ThreadPoolExecutor(max_workers=7) as executor:
-        InputFile = fileIterator.get_first_tokenlogfile()
+        InputFile = fileIterator.get_first_file()
         futureList = []
         while True:
             
@@ -96,7 +96,7 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             forTraining=True
             future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, forTraining)
             futureList.append(future)
-            InputFile = fileIterator.get_next_tokenlogfile()
+            InputFile = fileIterator.get_next_file()
         
         concurrent.futures.wait(futureList, return_when=concurrent.futures.ALL_COMPLETED)
         

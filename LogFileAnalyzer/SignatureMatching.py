@@ -135,7 +135,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     outputBinaryFileHandlers = []
     modelHashFromSignatureFileList = []
     
-    signature_file = signatureIterator.get_first_tokenlogfile()
+    signature_file = signatureIterator.get_first_file()
     
     if signature_file is not None:
         numberOfPooledVectors, _, _, _ = SignatureMatching.read_signature_from_file(signature_file)
@@ -190,7 +190,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         humanReadableOutputFileHandler = open(humanReadableOutputFile, 'w')
         humanReadableOutputFileHandlers.append(humanReadableOutputFileHandler)
         
-        signature_file = signatureIterator.get_next_tokenlogfile()
+        signature_file = signatureIterator.get_next_file()
         
         
     if (numberOfSignatureFiles == 0):

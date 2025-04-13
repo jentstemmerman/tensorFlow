@@ -126,63 +126,6 @@ class BaseAttention(tf.keras.layers.Layer):
     self.layernorm = tf.keras.layers.LayerNormalization()
     self.add = tf.keras.layers.Add()
 
-class CrossAttention(BaseAttention):
-  """
-  A class that implements cross-attention mechanism by inheriting from BaseAttention class.
-  Cross-attention is used to process two different sequences and attends to the context sequence while processing the query sequence.
-  Inherits:
-      BaseAttention: A base class that defines the MultiHeadAttention layer, LayerNormalization, and Add operation.
-  Args:
-      **kwargs: Arguments to pass to the MultiHeadAttention layer.
-  """
-  @tf.function
-  def call(self, x, context):
-    """
-    The call function that performs the cross-attention operation.
-
-    Args:
-        x: The query sequence tensor, shape=(batch_size, seq_len, embedding_dim)
-        context: The context sequence tensor, shape=(batch_size, seq_len, embedding_dim)
-
-    Returns:
-        The attended output tensor, shape=(batch_size, seq_len, embedding_dim)
-    """
-    attn_output, attn_scores = self.mha(
-        query=x,
-        key=context,
-        value=context,
-        return_attention_scores=True)
-
-    # Cache the attention scores for plotting later.
-    self.last_attn_scores = attn_scores
-
-    x = self.add([x, attn_output])
-    x = self.layernorm(x)
-
-    return x
-
-class GlobalSelfAttention(BaseAttention):
-  @tf.function
-  def call(self, x):
-    """
-    Apply the global self-attention mechanism to the input sequence.
-
-    Args:
-        x: A tensor of shape `(batch_size, seq_len, embedding_dim)`
-        representing the input sequence.
-
-    Returns:
-        A tensor of the same shape as the input, representing the sequence
-        after being transformed by the self-attention mechanism.
-    """
-    attn_output = self.mha(
-        query=x,
-        value=x,
-        key=x)
-    x = self.add([x, attn_output])
-    x = self.layernorm(x)
-    return x
-
 class CausalSelfAttention(BaseAttention):
   """
   Call self attention on the input sequence, ensuring that each position in the
@@ -196,15 +139,25 @@ class CausalSelfAttention(BaseAttention):
       and residual connection with layer normalization applied.
   """
   @tf.function
-  def call(self, x):
-    attn_output = self.mha(
+  def call(self, x, return_attention_scores=False):
+    multiHeadAttentionOutput = self.mha(
         query=x,
         value=x,
         key=x,
-        use_causal_mask = True)
+        return_attention_scores=return_attention_scores,
+        use_causal_mask=True)
+    
+    if return_attention_scores:
+        attn_output, attn_scores = multiHeadAttentionOutput
+    else:
+        attn_output = multiHeadAttentionOutput
+        attn_scores = None
+
     x = self.add([x, attn_output])
     x = self.layernorm(x)
-    return x
+    
+    return (x, attn_scores)
+
 
 class FeedForward(tf.keras.layers.Layer):
   """
@@ -292,14 +245,16 @@ class DecoderLayer(tf.keras.layers.Layer):
     self.causal_self_attention = CausalSelfAttention(
         num_heads=num_heads,
         key_dim=d_model,
-        dropout=dropout_rate)
+        dropout=dropout_rate
+       )
+    
     self.cross_attention = None
 
-    self.ffn = FeedForward(d_model, dff)
+    self.FeedForwardLayer = FeedForward(d_model, dff)
 
   
-  @tf.function
-  def call(self, x):
+  #@tf.function
+  def call(self, x, training):
     """
     Forward pass of the `DecoderLayer`.
 
@@ -314,14 +269,17 @@ class DecoderLayer(tf.keras.layers.Layer):
       `(batch_size, target_seq_len, d_model)`.
 
     """
-    x = self.causal_self_attention(x=x)
+    isInference = not training
+    attentionOutput = self.causal_self_attention(x=x, return_attention_scores = isInference)
     #x = self.cross_attention(x=x, context=context)
 
     # Cache the last attention scores for plotting later
-    #self.last_attn_scores = self.cross_attention.last_attn_scores
+    self.last_attn_scores = 1 # self.causal_self_attentions.last_attn_scores
 
-    x = self.ffn(x)  # Shape `(batch_size, seq_len, d_model)`.
-    return x
+    x = self.FeedForwardLayer(attentionOutput[0])  # Shape `(batch_size, seq_len, d_model)`.
+     
+    return (x, attentionOutput[1])  # Shape `(batch_size, seq_len, d_model)`.
+
 
 
 class Decoder(tf.keras.layers.Layer):
@@ -410,7 +368,7 @@ class Decoder(tf.keras.layers.Layer):
     return embeddingDimension
 
 
-  @tf.function
+  #@tf.function
   def call(self, inputs, training=False):
     inputList = []
     
@@ -425,9 +383,12 @@ class Decoder(tf.keras.layers.Layer):
     hidden_state = concatenated_inputs
     
     for i in range(self.num_layers):
-      hidden_state = self.dec_layers[i](hidden_state)
-
-
+       decoder_output_tuple = self.dec_layers[i](hidden_state, training=training)
+    
+    hidden_state = decoder_output_tuple[0]
+    attention_weights = decoder_output_tuple[1]
+    
+        
     output_List = []
 
     for i, output_layer in enumerate(self.output_layerList):
@@ -438,7 +399,7 @@ class Decoder(tf.keras.layers.Layer):
     #self.last_attn_scores = self.dec_layers[-1].last_attn_scores
 
     # The shape of x is (batch_size, target_seq_len, d_model).
-    return output_List, hidden_state
+    return output_List, hidden_state, attention_weights
   
   
 class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
@@ -456,7 +417,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
 
 
-  @tf.function
+  #@tf.function
   def call(self, inputs):
     """
     Forward pass of the transformer model.
@@ -476,7 +437,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
   
     #x = tf.squeeze(x, axis=-1)
         
-    logits, hidden_states = self.decoder(x)  
+    logits, hidden_states, attention_weights = self.decoder(x)  
 
     try:
       # Drop the keras mask, so it doesn't scale the losses/metrics.
@@ -485,7 +446,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
     except AttributeError:
       pass
 
-    return logits, hidden_states
+    return logits, hidden_states, attention_weights
 
 class Transformer(tf.keras.Model):
   """
@@ -519,14 +480,14 @@ class Transformer(tf.keras.Model):
                seq_length=seq_length, dropout_rate=0.1)
 
   
-  @tf.function
+  # @tf.function
   def call(self, inputs, training=False):
-    logits, hidden_state = self.decoderOnlyTransformerLayer(inputs)
+    logits, hidden_state, attention_weights = self.decoderOnlyTransformerLayer(inputs)
     
     if (training):
       returnValue = logits
     else:
-      returnValue = logits, hidden_state
+      returnValue = logits, hidden_state, attention_weights
       
     # Return the final output and the attention weights.
     return returnValue

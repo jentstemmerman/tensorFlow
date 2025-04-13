@@ -177,10 +177,10 @@ class OneStep(tf.keras.Model):
     return probabilities
   
     
-  @tf.function
+  #@tf.function
   def generate_hidded_states(self, inputTensor, window_size):
     with tf.device('/GPU:0'):
-      predicted_logits_list, hidden_state  = self.model(inputs=(inputTensor))  
+      predicted_logits_list, hidden_state, attention_weights  = self.model(inputs=(inputTensor), training=False)  
             
       lastItemInWindow = window_size - 1
       
@@ -201,7 +201,7 @@ class OneStep(tf.keras.Model):
       return predicted_logits_list, pooledLogitsData
     
 
-  #@tf.function
+  @tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, window_size, states=None):
     with tf.device('/GPU:0'):
 

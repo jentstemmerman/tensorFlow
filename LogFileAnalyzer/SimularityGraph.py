@@ -20,9 +20,11 @@ def MakeSimularityPlot(SimularityFile, block=False, Save=True):
     print("Average: ", average.numpy())
     # Plot the graph_data with very small points and lines to the zero axis
    # plt.figure(figsize=(16, 9))  # Set the figure size to full screen (16:9 aspect ratio)
+    plt.switch_backend('agg')
     plt.scatter(range(len(graph_data)), graph_data, s=1, label="Data Points")  # 's' sets the size of the points
     plt.vlines(range(len(graph_data)), 0, graph_data, colors='gray', alpha=0.05, linewidth=0.5, label="Lines to Zero Axis")  # Vertical lines to zero axis
     plt.axhline(y=average.numpy(), color='red', linestyle='--', linewidth=1, label=f"Average: {average.numpy():.4f}")  # Add average line
+    plt.ylim(-1, 1)  # Set the vertical scale between -1 and +1
     plt.title("Simularities " + base_name)
     plt.xlabel("Line number")
     plt.ylabel("Simularity")

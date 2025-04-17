@@ -193,6 +193,8 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         signature_file = signatureIterator.get_next_file()
         
 
+    #for SimularityFile in machineReadableOutputFiles:
+    #    SimularityGraph.MakeSimularityPlot(SimularityFile, block=False, Save=True)
     
     if (numberOfSignatureFiles == 0):
         return False    

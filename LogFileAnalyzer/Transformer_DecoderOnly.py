@@ -253,7 +253,7 @@ class DecoderLayer(tf.keras.layers.Layer):
     self.FeedForwardLayer = FeedForward(d_model, dff)
 
   
-  #@tf.function
+  @tf.function
   def call(self, x, training):
     """
     Forward pass of the `DecoderLayer`.
@@ -368,7 +368,7 @@ class Decoder(tf.keras.layers.Layer):
     return embeddingDimension
 
 
-  #@tf.function
+  @tf.function
   def call(self, inputs, training=False):
     inputList = []
     
@@ -417,7 +417,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
 
 
-  #@tf.function
+  @tf.function
   def call(self, inputs):
     """
     Forward pass of the transformer model.
@@ -480,7 +480,7 @@ class Transformer(tf.keras.Model):
                seq_length=seq_length, dropout_rate=0.1)
 
   
-  # @tf.function
+  @tf.function
   def call(self, inputs, training=False):
     logits, hidden_state, attention_weights = self.decoderOnlyTransformerLayer(inputs)
     

@@ -181,12 +181,32 @@ class OneStep(tf.keras.Model):
   def generate_hidded_states(self, inputTensor, window_size):
     with tf.device('/GPU:0'):
       predicted_logits_list, hidden_state, attention_weights  = self.model(inputs=(inputTensor), training=False)  
-            
+
+
+           
       lastItemInWindow = window_size - 1
       
       hiddenStateOfFirstLineInWindow = tf.gather(hidden_state, indices = 0                   , axis=1)
       hiddenStateOfPrediction        = tf.gather(hidden_state, indices = lastItemInWindow    , axis=1)
       hiddenStateOfLastLineInWindow  = tf.gather(hidden_state, indices = lastItemInWindow - 1, axis=1)
+      
+      use_weight_hidden_state = True
+      
+      if (use_weight_hidden_state):
+      
+        # Summing along axis=2 (i.e., sum over the source positions each target attends to).
+        # Each value in attention_received[b, h, j] tells you how much total attention token j received from all other tokens in head h.
+        attention_received = tf.reduce_sum(attention_weights, axis=2)  
+        
+        
+        # Operation: Mean across all attention heads (axis=1).
+        attention_received_mean = tf.reduce_mean(attention_received, axis=1)
+        
+        
+        # This prepares the tensor for element-wise multiplication with the hidden state.
+        attention_received_expanded = tf.expand_dims(attention_received_mean, axis=-1)  # shape: [batch_size, seq_len, 1]
+                
+        hidden_state = hidden_state * attention_received_expanded  
       
       # flatten this hidden state here for performance reasons. We will have first the slices in the sequence: for instance [200, 64, 12] will be [200*64, 12]
       hidden_state = tf.reshape(hidden_state, [hidden_state.shape[0] * hidden_state.shape[1], hidden_state.shape[2]])
@@ -201,7 +221,7 @@ class OneStep(tf.keras.Model):
       return predicted_logits_list, pooledLogitsData
     
 
-  @tf.function
+  #@tf.function
   def generate_steps_optimized(self, inputTensor, nexttokenIds, window_size, states=None):
     with tf.device('/GPU:0'):
 

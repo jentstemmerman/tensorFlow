@@ -13,7 +13,7 @@ import os
 import time
 import LogFileIterator
 import math
- 
+import SimularityGraph
  
 def read_signature_from_file(filename):
     with open(filename, 'r') as file:
@@ -192,7 +192,8 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         
         signature_file = signatureIterator.get_next_file()
         
-        
+
+    
     if (numberOfSignatureFiles == 0):
         return False    
    
@@ -200,7 +201,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     
     binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"],     data_type=dataType, sequence_length=None, numbers_per_line=None)  
     binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],      data_type=dataType, sequence_length=None, numbers_per_line=None)        
-    binaryFileHandlerPredictedLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["predicted"], data_type=dataType, sequence_length=None, numbers_per_line=None)  
+    #binaryFileHandlerPredictedLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["predicted"], data_type=dataType, sequence_length=None, numbers_per_line=None)  
     binaryFileHandlerAllLogits       = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] ,      data_type=dataType, sequence_length=None, numbers_per_line=None)  
       
     sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
@@ -243,11 +244,11 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 signature_tensor = signatureTensors[signatureIndex]
                 signatureLength = numberOfPooledVectorsList[signatureIndex]
                 
-                batched_signature_tensor = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, lineNumber, signatureLength, sequence_length, numberOfSimularityCalculationsPerRead)
+                batched_file_tensor = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, lineNumber, signatureLength, sequence_length, numberOfSimularityCalculationsPerRead)
                 
-                batched_signature_tensor_new = tf.stack([signature_tensor] * batched_signature_tensor.shape[0], axis=0)
+                batched_signature_tensor_new = tf.stack([signature_tensor] * batched_file_tensor.shape[0], axis=0)
                 
-                simularity = CalculateSimularityBatched(batched_signature_tensor_new, batched_signature_tensor)
+                simularity = CalculateSimularityBatched(batched_signature_tensor_new, batched_file_tensor)
 
                 for index in range(numberOfSimularityCalculationsPerRead):
                     humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
@@ -265,12 +266,16 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
             lineNumber += numberOfSimularityCalculationsPerRead
                 
         for signatureIndex in range(numberOfSignatureFiles):   
+            
             outputBinaryFileHandlers[signatureIndex].close()
             humanReadableOutputFileHandlers[signatureIndex].close()
     
     except (IndexError) as e:
         print(f"IndexError: {e}")
         return False
+    
+    for SimularityFile in machineReadableOutputFiles:
+        SimularityGraph.MakeSimularityPlot(SimularityFile, block=False, Save=True)
 
 # This function returns a batch of hidden vectors, starting from startLine, each with a length of numberOfLines
 # @tf.function

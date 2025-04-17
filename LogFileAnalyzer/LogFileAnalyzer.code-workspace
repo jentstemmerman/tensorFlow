@@ -79,7 +79,7 @@
 				"type": "debugpy",
 				"request": "launch",
 				"program": "${workspaceFolder:LogFileAnalyzer}/SimularityGraph.py",
-				"args": ["/home/jents/AI/data/UserData/User_0/logFilesAnalyzed/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_EnhancedRandom_drive_log/Simularities_CreateBU_RS.dat"], 
+				"args": ["/home/jents/AI/data/UserData/User_0/logFilesAnalyzed/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_RebuildBasic_drive_short/Simularities_Errorlog.dat"], 
 				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 				"console": "integratedTerminal"
 			},

@@ -251,7 +251,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
                 simularity = CalculateSimularityBatched(batched_signature_tensor_new, batched_file_tensor)
 
                 for index in range(numberOfSimularityCalculationsPerRead):
-                    humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
+                    #humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
                     outputBinaryFileHandlers[signatureIndex].append(simularity[index])
                     simularityCalculationIndexes[signatureIndex] += 1
                     

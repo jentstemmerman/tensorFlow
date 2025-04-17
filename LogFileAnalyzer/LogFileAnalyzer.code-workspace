@@ -75,6 +75,17 @@
 				"console": "integratedTerminal"
 			},
 			{
+				"name": "Python Debugger: Plot simularities",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${workspaceFolder:LogFileAnalyzer}/SimularityGraph.py",
+				"args": ["/home/jents/AI/data/UserData/User_0/logFilesAnalyzed/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_EnhancedRandom_drive_log/Simularities_CreateBU_RS.dat"], 
+				"cwd": "${workspaceFolder:LogFileAnalyzer}",
+				"console": "integratedTerminal"
+			},
+
+
+			{
 				"name": "Python Debugger: Old Model",
 				"type": "debugpy",
 				"request": "launch",

@@ -406,7 +406,7 @@ def upload_signature():
         modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
    
         # the modelHash is taken from the header of the machineReadablePooledVectors file
-        signature, modelHash, hiddenVectors = SignatureMatching.CalculateSignatureFromFiles(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
+        signature, modelHash, hiddenVectors = SignatureMatching.CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
 
         # Pack all these values into a json and save that to the file
         signature_data = {

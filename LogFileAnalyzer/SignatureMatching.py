@@ -45,7 +45,6 @@ def CalculatePooledVectorsBatched(batchedvectors):
     return pooledVector
 
 #  startVectorOffset 0 means the first line in the logfile
-#  Assume seq_length = 64. 
 def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberOfLines, DataTypeForTensors):
     
     binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"],     data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
@@ -79,7 +78,7 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
 # This function returns a batch of hidden vectors, starting from startLine, each with a length of numberOfLines
 # @tf.function
 def GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, startLine, numberOfLines, sequence_length, batch_size):
-    startVectorOffsetInAllLogitsFile       = (startLine - 1) * sequence_length   #this is the transformation to get the hidden vector of startLine as it is generated in the first timeslice of the sequence
+    startVectorOffsetInAllLogitsFile = (startLine - 1) * sequence_length   #this is the transformation to get the hidden vector of startLine as it is generated in the first timeslice of the sequence
     
     hiddenVectors = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, sequence_length * batch_size)
     hiddenVectors = tf.reshape(hiddenVectors, (batch_size, sequence_length, -1))
@@ -187,10 +186,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         humanReadableOutputFileHandlers.append(humanReadableOutputFileHandler)
         
         signature_file = signatureIterator.get_next_file()
-        
 
-    #for SimularityFile in machineReadableOutputFiles:
-    #    SimularityGraph.MakeSimularityPlot(SimularityFile, block=False, Save=True)
     
     if (numberOfSignatureFiles == 0):
         return False    
@@ -274,9 +270,6 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     
     for SimularityFile in machineReadableOutputFiles:
         SimularityGraph.MakeSimularityPlot(SimularityFile, block=False, Save=True)
-
-
-
 
 def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = 0, threshold = 0.5, comment = ""):
     

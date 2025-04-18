@@ -70,7 +70,8 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
     
     signature = CalculatePooledVectorsBatched(hiddenVectors)
     
-    tf.squeeze(signature, axis=0) # remove the batch dimension from the tensor
+    signature = tf.squeeze(signature, axis=0)           # remove the batch dimension from the tensor
+    hiddenVectors = tf.squeeze(hiddenVectors, axis=0)   # remove the batch dimension from the tensor
     
     return signature, modelHash1, hiddenVectors
 

@@ -33,17 +33,6 @@ def read_signature_from_file(filename):
  
     return numberOfPooledVectors, DataTypeForTensors, signature_tensor, modelHash
 
-def CalculatePooledVectors(vectors):
-    batchedvectors = tf.expand_dims(vectors, axis=0) # Add a batch dimension. Will be removed in the squeeze
-    batchedvectors = tf.nn.l2_normalize(batchedvectors, axis=-1)
-    pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
-    pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
-    pooledAverageVector = tf.squeeze(pooledAverageVector, axis=0) # remove the batch dimension from the tensor
-    pooledMaxVector = tf.squeeze(pooledMaxVector, axis=0)
-    pooledVector = tf.concat([pooledAverageVector, pooledMaxVector], axis=0)
-    
-    return pooledVector
-
 # This function is used in the simularity file calculation
 # @tf.function
 def CalculatePooledVectorsBatched(batchedvectors):
@@ -77,26 +66,12 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
     
     sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
     
-    startVectorOffsetInAllLogitsFile       = (startLine - 1) * sequence_length   #this is the transformation to get the hidden vector of startLine as it is generated in the first timeslice of the sequence
-    #startVectorOffsetInPredictedLogitsFile = startLine - sequence_length        # ok
-    startVectorOffsetInLastLogitsFile      = startLine - sequence_length + 1     # ok
-
-    if numberOfLines <= sequence_length:
-           # this is not a typo. It should be - and not %
-        hiddenVectorsPart_1 = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, numberOfLines)
-        numberOfLinesRemainder = 0
-    else:
-        hiddenVectorsPart_1 = binaryFileHandlerAllLogits.read_records(startVectorOffsetInAllLogitsFile, sequence_length)
-        numberOfLinesRemainder = numberOfLines - sequence_length
-        
-    if (numberOfLinesRemainder > 0):
-        hiddenVectorsPart_2 = binaryFileHandlerLastLogits.read_records(startVectorOffsetInLastLogitsFile + 1, numberOfLinesRemainder)
-        hiddenVectors = tf.concat([hiddenVectorsPart_1, hiddenVectorsPart_2], axis=0)
-    else:
-        hiddenVectors = hiddenVectorsPart_1
-        
-    signature = CalculatePooledVectors(hiddenVectors)
-   
+    hiddenVectors = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, startLine, numberOfLines, sequence_length, batch_size=1)
+    
+    signature = CalculatePooledVectorsBatched(hiddenVectors)
+    
+    tf.squeeze(signature, axis=0) # remove the batch dimension from the tensor
+    
     return signature, modelHash1, hiddenVectors
 
 

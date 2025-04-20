@@ -138,7 +138,6 @@ class CausalSelfAttention(BaseAttention):
       Output sequence tensor of the same shape as the input, after self-attention
       and residual connection with layer normalization applied.
   """
-  @tf.function
   def call(self, x, return_attention_scores=False):
     multiHeadAttentionOutput = self.mha(
         query=x,
@@ -156,8 +155,10 @@ class CausalSelfAttention(BaseAttention):
     x = self.add([x, attn_output])
     x = self.layernorm(x)
     
-    return (x, attn_scores)
-
+    if return_attention_scores:
+        return x, attn_scores
+    else:
+        return x
 
 class FeedForward(tf.keras.layers.Layer):
   """
@@ -253,7 +254,6 @@ class DecoderLayer(tf.keras.layers.Layer):
     self.FeedForwardLayer = FeedForward(d_model, dff)
 
   
-  @tf.function
   def call(self, x, training):
     """
     Forward pass of the `DecoderLayer`.
@@ -261,26 +261,27 @@ class DecoderLayer(tf.keras.layers.Layer):
     Args:
       x (tf.Tensor): The input tensor of shape
       `(batch_size, target_seq_len, d_model)`.
-      context (tf.Tensor): The context tensor of shape
-      `(batch_size, input_seq_len, d_model)`.
 
     Returns:
-      The output tensor of the `DecoderLayer` of shape
-      `(batch_size, target_seq_len, d_model)`.
-
+      The output tensor of the `DecoderLayer` or a tuple with output and attention scores.
     """
     isInference = not training
-    attentionOutput = self.causal_self_attention(x=x, return_attention_scores = isInference)
-    #x = self.cross_attention(x=x, context=context)
+    
+    if isInference:
+        x, attn_scores = self.causal_self_attention(x=x, return_attention_scores=True)
+    else:
+        x = self.causal_self_attention(x=x, return_attention_scores=False)
+        attn_scores = None
 
     # Cache the last attention scores for plotting later
-    self.last_attn_scores = 1 # self.causal_self_attentions.last_attn_scores
+    self.last_attn_scores = attn_scores
 
-    x = self.FeedForwardLayer(attentionOutput[0])  # Shape `(batch_size, seq_len, d_model)`.
+    x = self.FeedForwardLayer(x)  # Shape `(batch_size, seq_len, d_model)`.
      
-    return (x, attentionOutput[1])  # Shape `(batch_size, seq_len, d_model)`.
-
-
+    if isInference:
+        return x, attn_scores
+    else:
+        return x
 
 class Decoder(tf.keras.layers.Layer):
   """A decoder model for sequence to sequence learning.
@@ -382,12 +383,15 @@ class Decoder(tf.keras.layers.Layer):
     
     hidden_state = concatenated_inputs
     
-    for i in range(self.num_layers):
-       decoder_output_tuple = self.dec_layers[i](hidden_state, training=training)
-    
-    hidden_state = decoder_output_tuple[0]
-    attention_weights = decoder_output_tuple[1]
-    
+    if training:
+      for i in range(self.num_layers):
+          hidden_state = self.dec_layers[i](hidden_state, training=training)
+          
+      attention_weights = None  
+    else:
+      for i in range(self.num_layers):
+          hidden_state, attention_weights = self.dec_layers[i](hidden_state, training=training)
+   
         
     output_List = []
 

@@ -194,11 +194,7 @@ class OneStep(tf.keras.Model):
       # Note: Outgoing attention (what each token attends to) is along the rows (axis = 2),
       #       Incoming attention (how much attention each token receives) is along the columns (axis = 3).
       # JENTS: om de ontvangen attention van een token te berekenen, moet je de kolom van dat token sommeren.
-    
-      attention_received_mean_of_all_heads = tf.reduce_mean(attention_weights, axis=1)
-      attention_received_mean_of_all_heads = tf.squeeze(attention_received_mean_of_all_heads, axis=1)  # shape: [batch_size, seq_len]
-      
-      
+            
       
       attention_received = tf.reduce_sum(attention_weights, axis=2)
       

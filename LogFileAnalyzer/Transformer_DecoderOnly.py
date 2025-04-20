@@ -355,7 +355,7 @@ class Decoder(tf.keras.layers.Layer):
     for i, feature in enumerate(featureList):
         if (feature["embedded"]):
             import math
-            output_dimension = math.ceil(feature["vocab_size"]**0.25) * 2
+            output_dimension = 128 # math.ceil(feature["vocab_size"]**0.25) * 2
         else:
             output_dimension = 1
 

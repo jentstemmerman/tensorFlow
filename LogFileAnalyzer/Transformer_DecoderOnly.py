@@ -253,7 +253,7 @@ class DecoderLayer(tf.keras.layers.Layer):
 
     self.FeedForwardLayer = FeedForward(d_model, dff)
 
-  
+  @tf.function
   def call(self, x, training):
     """
     Forward pass of the `DecoderLayer`.

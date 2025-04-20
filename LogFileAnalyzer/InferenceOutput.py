@@ -205,6 +205,7 @@ def InferenceOutputThread(workerParameter,
                           crossEntropyOfActuals, 
                           probabilityOfPredictions, 
                           pooledLogitsVector_hidden_state_all,
+                          pooledLogitsVector_hidden_state_all_weighted,
                           pooledLogitsVector_hidden_state_last,
                           sequenceLength,
                           numberOfAnalyzedLines,
@@ -235,7 +236,8 @@ def InferenceOutputThread(workerParameter,
             
             pooledHumanReadableLogitsLastVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector_hidden_state_last)
             pooledHumanReadableLogitsAllVectorlinesToWrite  = ComposeHumanReadablePooledLogitsAllVectorsList(numberOfParallelExecutions, numberOfAnalyzedLines, sequenceLength, pooledLogitsVector_hidden_state_all)
+            pooledHumanReadableLogitsAllWeightedVectorlinesToWrite  = ComposeHumanReadablePooledLogitsAllVectorsList(numberOfParallelExecutions, numberOfAnalyzedLines, sequenceLength, pooledLogitsVector_hidden_state_all_weighted)
             
-        return HumanReadableTextOutput, pooledHumanReadableLogitsLastVectorlinesToWrite, pooledHumanReadableLogitsAllVectorlinesToWrite
+        return HumanReadableTextOutput, pooledHumanReadableLogitsLastVectorlinesToWrite, pooledHumanReadableLogitsAllVectorlinesToWrite, pooledHumanReadableLogitsAllWeightedVectorlinesToWrite
 
 

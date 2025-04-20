@@ -90,12 +90,19 @@ def GetLogFileMachineReadableVectorsPath(logFilename, userId, temperature):
             
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
     
-    FileNameMachineReadablePooledVectors_first     = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_first.dat")
-    FileNameMachineReadablePooledVectors_last      = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_last.dat")
-    FileNameMachineReadablePooledVectors_predicted = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_predicted.dat")
-    FileNameMachineReadablePooledVectors_all       = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_all.dat")
-    
-    FileNameMachineReadablePooledVectorsDict = {"first": FileNameMachineReadablePooledVectors_first, "last": FileNameMachineReadablePooledVectors_last, "predicted": FileNameMachineReadablePooledVectors_predicted, "all": FileNameMachineReadablePooledVectors_all}
+    FileNameMachineReadablePooledVectors_first              = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_first.dat")
+    FileNameMachineReadablePooledVectors_last               = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_last.dat")
+    FileNameMachineReadablePooledVectors_predicted          = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_predicted.dat")
+    FileNameMachineReadablePooledVectors_all                = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_all.dat")
+    FileNameMachineReadablePooledVectors_weighted_all       = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_weighted_all.dat")
+    FileNameMachineReadablePooledVectors_attention_received = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_attention_received.dat")
+            
+    FileNameMachineReadablePooledVectorsDict = {"first": FileNameMachineReadablePooledVectors_first, 
+                                                "last": FileNameMachineReadablePooledVectors_last, 
+                                                "predicted": FileNameMachineReadablePooledVectors_predicted, 
+                                                "all": FileNameMachineReadablePooledVectors_all,
+                                                "weighted_all": FileNameMachineReadablePooledVectors_weighted_all,
+                                                "attention_received": FileNameMachineReadablePooledVectors_attention_received}
     
     return FileNameMachineReadablePooledVectorsDict
 
@@ -109,8 +116,13 @@ def GetLogFileHumanReadableVectorsPath(logFilename, userId, temperature):
     FileNameHumanReadablePooledVectors_last      = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_last.txt")
     FileNameHumanReadablePooledVectors_predicted = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_predicted.txt")
     FileNameHumanReadablePooledVectors_all       = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_all.txt")
-        
-    FileNameHumanReadablePooledVectors = {"first": FileNameHumanReadablePooledVectors_first, "last": FileNameHumanReadablePooledVectors_last, "predicted": FileNameHumanReadablePooledVectors_predicted, "all": FileNameHumanReadablePooledVectors_all}
+    FileNameHumanReadablePooledVectors_all_weighted  = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_all_weighted.txt")
+
+    FileNameHumanReadablePooledVectors = {"first": FileNameHumanReadablePooledVectors_first, 
+                                          "last": FileNameHumanReadablePooledVectors_last, 
+                                          "predicted": FileNameHumanReadablePooledVectors_predicted, 
+                                          "all": FileNameHumanReadablePooledVectors_all,
+                                          "all_weighted": FileNameHumanReadablePooledVectors_all_weighted}
 
     return FileNameHumanReadablePooledVectors
 

@@ -11,5 +11,5 @@ Move to transformer instead of LSTM. -                                          
 Use FAIS to store the vectors of the signature                                                          NOT NEEDED FOR NOW
 
 
-CreateSimularitiesFilesOptimized limitation: the output of this file starts at linenumber 0 + max signature length - 1, so a very large signature length will cause a lot of empty lines at the start of the file
+CreateSimularityFilesOfLogFilesOptimized limitation: the output of this file starts at linenumber 0 + max signature length - 1, so a very large signature length will cause a lot of empty lines at the start of the file
 

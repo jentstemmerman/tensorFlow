@@ -181,33 +181,39 @@ class OneStep(tf.keras.Model):
   def generate_hidded_states(self, inputTensor, window_size):
     with tf.device('/GPU:0'):
       predicted_logits_list, hidden_state, attention_weights  = self.model(inputs=(inputTensor), training=False)  
-
-
-           
+         
       lastItemInWindow = window_size - 1
       
       hiddenStateOfFirstLineInWindow = tf.gather(hidden_state, indices = 0                   , axis=1)
       hiddenStateOfPrediction        = tf.gather(hidden_state, indices = lastItemInWindow    , axis=1)
       hiddenStateOfLastLineInWindow  = tf.gather(hidden_state, indices = lastItemInWindow - 1, axis=1)
       
-      use_weight_hidden_state = True
+      # attention_weights shape: [batch_size, num_heads, seq_len, seq_len]
+      # - Rows (axis = 2): query positions (tokens sending attention)
+      # - Columns (axis = 3): key positions (tokens receiving attention)
+      # Note: Outgoing attention (what each token attends to) is along the rows (axis = 2),
+      #       Incoming attention (how much attention each token receives) is along the columns (axis = 3).
+      # JENTS: om de ontvangen attention van een token te berekenen, moet je de kolom van dat token sommeren.
+    
+      attention_received_mean_of_all_heads = tf.reduce_mean(attention_weights, axis=1)
+      attention_received_mean_of_all_heads = tf.squeeze(attention_received_mean_of_all_heads, axis=1)  # shape: [batch_size, seq_len]
       
-      if (use_weight_hidden_state):
       
-        # Summing along axis=2 (i.e., sum over the source positions each target attends to).
-        # Each value in attention_received[b, h, j] tells you how much total attention token j received from all other tokens in head h.
-        attention_received = tf.reduce_sum(attention_weights, axis=2)  
-        
-        
-        # Operation: Mean across all attention heads (axis=1).
-        attention_received_mean = tf.reduce_mean(attention_received, axis=1)
-        
-        
-        # This prepares the tensor for element-wise multiplication with the hidden state.
-        attention_received_expanded = tf.expand_dims(attention_received_mean, axis=-1)  # shape: [batch_size, seq_len, 1]
-                
-        hidden_state = hidden_state * attention_received_expanded  
       
+      attention_received = tf.reduce_sum(attention_weights, axis=2)
+      
+      
+      # Operation: Mean across all attention heads (axis=1).
+      attention_received_mean = tf.reduce_mean(attention_received, axis=1)
+      
+      
+      # This prepares the tensor for element-wise multiplication with the hidden state.
+      attention_received_expanded = tf.expand_dims(attention_received_mean, axis=-1)  # shape: [batch_size, seq_len, 1]
+              
+      weighted_hidden_state = hidden_state * attention_received_expanded  
+
+      weighted_hidden_state = tf.reshape(weighted_hidden_state, [weighted_hidden_state.shape[0] * weighted_hidden_state.shape[1], weighted_hidden_state.shape[2]])
+        
       # flatten this hidden state here for performance reasons. We will have first the slices in the sequence: for instance [200, 64, 12] will be [200*64, 12]
       hidden_state = tf.reshape(hidden_state, [hidden_state.shape[0] * hidden_state.shape[1], hidden_state.shape[2]])
       
@@ -215,7 +221,10 @@ class OneStep(tf.keras.Model):
                               'hidden_state_prediction': hiddenStateOfPrediction,
                               'hidden_state_first':      hiddenStateOfFirstLineInWindow,
                               'hidden_state_last':       hiddenStateOfLastLineInWindow,
-                              'hidden_state':            hidden_state,
+                              'hidden_state_all':        hidden_state,
+                              'hidden_state_weighted_all': weighted_hidden_state,
+                              'attention_received':      attention_received_mean,
+                              
                         }
       
       return predicted_logits_list, pooledLogitsData

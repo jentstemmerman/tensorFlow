@@ -161,7 +161,7 @@ def PostProcessLogFiles(fileName, userId, DataTypeForTensors, similaritythreshol
             
             print(f"Start Creating SimularitiesFiles of logfile {logFileName_name}")
        
-            SignatureMatching.CreateSimularitiesFilesOptimized(logFileName, signatureDirectory, userId, DataTypeForTensors)                                                 
+            SignatureMatching.CreateSimularityFilesOfLogFile(logFileName, signatureDirectory, userId, DataTypeForTensors)                                                 
             
             print(f"Finished Creating SimularitiesFile of logfile {logFileName_name}")
                 
@@ -200,7 +200,7 @@ def CreateSimularityFiles(logFileName, userId, DataTypeForTensors, similaritythr
     try:
         print(f"CreateSimularityFiles {logFileName} user {userId}, similaritythreshold {similaritythreshold}")
         signatureDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
-        SignatureMatching.CreateSimularitiesFilesOptimized(logFileName, signatureDirectory, userId, DataTypeForTensors)     
+        SignatureMatching.CreateSimularityFilesOfLogFile(logFileName, signatureDirectory, userId, DataTypeForTensors)     
     except Exception as e:
         print(f"Error CreateSimularityFiles {logFileName} {userId}: {e}")     
 

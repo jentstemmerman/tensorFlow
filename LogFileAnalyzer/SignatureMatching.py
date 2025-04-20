@@ -111,10 +111,10 @@ def CalculateSimularityBatched(signature, tensor):
 
 # limitation: the output of this file starts at linenumber 0 + max signature length - 1, so a very large signature length will cause a lot of empty lines at the start of the file
 #tf.function
-def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, dataType):
+def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, dataType):
     
     if not os.path.exists(LogFileName):
-        print(f"[CreateSimularitiesFile] LogFileName {LogFileName} does not exist.")
+        print(f"[CreateSimularityFilesOfLogFile] LogFileName {LogFileName} does not exist.")
         return False
     
     # first, create list of signature files
@@ -135,7 +135,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
     if signature_file is not None:
         numberOfPooledVectors, _, _, _ = SignatureMatching.read_signature_from_file(signature_file)
     else:
-        print("[CreateSimularitiesFile] No signature files found.")
+        print("[CreateSimularityFilesOfLogFile] No signature files found.")
         return False
     
     temperature = 1
@@ -155,7 +155,7 @@ def CreateSimularitiesFilesOptimized(LogFileName, signatureDirectory, userId, da
         human_readable_mtime = os.path.getmtime(humanReadableOutputFile) if os.path.exists(humanReadableOutputFile) else 0
 
         #if log_file_mtime < machine_readable_mtime and log_file_mtime < human_readable_mtime:
-        #    print("[CreateSimularitiesFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
+        #    print("[CreateSimularityFilesOfLogFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
          #   signature_file = signatureIterator.get_next_file()
         #    continue
         

@@ -264,11 +264,13 @@ def AddProbabilitiesPrintfFileParallel(model,
                 if (numberOfExecutionsInProgress[threadId] == 0):
                     if (onlyLogLogitsVector):
                         allLogitsVectorDataList.append([])
+                        allWeightedLogitsVectorDataList.append([])
                         firstLogitsVectorDataList.append([])
                         lastLogitsVectorDataList.append([])
                         predictedLogitsVectorsDataList.append([])
                     else:
                         allLogitsVectorDataList.append([])
+                        allWeightedLogitsVectorDataList.append([])
                         firstLogitsVectorDataList.append([])
                         lastLogitsVectorDataList.append([])
                         predictedLogitsVectorsDataList.append([])

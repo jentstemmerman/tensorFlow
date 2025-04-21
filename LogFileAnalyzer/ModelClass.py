@@ -190,13 +190,16 @@ class OneStep(tf.keras.Model):
         hiddenStateOfLastLineInWindow  = tf.gather(hidden_state, indices = lastItemInWindow - 1, axis=1)
         
         # attention_weights shape: [batch_size, num_heads, seq_len, seq_len]
-        # - Rows (axis = 2): query positions (tokens sending attention)
-        # - Columns (axis = 3): key positions (tokens receiving attention)
-        # Note: Outgoing attention (what each token attends to) is along the rows (axis = 2),
-        #       Incoming attention (how much attention each token receives) is along the columns (axis = 3).
-        # JENTS: om de ontvangen attention van een token te berekenen, moet je de kolom van dat token sommeren.
-              
-        
+        # The rows (axis=2) are the queries.
+        # - Axis 2: query positions
+        # - Axis 3: key positions
+        # 
+        # To compute attention received by each token (i.e., how much attention each token gets from all others), we sum over the row (axis=2)
+        # For each token, we can store the attention it received from all other tokens by storing the rows of the attention weights.
+        # 
+        # a column shows how important THIS token is to enrich the meaning of other tokens. 
+        # a row shows how important OTHER tokens enrich the meaning of this token.
+       
         attention_received = tf.reduce_sum(attention_weights, axis=2)
         
         

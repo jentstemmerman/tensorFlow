@@ -4,7 +4,7 @@ import tensorflow as tf
 import worker
 import TokenParser
 import Dataset
-
+ 
 def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature):
     with tf.device('/CPU:0'):
         tf.config.run_functions_eagerly(True)  

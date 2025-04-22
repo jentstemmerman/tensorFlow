@@ -107,13 +107,15 @@ def AddProbabilitiesPrintfFileParallel(model,
         file = Path(FileNamesHumanReadablePooledVectors["all"])
         file.parent.mkdir(parents=True, exist_ok=True)
 
-        FileHumanReadablePooledFirstVectors =       open(FileNamesHumanReadablePooledVectors["first"],     "w")      
-        FileHumanReadablePooledLastVectors =        open(FileNamesHumanReadablePooledVectors["last"],      "w")      
-        FileHumanReadablePooledPredictedVectors =   open(FileNamesHumanReadablePooledVectors["predicted"], "w")  
-        FileHumanReadablePooledAllVectors =         open(FileNamesHumanReadablePooledVectors["all"],       "w")  
-        FileHumanReadablePooledAllWeightedVectors = open(FileNamesHumanReadablePooledVectors["all_weighted"],       "w")           
-
-
+        FileHumanReadablePooledFirstVectors       = open(FileNamesHumanReadablePooledVectors["first"],     "w")      
+        FileHumanReadablePooledLastVectors        = open(FileNamesHumanReadablePooledVectors["last"],      "w")      
+        FileHumanReadablePooledPredictedVectors   = open(FileNamesHumanReadablePooledVectors["predicted"], "w")  
+        FileHumanReadablePooledAllVectors         = open(FileNamesHumanReadablePooledVectors["all"],       "w")  
+        FileHumanReadablePooledAllWeightedVectors = open(FileNamesHumanReadablePooledVectors["all_weighted"], "w")           
+        FileHumanReadableReceivedAttention        = open(FileNamesHumanReadablePooledVectors["attention_received"], "w")          
+        FileHumanReadableAllReceivedAttention     = open(FileNamesHumanReadablePooledVectors["all_attention_received"], "w")     
+        
+        
         modelHash = Model.GetHashFromModel(model)
         LogfileAnalyzed.write("Model hash: " + modelHash + "\n")
         LogfileCompared.write("Model hash: " + modelHash + "\n")
@@ -123,7 +125,8 @@ def AddProbabilitiesPrintfFileParallel(model,
         FileHumanReadablePooledPredictedVectors.write("Model hash: " + modelHash + "\n")
         FileHumanReadablePooledAllVectors.write("Model hash: " + modelHash + "\n")
         FileHumanReadablePooledAllWeightedVectors.write("Model hash: " + modelHash + "\n")
-       
+        FileHumanReadableReceivedAttention.write("Model hash: " + modelHash + "\n")
+        FileHumanReadableAllReceivedAttention.write("Model hash: " + modelHash + "\n")       
         
         one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
        
@@ -155,13 +158,13 @@ def AddProbabilitiesPrintfFileParallel(model,
                
         hiddenVectorSize = CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, window_size, one_step_model, itemList)
           
-        binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"], sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
-        binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],  sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)        
-        binaryFileHandlerPredictedLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["predicted"], sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
-        binaryFileHandlerAllLogits       = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"],   sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
-        binaryFileHandlerAllWeightedLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["weighted_all"],   sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash) 
-        #binaryFileHandlerReceivedAttentionLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["attention_received"],   sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash) 
-        
+        binaryFileHandlerFirstLogits          = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"], sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
+        binaryFileHandlerLastLogits           = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],  sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)        
+        binaryFileHandlerPredictedLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["predicted"], sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
+        binaryFileHandlerAllLogits            = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"],   sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)   
+        binaryFileHandlerReceivedAttention    = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["attention_received"],   sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=window_size, modelHash=modelHash) 
+        binaryFileHandlerAllReceivedAttention = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all_attention_received"],   sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=window_size, modelHash=modelHash) 
+      
         
         analyzeStartTime   = time.time()
     
@@ -230,7 +233,7 @@ def AddProbabilitiesPrintfFileParallel(model,
             probabilityOfActualsList       = []
             crossEntropyOfActualsList      = []
             allLogitsVectorDataList        = []
-            allWeightedLogitsVectorDataList= []
+            attention_receivedVectorDataList= []
             lastLogitsVectorDataList       = []
             firstLogitsVectorDataList      = []
             predictedLogitsVectorsDataList = []
@@ -264,13 +267,13 @@ def AddProbabilitiesPrintfFileParallel(model,
                 if (numberOfExecutionsInProgress[threadId] == 0):
                     if (onlyLogLogitsVector):
                         allLogitsVectorDataList.append([])
-                        allWeightedLogitsVectorDataList.append([])
+                        attention_receivedVectorDataList.append([])
                         firstLogitsVectorDataList.append([])
                         lastLogitsVectorDataList.append([])
                         predictedLogitsVectorsDataList.append([])
                     else:
                         allLogitsVectorDataList.append([])
-                        allWeightedLogitsVectorDataList.append([])
+                        attention_receivedVectorDataList.append([])
                         firstLogitsVectorDataList.append([])
                         lastLogitsVectorDataList.append([])
                         predictedLogitsVectorsDataList.append([])
@@ -284,13 +287,13 @@ def AddProbabilitiesPrintfFileParallel(model,
                     if (onlyLogLogitsVector):
                         _, pooledLogitsVectorData = one_step_model.generate_hidded_states(idList[threadId], window_size)
                         
-                        allWeightedLogitsVectorsList = pooledLogitsVectorData['hidden_state_weighted_all'].numpy()
+                        attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
                         allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all'].numpy()
                         firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
                         lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy()
                         predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()  
                         
-                        allWeightedLogitsVectorDataList.append(allWeightedLogitsVectorsList)
+                        attention_receivedVectorDataList.append(attention_receivedList)
                         allLogitsVectorDataList.append(allLogitsVectorsList)
                         firstLogitsVectorDataList.append(firstLogitsVectorsList)
                         lastLogitsVectorDataList.append(lastLogitsVectorsList)
@@ -305,13 +308,13 @@ def AddProbabilitiesPrintfFileParallel(model,
                     else:
                         predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], window_size=window_size, states=None)
                         
-                        allWeightedLogitsVectorsList = pooledLogitsVectorData['hidden_state_weighted_all'].numpy()
+                        attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
                         allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all'].numpy()
                         firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
                         lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy() 
                         predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()
                         
-                        allWeightedLogitsVectorDataList.append(allWeightedLogitsVectorsList)
+                        attention_receivedVectorDataList.append(attention_receivedList)
                         allLogitsVectorDataList.append(allLogitsVectorsList)
                         firstLogitsVectorDataList.append(firstLogitsVectorsList)
                         lastLogitsVectorDataList.append(lastLogitsVectorsList)
@@ -359,7 +362,7 @@ def AddProbabilitiesPrintfFileParallel(model,
                                                     crossEntropyOfActualsList[threadId], 
                                                     probabilityOfPredictionsList[threadId], 
                                                     allLogitsVectorDataList[threadId],
-                                                    allWeightedLogitsVectorDataList[threadId],
+                                                    attention_receivedVectorDataList[threadId],
                                                     lastLogitsVectorDataList[threadId], 
                                                     window_size,
                                                     numberOfAnalyzedLines,
@@ -399,7 +402,7 @@ def AddProbabilitiesPrintfFileParallel(model,
             for threadId in range(0, numberOfThreads):
 
                 outputQueue = Workers[threadId]["outputQueue"]
-                HumanReadableTextOutput, pooledHumanReadableLogitsLastVectorlinesToWrite, pooledHumanReadableLogitsAllVectorlinesToWrite, pooledHumanReadableLogitsAllWeightedVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
+                HumanReadableTextOutput, pooledHumanReadableLogitsLastVectorlinesToWrite, pooledHumanReadableLogitsAllVectorlinesToWrite, attention_receivedVectorlinesToWrite, all_attention_receivedVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
                 
                 if (len(firstLogitsVectorDataList) > 0):   
                     try:    
@@ -428,8 +431,8 @@ def AddProbabilitiesPrintfFileParallel(model,
                 
                     
                     try:
-                        for _, lineToWrite in enumerate(allWeightedLogitsVectorDataList[threadId]):   # this list is a flattened list of allLogitsVectorDataList. Each element is a timeslice of the sequence. Then the next seqenence and so on.
-                            binaryFileHandlerAllWeightedLogits.append(lineToWrite)   
+                        for _, lineToWrite in enumerate(attention_receivedVectorDataList[threadId]):   # this list is a flattened list of allLogitsVectorDataList. Each element is a timeslice of the sequence. Then the next seqenence and so on.
+                            binaryFileHandlerReceivedAttention.append(lineToWrite)   
                     except Exception as e:
                         print("Error in writing to binary file: ", e)
 
@@ -457,10 +460,15 @@ def AddProbabilitiesPrintfFileParallel(model,
                     for lineToWrite in pooledHumanReadableLogitsAllVectorlinesToWrite:
                         FileHumanReadablePooledAllVectors.write(lineToWrite)
                 
-                if (pooledHumanReadableLogitsAllWeightedVectorlinesToWrite is not None):
-                    for lineToWrite in pooledHumanReadableLogitsAllWeightedVectorlinesToWrite:
-                        FileHumanReadablePooledAllWeightedVectors.write(lineToWrite)
-                    
+                if (attention_receivedVectorlinesToWrite is not None):
+                    for lineToWrite in attention_receivedVectorlinesToWrite:
+                        FileHumanReadableReceivedAttention.write(lineToWrite)
+
+                if (all_attention_receivedVectorlinesToWrite is not None):
+                    for lineToWrite in all_attention_receivedVectorlinesToWrite:
+                        FileHumanReadableAllReceivedAttention.write(lineToWrite)
+            
+            
             Endtime = time.time()
             averageNextTokenProbabilities    = accumulatedNextTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
             
@@ -502,8 +510,9 @@ def AddProbabilitiesPrintfFileParallel(model,
         binaryFileHandlerFirstLogits.close()
         binaryFileHandlerLastLogits.close()
         binaryFileHandlerAllLogits.close()
-        binaryFileHandlerAllWeightedLogits.close()
         binaryFileHandlerPredictedLogits.close()
+        binaryFileHandlerReceivedAttention.close()
+        binaryFileHandlerAllReceivedAttention.close()
         
         FileHumanReadablePooledLastVectors.close()
         FileHumanReadablePooledFirstVectors.close()

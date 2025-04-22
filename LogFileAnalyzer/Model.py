@@ -134,12 +134,19 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         FileNamesMachineReadablePooledVectors["last"]      = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["last"])), os.path.basename(FileNamesMachineReadablePooledVectors["last"]))
         FileNamesMachineReadablePooledVectors["all"]       = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["all"])), os.path.basename(FileNamesMachineReadablePooledVectors["all"]))
         FileNamesMachineReadablePooledVectors["predicted"] = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["predicted"])), os.path.basename(FileNamesMachineReadablePooledVectors["predicted"]))
-    
+        FileNamesMachineReadablePooledVectors["all_weighted"] = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["all_weighted"])), os.path.basename(FileNamesMachineReadablePooledVectors["all_weighted"]))
+        FileNamesMachineReadablePooledVectors["all_attention_received"] = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["all_attention_received"])), os.path.basename(FileNamesMachineReadablePooledVectors["all_attention_received"]))
+        FileNamesMachineReadablePooledVectors["attention_received"] = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["attention_received"])), os.path.basename(FileNamesMachineReadablePooledVectors["attention_received"]))
+
+        
         FileNamesHumanReadablePooledVectors["first"]     = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["first"])), os.path.basename(FileNamesHumanReadablePooledVectors["first"]))
         FileNamesHumanReadablePooledVectors["last"]      = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["last"])), os.path.basename(FileNamesHumanReadablePooledVectors["last"]))
         FileNamesHumanReadablePooledVectors["all"]       = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["all"])), os.path.basename(FileNamesHumanReadablePooledVectors["all"]))
         FileNamesHumanReadablePooledVectors["predicted"] = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["predicted"])), os.path.basename(FileNamesHumanReadablePooledVectors["predicted"]))
-        
+        FileNamesHumanReadablePooledVectors["all_weighted"] = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["all_weighted"])), os.path.basename(FileNamesHumanReadablePooledVectors["all_weighted"])) 
+        FileNamesHumanReadablePooledVectors["all_attention_received"] = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["all_attention_received"])), os.path.basename(FileNamesHumanReadablePooledVectors["all_attention_received"])) 
+        FileNamesHumanReadablePooledVectors["attention_received"] = os.path.join(os.path.basename(os.path.dirname(FileNamesHumanReadablePooledVectors["attention_received"])), os.path.basename(FileNamesHumanReadablePooledVectors["attention_received"]))
+                
         FileNameAnalyzed = os.path.join(os.path.basename(os.path.dirname(FileNameAnalyzed)), os.path.basename(FileNameAnalyzed))
         inferenceDataSetFile = os.path.join(os.path.basename(os.path.dirname(inferenceDataSetFile)), os.path.basename(inferenceDataSetFile))     
         
@@ -147,12 +154,18 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         FileNamesMachineReadablePooledVectors["last"]      = os.path.join(outputDirectory, FileNamesMachineReadablePooledVectors["last"])
         FileNamesMachineReadablePooledVectors["predicted"] = os.path.join(outputDirectory, FileNamesMachineReadablePooledVectors["predicted"])
         FileNamesMachineReadablePooledVectors["all"]       = os.path.join(outputDirectory, FileNamesMachineReadablePooledVectors["all"])
+        FileNamesMachineReadablePooledVectors["all_weighted"] = os.path.join(outputDirectory, FileNamesMachineReadablePooledVectors["all_weighted"])
+        FileNamesMachineReadablePooledVectors["all_attention_received"] = os.path.join(outputDirectory, FileNamesMachineReadablePooledVectors["all_attention_received"])
+        FileNamesMachineReadablePooledVectors["attention_received"] = os.path.join(outputDirectory, FileNamesMachineReadablePooledVectors["attention_received"])
         
         FileNamesHumanReadablePooledVectors["first"]     = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["first"])
         FileNamesHumanReadablePooledVectors["last"]      = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["last"])
         FileNamesHumanReadablePooledVectors["predicted"] = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["predicted"])
         FileNamesHumanReadablePooledVectors["all"]       = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["all"])
-        
+        FileNamesHumanReadablePooledVectors["all_weighted"] = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["all_weighted"])
+        FileNamesHumanReadablePooledVectors["all_attention_received"] = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["all_attention_received"])
+        FileNamesHumanReadablePooledVectors["attention_received"] = os.path.join(outputDirectory, FileNamesHumanReadablePooledVectors["attention_received"])
+                
         LogFileAnalyzedPath = os.path.join(outputDirectory, FileNameAnalyzed)
         inferenceDataSetFilePath = os.path.join(outputDirectory, inferenceDataSetFile)
        

@@ -197,22 +197,14 @@ class OneStep(tf.keras.Model):
         # To compute attention received by each token (i.e., how much attention each token gets from all others), we sum over the row (axis=2)
         # For each token, we can store the attention it received from all other tokens by storing the rows of the attention weights.
         # 
-        # a column shows how important THIS token is to enrich the meaning of other tokens. 
-        # a row shows how important OTHER tokens enrich the meaning of this token.
-       
-        attention_received = tf.reduce_sum(attention_weights, axis=2)
+        # a column shows how important THIS token is to enrich the meaning of other tokens. These score are not reflected in the hidden state.
+        # a row shows how important OTHER tokens enrich the meaning of this token.  These scores are reflected in the hidden state and the resulting logits.
         
         
         # Operation: Mean across all attention heads (axis=1).
-        attention_received_mean = tf.reduce_mean(attention_received, axis=1)
-        
-        
-        # This prepares the tensor for element-wise multiplication with the hidden state.
-        attention_received_expanded = tf.expand_dims(attention_received_mean, axis=-1)  # shape: [batch_size, seq_len, 1]
-                
-        weighted_hidden_state = hidden_state * attention_received_expanded  
-
-        weighted_hidden_state = tf.reshape(weighted_hidden_state, [weighted_hidden_state.shape[0] * weighted_hidden_state.shape[1], weighted_hidden_state.shape[2]])
+        attention_received_mean_new = tf.reduce_mean(attention_weights, axis=1)
+        attention_received_first_query = attention_received_mean_new[:, 0, :]
+                      
           
         # flatten this hidden state here for performance reasons. We will have first the slices in the sequence: for instance [200, 64, 12] will be [200*64, 12]
         hidden_state = tf.reshape(hidden_state, [hidden_state.shape[0] * hidden_state.shape[1], hidden_state.shape[2]])
@@ -222,8 +214,7 @@ class OneStep(tf.keras.Model):
                                 'hidden_state_first':      hiddenStateOfFirstLineInWindow,
                                 'hidden_state_last':       hiddenStateOfLastLineInWindow,
                                 'hidden_state_all':        hidden_state,
-                                'hidden_state_weighted_all': weighted_hidden_state,
-                                'attention_received':      attention_received_mean,
+                                'attention_received':      attention_received_first_query,
                                 
                           }
         

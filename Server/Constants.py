@@ -96,13 +96,16 @@ def GetLogFileMachineReadableVectorsPath(logFilename, userId, temperature):
     FileNameMachineReadablePooledVectors_all                = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_all.dat")
     FileNameMachineReadablePooledVectors_weighted_all       = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_weighted_all.dat")
     FileNameMachineReadablePooledVectors_attention_received = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_attention_received.dat")
-            
+    FileNameMachineReadablePooledVectors_all_attention_received = os.path.join(baseDirectory, logFilenameWithoughExtention, "MachineReadablePooledVectors_all_attention_received.dat")
+          
     FileNameMachineReadablePooledVectorsDict = {"first": FileNameMachineReadablePooledVectors_first, 
                                                 "last": FileNameMachineReadablePooledVectors_last, 
                                                 "predicted": FileNameMachineReadablePooledVectors_predicted, 
                                                 "all": FileNameMachineReadablePooledVectors_all,
-                                                "weighted_all": FileNameMachineReadablePooledVectors_weighted_all,
-                                                "attention_received": FileNameMachineReadablePooledVectors_attention_received}
+                                                "all_weighted": FileNameMachineReadablePooledVectors_weighted_all,
+                                                "attention_received": FileNameMachineReadablePooledVectors_attention_received,
+                                                "all_attention_received": FileNameMachineReadablePooledVectors_all_attention_received}
+    
     
     return FileNameMachineReadablePooledVectorsDict
 
@@ -117,12 +120,17 @@ def GetLogFileHumanReadableVectorsPath(logFilename, userId, temperature):
     FileNameHumanReadablePooledVectors_predicted = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_predicted.txt")
     FileNameHumanReadablePooledVectors_all       = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_all.txt")
     FileNameHumanReadablePooledVectors_all_weighted  = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_all_weighted.txt")
+    FileNameHumanReadablePooledVectors_attention_received = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_attention_received.txt")
+    FFileNameHumanReadablePooledVectors_all_attention_received = os.path.join(baseDirectory, logFilenameWithoughExtention, "HumanReadablePooledVectors_all_attention_received.txt")
+
 
     FileNameHumanReadablePooledVectors = {"first": FileNameHumanReadablePooledVectors_first, 
                                           "last": FileNameHumanReadablePooledVectors_last, 
                                           "predicted": FileNameHumanReadablePooledVectors_predicted, 
                                           "all": FileNameHumanReadablePooledVectors_all,
-                                          "all_weighted": FileNameHumanReadablePooledVectors_all_weighted}
+                                          "all_weighted": FileNameHumanReadablePooledVectors_all_weighted,                                                
+                                          "attention_received": FileNameHumanReadablePooledVectors_attention_received,
+                                          "all_attention_received": FFileNameHumanReadablePooledVectors_all_attention_received}
 
     return FileNameHumanReadablePooledVectors
 

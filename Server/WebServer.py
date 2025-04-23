@@ -372,76 +372,45 @@ def create_file():
 def upload_signature():
     print("/api/createSignatureFile")
 
-    try:
-        signature_name = request.form["signature_name"]
-        logFileName = request.form["logFileName"]
-        signature_text = request.form["signature_text"]
-        startLine = int(request.form["startLine"])
-        endLine = int(request.form["endLine"])
-        userId = request.form["userId"]
-        modelDirectory = request.form["modelDirectory"]
 
-        
-        print("uploadSignature: ",
-            "signature_name: ",
-            signature_name,
-            "userId: ",
-            userId,
-            "modelDirectory: ",
-            modelDirectory,
-            "logFileName: ",
-            logFileName,
-            "signature_text: ",
-            signature_text,
-            "startLine: ",
-            startLine,
-            "endLine: ",
-            endLine,
-        )
-        
-        temperature = 1
+    signature_name = request.form["signature_name"]
+    logFileName = request.form["logFileName"]
+    signature_text = request.form["signature_text"]
+    startLine = int(request.form["startLine"])
+    endLine = int(request.form["endLine"])
+    userId = request.form["userId"]
+    modelDirectory = request.form["modelDirectory"]
 
-        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId, temperature)
-        DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
-        modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
-   
-        # the modelHash is taken from the header of the machineReadablePooledVectors file
-        signature, modelHash, hiddenVectors = SignatureMatching.CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
+    
+    print("uploadSignature: ",
+        "signature_name: ",
+        signature_name,
+        "userId: ",
+        userId,
+        "modelDirectory: ",
+        modelDirectory,
+        "logFileName: ",
+        logFileName,
+        "signature_text: ",
+        signature_text,
+        "startLine: ",
+        startLine,
+        "endLine: ",
+        endLine,
+    )
+    
+    signature_name = SignatureMatching.SaveSignatureFile(signature_name, logFileName, signature_text, startLine, endLine, userId, modelDirectory)
 
-        # Pack all these values into a json and save that to the file
-        signature_data = {
-            "modelDirectory": modelDirectory,
-            "signature_name": signature_name,
-            "logFileName": logFileName,
-            "signature_text": signature_text,
-            "startLine": startLine,
-            "endLine": endLine,
-            "DataTypeForTensors": DataTypeForTensors,
-            "modelHash": modelHash,
-            "signature": signature.numpy().tolist(),
-            "hiddenVectors": [[float(f"{x:8.3f}") for x in row] for row in hiddenVectors.numpy()],
-        }
-
-        file_path= Constants.GetSignatureFilePath(signature_name, userId)
-  
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-        with open(file_path, "w") as file:
-            json.dump(signature_data, file, indent=4, sort_keys=True)
-
-        print("Signature saved. modelHash: ", modelHash) 
-       
+    if signature_name is not None:
         return jsonify(
-            {
-                "message": "Signature uploaded successfully",
-                "signature_name": signature_name,
-            }
+        {
+            "message": "Signature uploaded successfully",
+            "signature_name": signature_name,
+        }
         )
+    else:
+        return jsonify({"error": "Failed to upload signature"}), 500
 
-    except Exception as e:
-        print("Error uploading signature:", e)
-        return jsonify({"message": "Error uploading signature", "error": str(e)}), 500
 
 
 @WebServer.route("/api/PostProcessLogFiles", methods=["GET"])

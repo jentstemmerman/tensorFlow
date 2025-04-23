@@ -84,7 +84,7 @@ def GetHumanReadableSimularitiesFile(logFilename, userId, SignatureFile):
 
     return FileNameSimularitiesWithSignature
 
-def GetLogFileMachineReadableVectorsPath(logFilename, userId, temperature):
+def GetLogFileMachineReadableVectorsPath(logFilename, userId):
     userId = str(userId)
     logFilenameWithoughExtention = os.path.splitext(os.path.basename(logFilename))[0]
             

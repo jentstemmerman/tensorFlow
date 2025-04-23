@@ -1,14 +1,15 @@
 import sys
 sys.path.append('../LogFileAnalyzer')
 
+from flask import jsonify
 import tensorflow as tf
 import BinaryFileHandler
-import struct
+
 import numpy as np
 import Constants     # type: ignore
 import SignatureMatching
 import json
-import AnnotationManager
+import DefaultTrainingSettings
 import os
 import time
 import LogFileIterator
@@ -32,6 +33,48 @@ def read_signature_from_file(filename):
     signature_tensor = tf.convert_to_tensor(signature, dtype=DataTypeForTensors)
  
     return numberOfPooledVectors, DataTypeForTensors, signature_tensor, modelHash
+
+def SaveSignatureFile(signature_name, logFileName, signature_text, startLine, endLine, userId, modelDirectory):
+    try:
+        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId)
+        DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
+        modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
+
+        # the modelHash is taken from the header of the machineReadablePooledVectors file
+        signature, modelHash, hiddenVectors = SignatureMatching.CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
+
+        # Pack all these values into a json and save that to the file
+        signature_data = {
+            "modelDirectory": modelDirectory,
+            "signature_name": signature_name,
+            "logFileName": logFileName,
+            "signature_text": signature_text,
+            "startLine": startLine,
+            "endLine": endLine,
+            "DataTypeForTensors": DataTypeForTensors,
+            "modelHash": modelHash,
+            "signature": signature.numpy().tolist(),
+            "hiddenVectors": [[float(f"{x:8.3f}") for x in row] for row in hiddenVectors.numpy()],
+        }
+
+        file_path= Constants.GetSignatureFilePath(signature_name, userId)
+
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        with open(file_path, "w") as file:
+            json.dump(signature_data, file, indent=4, sort_keys=True)
+
+        print("Signature saved. modelHash: ", modelHash) 
+        return signature_name
+        
+
+    except Exception as e:
+        print("Error saving signature:", e)
+        return None
+        
+        
+
 
 # This function is used in the simularity file calculation
 # @tf.function
@@ -240,7 +283,6 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, data
     
     binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"],     data_type=dataType, sequence_length=None, numbers_per_line=None)  
     binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],      data_type=dataType, sequence_length=None, numbers_per_line=None)        
-    #binaryFileHandlerPredictedLogits = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["predicted"], data_type=dataType, sequence_length=None, numbers_per_line=None)  
     binaryFileHandlerAllLogits       = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] ,      data_type=dataType, sequence_length=None, numbers_per_line=None)  
     binaryFileHandlerReceivedAttention = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["attention_received"], data_type=dataType, sequence_length=None, numbers_per_line=None)  
       

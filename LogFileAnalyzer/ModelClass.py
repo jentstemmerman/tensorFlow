@@ -149,12 +149,12 @@ class LSTMPrintfLogModel(tf.keras.Model):
     
 class OneStep(tf.keras.Model):
   
-  def __init__(self, model, Tokens_from_idList, temperature=1.0):
+  def __init__(self, model, Tokens_from_idList, temperature=1.0, hidden_stateWeightTemperature=50.0):
     super().__init__()
-    self.temperature = temperature
-    self.model = model
-    self.Tokens_from_idList = Tokens_from_idList
-
+    self.temperature                   = temperature
+    self.model                         = model
+    self.Tokens_from_idList            = Tokens_from_idList
+    self.hidden_stateWeightTemperature = hidden_stateWeightTemperature
   
   
   def GetProbabilityFromLogits(self, softmaxLogits, id):
@@ -205,6 +205,17 @@ class OneStep(tf.keras.Model):
         attention_mean_heads = tf.reduce_mean(attention_weights, axis=1)
         attention_received_first_query = attention_mean_heads[:, :, 0]  # this is the attention received by the first token in the sequence. How important was this token for the other tokens.
           
+        # Since this is causal attention, the first token is attented by all tokens, the second token by all but the first one, and so on... 
+        # We need to correct for this bias. We can do this by dividing the attention scores by the number of tokens that attended to this token. 
+        contrib_counts = tf.range(hidden_state.shape[1], 0, -1, dtype=tf.float32)    
+          
+        attention_received_first_query_normalized = attention_received_first_query / contrib_counts  
+        attention_received_first_query_normalized_centered = attention_received_first_query_normalized - tf.reduce_max(attention_received_first_query_normalized, axis=-1, keepdims=True)
+
+        attention_received_first_query_normalized_centered_with_temperature = attention_received_first_query_normalized_centered * self.hidden_stateWeightTemperature 
+        
+        attention_received_first_query_normalized = tf.nn.softmax(attention_received_first_query_normalized_centered_with_temperature, axis=-1)  # [batch, seq_len]  
+          
         # flatten this hidden state here for performance reasons. We will have first the slices in the sequence: for instance [200, 64, 12] will be [200*64, 12]
         hidden_state = tf.reshape(hidden_state, [hidden_state.shape[0] * hidden_state.shape[1], hidden_state.shape[2]])
         
@@ -213,7 +224,7 @@ class OneStep(tf.keras.Model):
                                 'hidden_state_first':      hiddenStateOfFirstLineInWindow,
                                 'hidden_state_last':       hiddenStateOfLastLineInWindow,
                                 'hidden_state_all':        hidden_state,
-                                'attention_received':      attention_received_first_query,
+                                'attention_received':      attention_received_first_query_normalized,
                            }
         
         

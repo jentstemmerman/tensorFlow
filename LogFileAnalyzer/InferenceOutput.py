@@ -31,7 +31,7 @@ def ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pool
                     max_line_width=800, 
                     threshold=1000, 
                     separator=' ',  # Ensure consistent separation
-                    formatter={'float_kind': lambda x: f"{x:8.3f}"}  # Adjust width (e.g., 6 chars wide, 2 decimals)
+                    formatter={'float_kind': lambda x: f"{x:8.7f}"}  # Adjust width (e.g., 6 chars wide, 2 decimals)
                 )
             
             line = arrayString + "\n"

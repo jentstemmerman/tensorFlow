@@ -8,6 +8,7 @@ import BinaryFileHandler
 import Model
 import os
 import StreamingDataSet
+import DefaultTrainingSettings
     
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     

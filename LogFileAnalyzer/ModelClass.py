@@ -193,7 +193,7 @@ class OneStep(tf.keras.Model):
         # The rows (axis=2) are the queries.
         # - Axis 2: query positions
         # - Axis 3: key positions
-        # 
+        # (matrix: (row,column) = (query, key))
         # To compute attention received by each token (i.e., how much attention each token gets from all others), we sum over the row (axis=2)
         # For each token, we can store the attention it received from all other tokens by storing the rows of the attention weights.
         # 
@@ -202,9 +202,8 @@ class OneStep(tf.keras.Model):
         
         
         # Operation: Mean across all attention heads (axis=1).
-        attention_received_mean_new = tf.reduce_mean(attention_weights, axis=1)
-        attention_received_first_query = attention_received_mean_new[:, 0, :]
-                      
+        attention_mean_heads = tf.reduce_mean(attention_weights, axis=1)
+        attention_received_first_query = attention_mean_heads[:, :, 0]  # this is the attention received by the first token in the sequence. How important was this token for the other tokens.
           
         # flatten this hidden state here for performance reasons. We will have first the slices in the sequence: for instance [200, 64, 12] will be [200*64, 12]
         hidden_state = tf.reshape(hidden_state, [hidden_state.shape[0] * hidden_state.shape[1], hidden_state.shape[2]])
@@ -215,8 +214,7 @@ class OneStep(tf.keras.Model):
                                 'hidden_state_last':       hiddenStateOfLastLineInWindow,
                                 'hidden_state_all':        hidden_state,
                                 'attention_received':      attention_received_first_query,
-                                
-                          }
+                           }
         
         
       except Exception as e:

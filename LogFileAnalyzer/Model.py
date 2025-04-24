@@ -254,8 +254,8 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
         optimizer = 'adam'
     elif (modelSource["Network"] == "Transformer") or (modelSource["Network"] == "Transformer_DecoderOnly"):    
-        num_layers = 16
-        num_heads = 32
+        num_layers = 8
+        num_heads = 16
         dropout_rate = 0.1
         import Transformer
         d_model = Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature

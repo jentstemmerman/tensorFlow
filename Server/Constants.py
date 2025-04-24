@@ -60,6 +60,13 @@ def GetSignatureFilePath(signatureName, userId):
     signature_file_path = os.path.join(baseDirectory, signatureName + GetSignatureFilesExtention())
     return signature_file_path
 
+def GetSignatureName(signatureFile):
+    
+    signatureFile = os.path.basename(signatureFile)
+    signatureName = os.path.splitext(os.path.basename(signatureFile))[0]
+
+    return signatureName
+
 def GetMachineReadableSimularitiesFile(logFilename, userId, SignatureFile):
     userId = str(userId)
     

@@ -16,23 +16,33 @@ import LogFileIterator
 import math
 import SimularityGraph
  
+ 
+def RecalculateSignature(signatureFilePath, userId, newModelDirectory):
+    
+    signature_name = Constants.GetSignatureName(signatureFilePath)
+    
+    numberOfPooledVectors, DataTypeForTensors, old_signature_tensor, modelHash, signature_text, logFileName, modelDirectory, startLine, endLine = read_signature_from_file(signatureFilePath)
+     
+    SaveSignatureFile(signature_name, logFileName, signature_text, startLine, endLine, userId, newModelDirectory)
+     
+ 
 def read_signature_from_file(filename):
     with open(filename, 'r') as file:
         signature_data = json.load(file)    
-    
-    signature_text = signature_data['signature_text']
-    logFileName = signature_data['logFileName']
-    modelDirectory = signature_data['modelDirectory']
-    modelHash = signature_data['modelHash']
-    startLine = signature_data['startLine']
-    endLine = signature_data['endLine']
-    DataTypeForTensors = signature_data['DataTypeForTensors']
-    signature = signature_data['signature']
-    
-    numberOfPooledVectors = endLine - startLine + 1
-    signature_tensor = tf.convert_to_tensor(signature, dtype=DataTypeForTensors)
+        
+        signature_text = signature_data['signature_text']
+        logFileName = signature_data['logFileName']
+        modelDirectory = signature_data['modelDirectory']
+        modelHash = signature_data['modelHash']
+        startLine = signature_data['startLine']
+        endLine = signature_data['endLine']
+        DataTypeForTensors = signature_data['DataTypeForTensors']
+        signature = signature_data['signature']
+        
+        numberOfPooledVectors = endLine - startLine + 1
+        signature_tensor = tf.convert_to_tensor(signature, dtype=DataTypeForTensors)
  
-    return numberOfPooledVectors, DataTypeForTensors, signature_tensor, modelHash
+        return numberOfPooledVectors, DataTypeForTensors, signature_tensor, modelHash, signature_text, logFileName, modelDirectory, startLine, endLine
 
 def SaveSignatureFile(signature_name, logFileName, signature_text, startLine, endLine, userId, modelDirectory):
     try:
@@ -57,7 +67,7 @@ def SaveSignatureFile(signature_name, logFileName, signature_text, startLine, en
             "hiddenVectors": [[float(f"{x:8.3f}") for x in row] for row in hiddenVectors.numpy()],
         }
 
-        file_path= Constants.GetSignatureFilePath(signature_name, userId)
+        file_path = Constants.GetSignatureFilePath(signature_name, userId)
 
         # Ensure the directory exists
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -221,7 +231,7 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, data
     signature_file = signatureIterator.get_first_file()
     
     if signature_file is not None:
-        numberOfPooledVectors, _, _, _ = SignatureMatching.read_signature_from_file(signature_file)
+        numberOfPooledVectors, _, _, _, _, _, _, _, _ = SignatureMatching.read_signature_from_file(signature_file)
     else:
         print("[CreateSimularityFilesOfLogFile] No signature files found.")
         return False

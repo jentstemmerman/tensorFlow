@@ -304,18 +304,18 @@ class Decoder(tf.keras.layers.Layer):
       Returns:
         ndarray: A tensor of shape (batch_size, target_seq_len, d_model), representing the output from the decoder layers.
   """
-  def __init__(self, *, num_layers, num_heads, dff, featureList, datatype, seq_length,
+  def __init__(self, *, num_layers, num_heads, dff, featureList, datatype, seq_length, stateSampleLayer,
                dropout_rate=0.1):
     super(Decoder, self).__init__()
-
+    
     self.num_layers = num_layers
-
+    self.stateSampleLayer = stateSampleLayer
     output_dimension = 0
-
+    self.seq_length = seq_length
     embeddingDimensionList = self.CalculateEmbeddingDimensions(featureList)
 
-    self.input_layerList  = []
 
+    self.input_layerList  = []
     for i, feature in enumerate(featureList):
 
         output_dimension += embeddingDimensionList[i]
@@ -369,7 +369,7 @@ class Decoder(tf.keras.layers.Layer):
     return embeddingDimension
 
 
-  @tf.function
+  #@tf.function
   def call(self, inputs, training=False):
     inputList = []
     
@@ -377,21 +377,35 @@ class Decoder(tf.keras.layers.Layer):
         input_to_layer = inputs[:, :, i]
         output = input_layer(input_to_layer, training = training)
         inputList.append(output)
-
+    
+    
     concatenated_inputs = tf.keras.layers.concatenate(inputList, axis=-1)
     concatenated_inputs = self.dropout(concatenated_inputs)
     
     hidden_state = concatenated_inputs
+    sampled_hidden_state = None
+    sampled_attention_weights = None
+    attentionScoresList = None
     
     if training:
+      
       for i in range(self.num_layers):
           hidden_state = self.dec_layers[i](hidden_state, training=training)
           
       attention_weights = None  
+      
     else:
+      
+      attentionScoresList = []
       for i in range(self.num_layers):
           hidden_state, attention_weights = self.dec_layers[i](hidden_state, training=training)
-   
+          
+          attentionScoresList.append(tf.reduce_mean(attention_weights, axis=1))
+          
+          if (i == self.stateSampleLayer):
+            sampled_hidden_state = hidden_state
+            sampled_attention_weights = attention_weights
+            
         
     output_List = []
 
@@ -403,7 +417,11 @@ class Decoder(tf.keras.layers.Layer):
     #self.last_attn_scores = self.dec_layers[-1].last_attn_scores
 
     # The shape of x is (batch_size, target_seq_len, d_model).
-    return output_List, hidden_state, attention_weights
+    
+    if training:
+      return output_List, hidden_state, attention_weights, attentionScoresList
+    else:
+      return output_List, sampled_hidden_state, sampled_attention_weights, attentionScoresList
   
   
 class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
@@ -417,12 +435,12 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
     self.decoder = Decoder(num_layers=num_layers, featureList=featureList,
                            num_heads=num_heads, dff=dff, datatype=datatype,
                            seq_length=seq_length,
-                           dropout_rate=dropout_rate)
+                           dropout_rate=dropout_rate, stateSampleLayer=num_layers/2)
 
 
 
-  @tf.function
-  def call(self, inputs):
+  # @tf.function
+  def call(self, inputs, training):
     """
     Forward pass of the transformer model.
 
@@ -441,7 +459,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
   
     #x = tf.squeeze(x, axis=-1)
         
-    logits, hidden_states, attention_weights = self.decoder(x)  
+    logits, hidden_states, attention_weights, attentionScoresList = self.decoder(x, training=training)  
 
     try:
       # Drop the keras mask, so it doesn't scale the losses/metrics.
@@ -450,7 +468,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
     except AttributeError:
       pass
 
-    return logits, hidden_states, attention_weights
+    return logits, hidden_states, attention_weights, attentionScoresList
 
 class Transformer(tf.keras.Model):
   """
@@ -484,14 +502,14 @@ class Transformer(tf.keras.Model):
                seq_length=seq_length, dropout_rate=0.1)
 
   
-  @tf.function
+  # @tf.function
   def call(self, inputs, training=False):
-    logits, hidden_state, attention_weights = self.decoderOnlyTransformerLayer(inputs)
+    logits, hidden_state, attention_weights, attentionScoresList = self.decoderOnlyTransformerLayer(inputs, training=training)
     
     if (training):
       returnValue = logits
     else:
-      returnValue = logits, hidden_state, attention_weights
+      returnValue = logits, hidden_state, attention_weights, attentionScoresList
       
     # Return the final output and the attention weights.
     return returnValue

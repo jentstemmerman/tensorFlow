@@ -217,8 +217,8 @@ def analyze_file(file_name):
         
         temperature = 1
          
-        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId, temperature)
-        FileNamesHumanReadablePooledVectors   = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId, temperature)
+        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId)
+        FileNamesHumanReadablePooledVectors   = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId)
         
         # Clear directories
         directories_to_clear = [

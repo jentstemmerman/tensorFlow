@@ -116,7 +116,7 @@ def GetLogFileMachineReadableVectorsPath(logFilename, userId):
     
     return FileNameMachineReadablePooledVectorsDict
 
-def GetLogFileHumanReadableVectorsPath(logFilename, userId, temperature):
+def GetLogFileHumanReadableVectorsPath(logFilename, userId):
     userId = str(userId)
     logFilenameWithoughExtention = os.path.splitext(os.path.basename(logFilename))[0]
             

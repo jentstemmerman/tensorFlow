@@ -181,7 +181,7 @@ class OneStep(tf.keras.Model):
   def generate_hidded_states(self, inputTensor, window_size):
     with tf.device('/GPU:0'):
       try:
-        predicted_logits_list, hidden_state, attention_weights  = self.model(inputs=(inputTensor), training=False)  
+        predicted_logits_list, hidden_state, attention_weights, attentionScoresList = self.model(inputs=(inputTensor), training=False)  
           
         lastItemInWindow = window_size - 1
         

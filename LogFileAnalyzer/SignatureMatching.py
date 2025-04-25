@@ -267,7 +267,8 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, data
         signatureNames.append(signature_name)
         signatureFiles.append(signature_file)
         
-        numberOfPooledVectors, _, signature_tensor, modelHashFromSignature = SignatureMatching.read_signature_from_file(signature_file)
+        numberOfPooledVectors, _, signature_tensor, modelHashFromSignature, _, _, _, _, _ = SignatureMatching.read_signature_from_file(signature_file)
+        
         modelHashFromSignatureFileList.append(modelHashFromSignature)
         
         outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1, sequence_length=None, modelHash=modelHashFromSignature)
@@ -289,7 +290,7 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, data
     if (numberOfSignatureFiles == 0):
         return False    
    
-    FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId, temperature)
+    FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId)
     
     binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"],     data_type=dataType, sequence_length=None, numbers_per_line=None)  
     binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],      data_type=dataType, sequence_length=None, numbers_per_line=None)        

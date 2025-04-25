@@ -181,7 +181,14 @@ class OneStep(tf.keras.Model):
   def generate_hidded_states(self, inputTensor, window_size):
     with tf.device('/GPU:0'):
       try:
-        predicted_logits_list, hidden_state, attention_weights, attentionScoresList = self.model(inputs=(inputTensor), training=False)  
+        
+        try:
+          predicted_logits_list, hidden_state, attention_weights, attentionScoresList = self.model(inputs=(inputTensor), training=False)  
+        except Exception as e:
+          print("Error in generate_hidded_states: ", e)
+          print("inputTensor shape: ", inputTensor.shape)
+          print("window_size: ", window_size)
+          print("inputTensor: ", inputTensor)  
           
         lastItemInWindow = window_size - 1
         

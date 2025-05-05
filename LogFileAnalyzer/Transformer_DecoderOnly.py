@@ -304,7 +304,7 @@ class Decoder(tf.keras.layers.Layer):
       Returns:
         ndarray: A tensor of shape (batch_size, target_seq_len, d_model), representing the output from the decoder layers.
   """
-  def __init__(self, *, num_layers, num_heads, dff, featureList, datatype, seq_length, stateSampleLayer,
+  def __init__(self, *, num_layers, num_heads, dff, featureList, embeddingDimensionList, datatype, seq_length, stateSampleLayer,
                dropout_rate=0.1):
     super(Decoder, self).__init__()
     
@@ -312,9 +312,7 @@ class Decoder(tf.keras.layers.Layer):
     self.stateSampleLayer = stateSampleLayer
     output_dimension = 0
     self.seq_length = seq_length
-    embeddingDimensionList = self.CalculateEmbeddingDimensions(featureList)
-
-
+    
     self.input_layerList  = []
     for i, feature in enumerate(featureList):
 
@@ -348,25 +346,7 @@ class Decoder(tf.keras.layers.Layer):
     self.last_attn_scores = None
 
 
-  def CalculateEmbeddingDimensions(self, featureList):
-    embeddingDimension = []
-    total_output_dimensions = 0
 
-    for i, feature in enumerate(featureList):
-        if (feature["embedded"]):
-            import math
-            output_dimension = math.ceil(feature["vocab_size"]**0.25) * 4
-        else:
-            output_dimension = 1
-
-        # the positional encoder heeft een getal deelbaar door 2 nodig
-        if (output_dimension % 2 == 1):
-            output_dimension += 1
-        
-        embeddingDimension.append(output_dimension)
-        total_output_dimensions += output_dimension
-
-    return embeddingDimension
 
 
   #@tf.function
@@ -426,14 +406,14 @@ class Decoder(tf.keras.layers.Layer):
   
 class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
-  def __init__(self, *, num_layers, num_heads, dff, featureList, seq_length, datatype,
+  def __init__(self, *, num_layers, num_heads, dff, featureList, embeddingDimensionList, seq_length, datatype,
                dropout_rate=0.1):
     super().__init__()
     
     self.encoder = None
     
     self.decoder = Decoder(num_layers=num_layers, featureList=featureList,
-                           num_heads=num_heads, dff=dff, datatype=datatype,
+                           num_heads=num_heads, dff=dff, embeddingDimensionList=embeddingDimensionList, datatype=datatype,
                            seq_length=seq_length,
                            dropout_rate=dropout_rate, stateSampleLayer=num_layers/2)
 
@@ -495,11 +475,13 @@ class Transformer(tf.keras.Model):
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
   def __init__(self, *, num_layers, num_heads, dff,
-               input_vocab_size, featureList, datatype, seq_length, dropout_rate=0.1):
+               featureList, datatype, seq_length, dropout_rate=0.1):
     super().__init__()
-
-    self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, featureList=featureList, datatype=datatype, num_heads=num_heads, dff=dff,
-               seq_length=seq_length, dropout_rate=0.1)
+    
+    embeddingDimensionList = Transformer.CalculateEmbeddingDimensions(featureList)
+    
+    self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, featureList=featureList, datatype=datatype, num_heads=num_heads, dff=dff, embeddingDimensionList=embeddingDimensionList,
+               seq_length=seq_length, dropout_rate=dropout_rate)
 
   
   # @tf.function
@@ -514,6 +496,25 @@ class Transformer(tf.keras.Model):
     # Return the final output and the attention weights.
     return returnValue
   
+  def CalculateEmbeddingDimensions(featureList):
+    embeddingDimension = []
+    total_output_dimensions = 0
+
+    for i, feature in enumerate(featureList):
+        if (feature["embedded"]):
+            import math
+            output_dimension = 256 #math.ceil(feature["vocab_size"]**0.25) * 4
+        else:
+            output_dimension = 1
+
+        # the positional encoder heeft een getal deelbaar door 2 nodig
+        if (output_dimension % 2 == 1):
+            output_dimension += 1
+        
+        embeddingDimension.append(output_dimension)
+        total_output_dimensions += output_dimension
+
+    return embeddingDimension
 
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):

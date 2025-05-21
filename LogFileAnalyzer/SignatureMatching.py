@@ -101,9 +101,11 @@ def SaveSignatureFile(signature_name, logFileName, signature_text, startLine, en
 
 
 # This function is used in the simularity file calculation
-@tf.function
+#@tf.function
 def CalculateSignatureFromHiddenVectors(batchedvectors, receivedAttention):
-    usePooling = False
+    usePooling = True
+    useAveragePooling = True
+    useMaxPooling = False
     
     if usePooling:
         
@@ -113,9 +115,21 @@ def CalculateSignatureFromHiddenVectors(batchedvectors, receivedAttention):
             batchedvectors = batchedvectors * reshaped_attention
                 
         batchedvectors = tf.nn.l2_normalize(batchedvectors, axis=-1)
-        pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
-        pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
-        pooledVector = tf.concat([pooledAverageVector, pooledMaxVector], axis=-1)
+        
+        if useAveragePooling:
+            pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
+        else:
+            pooledAverageVector = None   # this might not work
+        
+        if useMaxPooling:
+            pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
+            
+            if pooledAverageVector is not None:
+                pooledVector = tf.concat([pooledAverageVector, pooledMaxVector], axis=-1)
+
+        else:
+            pooledVector = pooledAverageVector    
+            
         # pooledVector = tf.nn.l2_normalize(pooledVector, axis=-1)
     else:        
         pooledVector = batchedvectors[:, -1, :]

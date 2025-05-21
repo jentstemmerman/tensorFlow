@@ -257,8 +257,8 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
         optimizer = 'adam'
     elif (modelSource["Network"] == "Transformer") or (modelSource["Network"] == "Transformer_DecoderOnly"):    
-        num_layers = 8
-        num_heads = 16
+        num_layers = 4
+        num_heads = 8
         dropout_rate = 0.1
 
         if (modelSource["Network"] == "Transformer"):
@@ -359,15 +359,8 @@ def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParam
 
     print(ModelSummary + "\n")
 
-    TrainBatchEnd_callback = None # ModelCallbacks.DebugCallback()
     EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     
-    Epoch_End_callback = None
-
-    run = neptune.init_run(project='Log/TensorFlowLogger', api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5NDRiM2JmMC1kNGI4LTQ4NDEtYjc5NS0wYmY2YTdhZjg1YTUifQ==')
-
-    neptune_callback = NeptuneCallback(run=run) 
-
     keras_log_file = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     keras_log_file =  os.path.join(TrainingCheckpointDir, "TensorBoardLogs", keras_log_file)
 
@@ -384,7 +377,7 @@ def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParam
 
 
     #history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback,  ])
-    history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback, EarlyStopping_callback, tensorboard_callback])
+    model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[EarlyStopping_callback, tensorboard_callback])
     #history = model.fit(datasetForTraining, validation_split=0.2, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])
     sys.stdout = sys.__stdout__
 

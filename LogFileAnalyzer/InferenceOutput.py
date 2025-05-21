@@ -216,10 +216,9 @@ def InferenceOutputThread(workerParameter,
         if onlyLogLogitsVectors:
             HumanReadableTextOutput = None
             pooledHumanReadableLogitsLastVectorlinesToWrite = None
-            pooledHumanReadableLogitsLastVectorlinesToWrite = None
-            pooledHumanReadableLogitsLastVectorlinesToWrite = None
-            pooledHumanReadableLogitsLastVectorlinesToWrite = None
             pooledHumanReadableLogitsAllVectorlinesToWrite = None
+            attention_receivedVectorlinesToWrite = None
+            all_attention_receivedVectorlinesToWrite = None
         else:
             id_from_tokenList = workerParameter[0]
             token_from_idList = workerParameter[1]

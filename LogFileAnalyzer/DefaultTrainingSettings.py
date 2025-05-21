@@ -6,12 +6,13 @@ TrainingsParameter = {"Model": {#"Network":"LSTMMultiModel",
                                 "seq_length":64,
                                 "return_states": True
                                 },
-                      "EPOCHS":5,  #etest
+                      "EPOCHS":50,  #etest
                       "Use_Validation":False,
                       "BatchSize":64,
-                      "removeDuplicates":False,
+                      "removeDuplicates":True,
                       "num_parallel_calls":64,
-                      "stride_dataset": 11,
+                      "stride_dataset": 23,
+                      "stride_dataset_inference": 101,
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better

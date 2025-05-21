@@ -26,8 +26,7 @@ def GetMaskValue(featureIndex, id_from_tokenList):
     
     return maskValue.numpy()
 
-
-def CreateDataSetOfMarker(sample, id_from_tokenList, DataTypeForTensors):
+def CreateTrainingDataSetOfMarker(sample, id_from_tokenList, DataTypeForTensors):
     input_shape     = sample[-1].shape
     numberOfeatures = sample[-1].shape[1]
     
@@ -53,17 +52,18 @@ def CreateDataSetOfMarker(sample, id_from_tokenList, DataTypeForTensors):
     datasetfast = datasetfast.batch(input_shape[0] + 1, drop_remainder = True)
     datasetfast = datasetfast.map(TokenParser.split_input_target) 
     new_sample = next(iter(datasetfast))
-    print(new_sample)
+
     return datasetfast
 
-def SetMarkerAtDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors):
+def SetMarkerAtTrainingDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors):
 
     sample1 = next(iter(dataset))
-    datasetOfMarker = CreateDataSetOfMarker(sample1, id_from_tokenList, DataTypeForTensors)
+    datasetOfMarker = CreateTrainingDataSetOfMarker(sample1, id_from_tokenList, DataTypeForTensors)
 
     combined_dataset = dataset.concatenate(datasetOfMarker)
 
     return combined_dataset
+
 
 def PrepareDataSetForTraining(dataset, batch_size, shuffle=False, buffer_size=0):
 
@@ -78,7 +78,7 @@ def PrepareDataSetForTraining(dataset, batch_size, shuffle=False, buffer_size=0)
     dataset = dataset.with_options(options)
     return dataset
 
-def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, dual_input = False, forTraining=True, verbose=False):
+def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_from_tokenList, mergeDatasets, stride, stride_dataset_inference, seq_length, DataTypeForTensors, ReductionInSamples=None, removeDuplicates=False, num_parallel_calls=10, dual_input = False, forTraining=True, verbose=False):
     
     fileIterator = LogFileIterator.FileIterator(InputDirectory, ".log")
     InputFile   = fileIterator.get_first_file()
@@ -93,8 +93,7 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             
             if InputFile is None:
                 break
-            forTraining=True
-            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, forTraining)
+            future = executor.submit(process_file, InputFile, OutputDirectory, itemList, id_from_tokenList, stride, stride_dataset_inference, seq_length, dual_input, DataTypeForTensors, forTraining, removeDuplicates)
             futureList.append(future)
             InputFile = fileIterator.get_next_file()
         
@@ -130,7 +129,7 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             result = completed_future.result()
 
         
-def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, seq_length, dual_input, DataTypeForTensors, forTraining):
+def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, stride_dataset_inference, seq_length, dual_input, DataTypeForTensors, forTraining, removeDuplicates):
     if (forTraining):
         print("process_file " + InputFile + " into a dataset... \n")
     else:
@@ -148,21 +147,28 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
                                                 seq_length, 
                                                 dual_input,
                                                 DataTypeForTensors, 
-                                                removeDuplicates=False, 
+                                                removeDuplicates=removeDuplicates, 
                                                 num_parallel_calls=10, 
                                                 verbose=False)
         
-        dataset = SetMarkerAtDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
+        dataset = SetMarkerAtTrainingDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
         print("Saving training dataset " + os.path.basename(InputFile) + "...\n")
     else:
-        dataset = CreateInferenceDatasetFromFile(InputFile, 
-                                                 IntermediateFile, 
-                                                 itemList, 
-                                                 id_from_tokenList, 
-                                                 stride, 
-                                                 seq_length, 
-                                                 DataTypeForTensors)
-        print("Saving inference dataset " + os.path.basename(InputFile) + "...\n")
+        dataset = CreateTrainingDatasetFromFile(InputFile, 
+                                                IntermediateFile, 
+                                                itemList, 
+                                                id_from_tokenList, 
+                                                stride_dataset_inference, 
+                                                seq_length, 
+                                                dual_input,
+                                                DataTypeForTensors, 
+                                                removeDuplicates=removeDuplicates, 
+                                                num_parallel_calls=10, 
+                                                verbose=False)
+        
+        dataset = SetMarkerAtTrainingDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
+        print("Saving training dataset " + os.path.basename(InputFile) + "...\n")
+        
         
     Dataset.SaveDataset(dataset, outputDatasetFile.strip())
     print("Dataset " + os.path.basename(InputFile) + " saved.\n")
@@ -171,7 +177,7 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
 # This function will not create an intermediate tokenfile
 def CreateInferenceDatasetFromFile(InputFile, IntermediateFile, itemList, id_from_tokenList, stride, seq_length, DataTypeForTensors):
 
-    #print("Creating an inference dataset from  " + InputFile + ".\n")
+    print("Creating an inference dataset from  " + InputFile + ".\n")
     
     #if(IntermediateFile is not None):
     #    print(" Intermediate file: " + IntermediateFile + ".\n")

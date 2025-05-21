@@ -7,8 +7,8 @@ import Dataset
  
 def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature):
     with tf.device('/CPU:0'):
-        tf.config.run_functions_eagerly(True)  
-        tf.data.experimental.enable_debug_mode()  
+        #tf.config.run_functions_eagerly(True)  
+        #tf.data.experimental.enable_debug_mode()  
         numberOfThreads = 7  # 1 for the main process
 
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
@@ -53,13 +53,14 @@ if __name__ == "__main__":
         InputDirectory                     = parameters[2]
         outputDirectory                    = parameters[3]
         OriginalTokenFileDirectory         = parameters[4]
+        ForTraining                        = parameters[5]
         temperature                        = int(parameters[5])
     else:
         print("Did not receive 6 parameters. Parameters received: ", len(parameters))
        
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
         
-    tf.config.run_functions_eagerly(True)  
-    tf.data.experimental.enable_debug_mode()    
+    #tf.config.run_functions_eagerly(True)  
+    #tf.data.experimental.enable_debug_mode()    
    
     AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, OriginalTokenFileDirectory, itemFile, TrainingsParameter, temperature)  

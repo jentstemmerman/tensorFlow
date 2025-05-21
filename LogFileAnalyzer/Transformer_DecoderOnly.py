@@ -349,7 +349,7 @@ class Decoder(tf.keras.layers.Layer):
 
 
 
-  #@tf.function
+  @tf.function
   def call(self, inputs, training=False):
     inputList = []
     
@@ -419,7 +419,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
 
 
-  # @tf.function
+  @tf.function
   def call(self, inputs, training):
     """
     Forward pass of the transformer model.
@@ -484,7 +484,7 @@ class Transformer(tf.keras.Model):
                seq_length=seq_length, dropout_rate=dropout_rate)
 
   
-  # @tf.function
+  @tf.function
   def call(self, inputs, training=False):
     logits, hidden_state, attention_weights, attentionScoresList = self.decoderOnlyTransformerLayer(inputs, training=training)
     

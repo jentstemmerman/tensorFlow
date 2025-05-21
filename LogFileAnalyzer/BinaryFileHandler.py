@@ -224,7 +224,7 @@ class BinaryFileHandler:
         if chunk_size < 1:
             chunk_size = 1  # Ensure at least one record per chunk.
         self.chunk_size = int(chunk_size)
-        print(f"Chunk size set to {self.chunk_size} records per chunk based on a memory budget of {memory_bytes} bytes.")
+        #print(f"Chunk size set to {self.chunk_size} records per chunk based on a memory budget of {memory_bytes} bytes.")
 
     def get_chunk_tensor(self, chunk_index):
         """

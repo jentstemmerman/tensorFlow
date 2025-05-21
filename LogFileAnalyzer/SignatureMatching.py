@@ -26,7 +26,7 @@ def RecalculateSignature(signatureFilePath, userId, newModelDirectory):
     SaveSignatureFile(signature_name, logFileName, signature_text, startLine, endLine, userId, newModelDirectory)
      
  
-def read_signature_from_file(filename):
+def read_signature_from_file(filename, userId=0):
     with open(filename, 'r') as file:
         signature_data = json.load(file)    
         
@@ -37,10 +37,24 @@ def read_signature_from_file(filename):
         startLine = signature_data['startLine']
         endLine = signature_data['endLine']
         DataTypeForTensors = signature_data['DataTypeForTensors']
-        signature = signature_data['signature']
+        savedSignature = signature_data['signature']
         
         numberOfPooledVectors = endLine - startLine + 1
-        signature_tensor = tf.convert_to_tensor(signature, dtype=DataTypeForTensors)
+        
+        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId)
+        
+        calculatedSignature, modelHash, _ = SignatureMatching.CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
+ 
+
+        savedSignature_arr = np.array(savedSignature)
+        calculatedSignature_arr = np.array(calculatedSignature)
+        
+        if savedSignature_arr.shape != calculatedSignature_arr.shape:
+            print("Warning: signature shapes are different:", savedSignature_arr.shape, "vs", calculatedSignature_arr.shape)
+        elif not np.allclose(savedSignature_arr, calculatedSignature_arr, atol=1e-6):
+            print("Warning: signature2 is different from signature1")
+
+        signature_tensor = tf.convert_to_tensor(calculatedSignature, dtype=DataTypeForTensors)
  
         return numberOfPooledVectors, DataTypeForTensors, signature_tensor, modelHash, signature_text, logFileName, modelDirectory, startLine, endLine
 
@@ -87,18 +101,25 @@ def SaveSignatureFile(signature_name, logFileName, signature_text, startLine, en
 
 
 # This function is used in the simularity file calculation
-# @tf.function
-def CalculatePooledVectorsBatched(batchedvectors, receivedAttention):
-    if receivedAttention is not None:
-        reshaped_attention = tf.expand_dims(receivedAttention, axis=-1)
-        
-        batchedvectors = batchedvectors * reshaped_attention
-        
-    batchedvectors = tf.nn.l2_normalize(batchedvectors, axis=-1)
-    pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
-    pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
-    pooledVector = tf.concat([pooledAverageVector, pooledMaxVector], axis=-1)
+@tf.function
+def CalculateSignatureFromHiddenVectors(batchedvectors, receivedAttention):
+    usePooling = False
     
+    if usePooling:
+        
+        if receivedAttention is not None:
+            reshaped_attention = tf.expand_dims(receivedAttention, axis=-1)
+            
+            batchedvectors = batchedvectors * reshaped_attention
+                
+        batchedvectors = tf.nn.l2_normalize(batchedvectors, axis=-1)
+        pooledAverageVector = tf.keras.layers.GlobalAveragePooling1D(data_format="channels_last")(batchedvectors)
+        pooledMaxVector = tf.keras.layers.GlobalMaxPooling1D(data_format="channels_last")(batchedvectors)
+        pooledVector = tf.concat([pooledAverageVector, pooledMaxVector], axis=-1)
+        # pooledVector = tf.nn.l2_normalize(pooledVector, axis=-1)
+    else:        
+        pooledVector = batchedvectors[:, -1, :]
+
     return pooledVector
 
 #  startVectorOffset 0 means the first line in the logfile
@@ -129,7 +150,7 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
     
     hiddenVectors = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, startLine, numberOfLines, sequence_length, batch_size=1)
     
-    signature = CalculatePooledVectorsBatched(hiddenVectors, receivedAttention)
+    signature = CalculateSignatureFromHiddenVectors(hiddenVectors, receivedAttention)
     
     signature = tf.squeeze(signature, axis=0)           # remove the batch dimension from the tensor
     hiddenVectors = tf.squeeze(hiddenVectors, axis=0)   # remove the batch dimension from the tensor
@@ -199,7 +220,7 @@ def GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLog
 
 # @tf.function                
 def CalculateSimularityBatched(signature, tensor, receivedAttention):
-    pooledVector = CalculatePooledVectorsBatched(tensor, receivedAttention)
+    pooledVector = CalculateSignatureFromHiddenVectors(tensor, receivedAttention)
     signature = tf.linalg.l2_normalize(signature, axis=-1)
     pooledVector = tf.linalg.l2_normalize(pooledVector, axis=-1)
     

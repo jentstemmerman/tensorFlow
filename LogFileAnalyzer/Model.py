@@ -1,4 +1,7 @@
+import datetime
 import sys
+
+from tensorboard import program
 sys.path.append('../Server')
 
 import Constants  # type: ignore
@@ -254,17 +257,19 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
         optimizer = 'adam'
     elif (modelSource["Network"] == "Transformer") or (modelSource["Network"] == "Transformer_DecoderOnly"):    
-        num_layers = 8
-        num_heads = 16
+        num_layers = 4
+        num_heads = 8
         dropout_rate = 0.1
-        import Transformer
-        d_model = Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
-        dff = d_model * 4
-        # Parameters, only one feature supported yet (don't know whether it will ever be possible)
-        input_vocab_size = modelFeatureList[0]["vocab_size"]
-        target_vocab_size = modelFeatureList[0]["vocab_size"]
 
         if (modelSource["Network"] == "Transformer"):
+            import Transformer
+            d_model = Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
+            dff = d_model * 4
+            
+            # Parameters, only one feature supported yet
+            input_vocab_size = modelFeatureList[0]["vocab_size"]
+            target_vocab_size = modelFeatureList[0]["vocab_size"]
+        
             model = Transformer.Transformer(
                 num_layers=num_layers,
                 d_model=d_model,
@@ -277,18 +282,21 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                 dropout_rate=dropout_rate)
         else:
             import Transformer_DecoderOnly
+            d_model = Transformer_DecoderOnly.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
+            dff = d_model * 4
             model = Transformer_DecoderOnly.Transformer(
                 num_layers=num_layers,
                 featureList=modelFeatureList,
                 num_heads=num_heads,
                 dff=dff,
                 datatype=TrainingsParameter["DataTypeForTensors"],
-                input_vocab_size=input_vocab_size,       
+
                 seq_length=TrainingsParameter["Model"]["seq_length"],
                 dropout_rate=dropout_rate)
             
         optimizer = 'adam'
-        learning_rate = Transformer.CustomSchedule(d_model)
+        import CustomSchedule
+        learning_rate = CustomSchedule.CustomSchedule(d_model, warmup_steps=8000)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
     
@@ -351,14 +359,17 @@ def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParam
 
     print(ModelSummary + "\n")
 
-    TrainBatchEnd_callback = None # ModelCallbacks.DebugCallback()
     EarlyStopping_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
     
-    Epoch_End_callback = None
+    keras_log_file = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    keras_log_file =  os.path.join(TrainingCheckpointDir, "TensorBoardLogs", keras_log_file)
 
-    run = neptune.init_run(project='Log/TensorFlowLogger', api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiI5NDRiM2JmMC1kNGI4LTQ4NDEtYjc5NS0wYmY2YTdhZjg1YTUifQ==')
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=keras_log_file, histogram_freq=1, update_freq=1000)
 
-    neptune_callback = NeptuneCallback(run=run) 
+    tb = program.TensorBoard()
+    tb.configure(argv=[None, "--logdir", keras_log_file, "--host", "0.0.0.0", "--port", "6006"])
+    url = tb.launch()
+    print(f"TensorBoard running at {url}")
 
     #batch_x, batch_y = next(iter(datasetForTraining))
     #input_shape = batch_x.shape[1:]  # Determine the input shape from the batch (exclude batch dimension)
@@ -366,7 +377,7 @@ def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParam
 
 
     #history = model.fit(datasetForTraining, epochs=TrainingsParameter["EPOCHS"], callbacks=[checkpoint_callback,  ])
-    history = model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback, EarlyStopping_callback])
+    model.fit(datasetForTraining, validation_data=datasetForVerification, epochs=TrainingsParameter["EPOCHS"], callbacks=[EarlyStopping_callback, tensorboard_callback])
     #history = model.fit(datasetForTraining, validation_split=0.2, epochs=TrainingsParameter["EPOCHS"], callbacks=[neptune_callback,TrainBatchEnd_callback])
     sys.stdout = sys.__stdout__
 

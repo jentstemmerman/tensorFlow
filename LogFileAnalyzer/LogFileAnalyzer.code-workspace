@@ -23,7 +23,7 @@
 				"args": ["/home/jents/AI/TrainingSet4/Training", 
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/out/Training", 
-						 "/home/jents/AI/TrainingSet4/" ], 
+						 "/home/jents/AI/TrainingSet4/", "ForTraining" ], 
 
 				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 				"console": "integratedTerminal"
@@ -37,7 +37,7 @@
 				"args": ["/home/jents/AI/TrainingSet4/Verification", 
 				         "Itemfile.txt", 
 						 "/home/jents/AI/TrainingSet4/out/Verification", 
-						 "/home/jents/AI/TrainingSet4/"], 
+						 "/home/jents/AI/TrainingSet4/", "ForVerification"], 
 
 				"cwd": "${workspaceFolder:LogFileAnalyzer}",
 				"console": "integratedTerminal"

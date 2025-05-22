@@ -279,7 +279,8 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                 target_vocab_size=target_vocab_size,    
                 featureList=modelFeatureList, 
                 seq_length=TrainingsParameter["Model"]["seq_length"],
-                dropout_rate=dropout_rate)
+                dropout_rate=dropout_rate, 
+                DataTypeForTensors=TrainingsParameter["DataTypeForTensors"])
         else:
             import Transformer_DecoderOnly
             d_model = Transformer_DecoderOnly.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
@@ -289,7 +290,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                 featureList=modelFeatureList,
                 num_heads=num_heads,
                 dff=dff,
-                datatype=TrainingsParameter["DataTypeForTensors"],
+                DataTypeForTensors=TrainingsParameter["DataTypeForTensors"],
 
                 seq_length=TrainingsParameter["Model"]["seq_length"],
                 dropout_rate=dropout_rate)

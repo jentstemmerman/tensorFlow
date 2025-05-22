@@ -160,7 +160,7 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
     
     sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
     
-    receivedAttention = GetReceivedAttention(binaryFileHandlerReceivedAttention, startLine, numberOfLines, sequence_length, batch_size=1)
+    receivedAttention = GetReceivedAttention(binaryFileHandlerReceivedAttention, startLine, numberOfLines, sequence_length, batch_size=1, DataTypeForTensors=DataTypeForTensors)
     
     hiddenVectors = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, startLine, numberOfLines, sequence_length, batch_size=1)
     
@@ -172,7 +172,7 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
     return signature, modelHash1, hiddenVectors
 
 # This function returns a batch of attention received 
-def GetReceivedAttention(binaryFileHandlerReceivedAttention, startLine, numberOfLines, sequence_length, batch_size):
+def GetReceivedAttention(binaryFileHandlerReceivedAttention, startLine, numberOfLines, sequence_length, batch_size, DataTypeForTensors=tf.float32):
 
     startVectorOffsetInReceivedAttentionFile = startLine - 1   
     numberOfRecordsToRead = numberOfLines + batch_size - 1
@@ -181,18 +181,18 @@ def GetReceivedAttention(binaryFileHandlerReceivedAttention, startLine, numberOf
 
     receivedAttention = tf.signal.frame(attentionRecords, numberOfLines, 1, axis=0)
     
-    contrib_counts = tf.range(numberOfLines, 0, -1, dtype=tf.float32)    
+    contrib_counts = tf.range(numberOfLines, 0, -1, dtype=DataTypeForTensors)    
         
     # Create a mask using the contrib_counts
     # First create a range for sequence positions
-    seq_positions = tf.range(sequence_length, dtype=tf.float32)
+    seq_positions = tf.range(sequence_length, dtype=DataTypeForTensors)
 
     # Reshape for proper broadcasting
     contrib_counts_reshaped = tf.reshape(contrib_counts, [1, numberOfLines, 1])  # [1, numberOfLines, 1]
     seq_positions = tf.reshape(seq_positions, [1, 1, sequence_length])           # [1, 1, sequence_length]
 
     # Create mask: only pay attention to positions where seq_position < line's contrib count
-    attention_mask = tf.cast(seq_positions < contrib_counts_reshaped, tf.float32)
+    attention_mask = tf.cast(seq_positions < contrib_counts_reshaped, DataTypeForTensors)
 
     # Apply mask to receivedAttention
     # If batch_size > 1, tile the mask across the batch dimension
@@ -244,7 +244,7 @@ def CalculateSimularityBatched(signature, tensor, receivedAttention):
 
 # limitation: the output of this file starts at linenumber 0 + max signature length - 1, so a very large signature length will cause a lot of empty lines at the start of the file
 #tf.function
-def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, dataType):
+def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, DataTypeForTensors):
     
     if not os.path.exists(LogFileName):
         print(f"[CreateSimularityFilesOfLogFile] LogFileName {LogFileName} does not exist.")
@@ -306,7 +306,7 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, data
         
         modelHashFromSignatureFileList.append(modelHashFromSignature)
         
-        outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=dataType, numbers_per_line=1, sequence_length=None, modelHash=modelHashFromSignature)
+        outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=DataTypeForTensors, numbers_per_line=1, sequence_length=None, modelHash=modelHashFromSignature)
         
         outputBinaryFileHandlers.append(outputBinaryFileHandler)
         
@@ -327,10 +327,10 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, data
    
     FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(LogFileName, userId)
     
-    binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"],     data_type=dataType, sequence_length=None, numbers_per_line=None)  
-    binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],      data_type=dataType, sequence_length=None, numbers_per_line=None)        
-    binaryFileHandlerAllLogits       = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] ,      data_type=dataType, sequence_length=None, numbers_per_line=None)  
-    binaryFileHandlerReceivedAttention = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["attention_received"], data_type=dataType, sequence_length=None, numbers_per_line=None)  
+    binaryFileHandlerFirstLogits     = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"],     data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
+    binaryFileHandlerLastLogits      = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],      data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)        
+    binaryFileHandlerAllLogits       = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["all"] ,      data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
+    binaryFileHandlerReceivedAttention = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["attention_received"], data_type=DataTypeForTensors, sequence_length=None, numbers_per_line=None)  
       
     sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
     numberOfLines = binaryFileHandlerFirstLogits.get_recordCount()
@@ -372,7 +372,7 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, data
                 signature_tensor = signatureTensors[signatureIndex]
                 signatureLength = numberOfPooledVectorsList[signatureIndex]
                 
-                batched_receivedAttention = GetReceivedAttention(binaryFileHandlerReceivedAttention, lineNumber, signatureLength, sequence_length, batch_size=numberOfSimularityCalculationsPerRead)
+                batched_receivedAttention = GetReceivedAttention(binaryFileHandlerReceivedAttention, lineNumber, signatureLength, sequence_length, batch_size=numberOfSimularityCalculationsPerRead, DataTypeForTensors=DataTypeForTensors)
                 
                 batched_hidden_state_tensor = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, lineNumber, signatureLength, sequence_length, numberOfSimularityCalculationsPerRead)
                 
@@ -381,7 +381,7 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, data
                 simularity = CalculateSimularityBatched(batched_signature_tensor_new, batched_hidden_state_tensor, batched_receivedAttention)
 
                 for index in range(numberOfSimularityCalculationsPerRead):
-                    #humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
+                    humanReadableOutputFileHandlers[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularity[index]}\n")
                     outputBinaryFileHandlers[signatureIndex].append(simularity[index])
                     simularityCalculationIndexes[signatureIndex] += 1
                     
@@ -405,7 +405,7 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, data
         return False
     
     for SimularityFile in machineReadableOutputFiles:
-        SimularityGraph.MakeSimularityPlot(SimularityFile, block=False, Save=True)
+        SimularityGraph.MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensors=DataTypeForTensors)
 
 def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = 0, threshold = 0.5, comment = ""):
     

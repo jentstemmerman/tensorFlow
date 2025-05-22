@@ -178,7 +178,7 @@ class OneStep(tf.keras.Model):
   
     
   #@tf.function
-  def generate_hidded_states(self, inputTensor, window_size):
+  def generate_hidded_states(self, inputTensor, window_size, DataTypeForTensors ):
     with tf.device('/GPU:0'):
       try:
         
@@ -214,7 +214,7 @@ class OneStep(tf.keras.Model):
           
         # Since this is causal attention, the first token is attented by all tokens, the second token by all but the first one, and so on... 
         # We need to correct for this bias. We can do this by dividing the attention scores by the number of tokens that attended to this token. 
-        contrib_counts = tf.range(hidden_state.shape[1], 0, -1, dtype=tf.float32)    
+        contrib_counts = tf.range(hidden_state.shape[1], 0, -1, dtype=DataTypeForTensors)    
           
         attention_received_first_query_normalized = attention_received_first_query / contrib_counts  
         attention_received_first_query_normalized_centered = attention_received_first_query_normalized - tf.reduce_max(attention_received_first_query_normalized, axis=-1, keepdims=True)
@@ -246,10 +246,10 @@ class OneStep(tf.keras.Model):
     
 
   #@tf.function
-  def generate_steps_optimized(self, inputTensor, nexttokenIds, window_size, states=None):
+  def generate_steps_optimized(self, inputTensor, nexttokenIds, window_size, DataTypeForTensors='float32'):
     with tf.device('/GPU:0'):
 
-      predicted_logits_list, pooledLogitsData = self.generate_hidded_states(inputTensor, window_size)
+      predicted_logits_list, pooledLogitsData = self.generate_hidded_states(inputTensor, window_size, DataTypeForTensors)
         
       numberOfFeatures       = len(self.Tokens_from_idList)
       predictions            = []

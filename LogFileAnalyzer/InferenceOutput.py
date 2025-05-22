@@ -233,6 +233,8 @@ def InferenceOutputThread(workerParameter,
                                                         crossEntropyOfActuals=crossEntropyOfActuals, 
                                                         probabilityOfPredictions=probabilityOfPredictions)
             
+
+            
             pooledHumanReadableLogitsLastVectorlinesToWrite = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, pooledLogitsVector_hidden_state_last)
             pooledHumanReadableLogitsAllVectorlinesToWrite  = ComposeHumanReadablePooledLogitsAllVectorsList(numberOfParallelExecutions, numberOfAnalyzedLines, sequenceLength, pooledLogitsVector_hidden_state_all)
             attention_receivedVectorlinesToWrite            = ComposeHumanReadablePooledLogitsVectorsList(numberOfParallelExecutions, attention_receivedVectorDataList)

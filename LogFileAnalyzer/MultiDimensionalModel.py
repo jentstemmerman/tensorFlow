@@ -51,7 +51,7 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
             mask_value = maskValueList[featureIndex]
          
             mask = tf.not_equal(feature_output_true, mask_value)
-            mask = tf.cast(mask, dtype=tf.float32)
+            mask = tf.cast(mask, dtype=DataTypeForTensors)
             
             feature_output_true_masked      = feature_output_true      * mask
             feature_output_predicted_masked = feature_output_predicted * mask

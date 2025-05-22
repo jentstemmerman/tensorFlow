@@ -286,7 +286,7 @@ def AddProbabilitiesPrintfFileParallel(model,
                 else:
 
                     if (onlyLogLogitsVector):
-                        _, pooledLogitsVectorData = one_step_model.generate_hidded_states(idList[threadId], window_size)
+                        _, pooledLogitsVectorData = one_step_model.generate_hidded_states(idList[threadId], window_size, DataTypeForTensors)
                         
                         attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
                         allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all'].numpy()
@@ -307,7 +307,7 @@ def AddProbabilitiesPrintfFileParallel(model,
                         crossEntropyOfActualsList.append([])
                         
                     else:
-                        predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], window_size=window_size, states=None)
+                        predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], window_size=window_size, DataTypeForTensors=DataTypeForTensors)
                         
                         attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
                         allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all'].numpy()
@@ -540,7 +540,7 @@ def CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, seq_leng
     inputTensor = tf.stack(inputTensorList, axis=0)
     nexttokenIds = tf.stack(nexttokenIdsList, axis=0)
     
-    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, window_size = seq_length, states=None)
+    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, window_size = seq_length, DataTypeForTensors=DataTypeForTensors)
     numberOfVectors = pooledLogitsVectorData['hidden_state_prediction'].shape[1]
     return numberOfVectors
 

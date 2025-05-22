@@ -11,7 +11,8 @@ class BinaryFileHandler:
     TYPE_MAP = {
         "int32": "i",
         "float32": "f",
-        "float64": "d"
+        "float64": "d",
+        "float16": "e"  # 'e' is the struct format for half-precision float (since Python 3.6)
     }
 
     def __init__(self, filename, sequence_length, data_type="float32", numbers_per_line=3, modelHash=""):
@@ -19,6 +20,7 @@ class BinaryFileHandler:
         self.sequence_length = sequence_length
         self.modelHash = modelHash
         self.data_type = data_type
+
         self.numbers_per_line = numbers_per_line
         self.read_file_handler = None
         self.write_file_handler = None
@@ -187,7 +189,7 @@ class BinaryFileHandler:
             raise ValueError("Invalid index or file corruption.")
         
         records = np.frombuffer(data, dtype=self.data_type).reshape(num_records, self.numbers_per_line)
-        return tf.convert_to_tensor(records, dtype=tf.float32)
+        return tf.convert_to_tensor(records, dtype=self.data_type)
 
     def close(self):
         """Close the file handler if it's open."""
@@ -246,7 +248,7 @@ class BinaryFileHandler:
                 break
             records.append(struct.unpack(self.fmt, data))
 
-        return tf.convert_to_tensor(records, dtype=tf.float32)
+        return tf.convert_to_tensor(records, dtype=self.data_type)
 
     def read_records_optimised(self, start_index, num_records):
         """
@@ -293,11 +295,11 @@ if __name__ == "__main__":
     # Delete the file if it exists
     if os.path.exists("data_with_json_header.bin"):
         os.remove("data_with_json_header.bin")
-        
+    DataTypeForTensors = 'float32'    
     # Clear file (resets header)
     import ModelHash
     modelHash = ModelHash.ModelHash()
-    binary_file = BinaryFileHandler("data_with_json_header.bin", data_type="float32", numbers_per_line=3, modelHash=modelHash.getHash())
+    binary_file = BinaryFileHandler("data_with_json_header.bin", data_type=DataTypeForTensors, numbers_per_line=3, modelHash=modelHash.getHash())
     header= binary_file._read_header()
     binary_file.append((1.1, 2.2, 3.3))
     header= binary_file._read_header()
@@ -312,7 +314,7 @@ if __name__ == "__main__":
     binary_file.close()
     
     binary_file = None
-    binary_file = BinaryFileHandler("data_with_json_header.bin", data_type="float32", numbers_per_line=3)
+    binary_file = BinaryFileHandler("data_with_json_header.bin", data_type=DataTypeForTensors, numbers_per_line=3)
     
     # Read back at index 1
     print(binary_file.read_at(1))  # Output: (4.4, 5.5, 6.6)

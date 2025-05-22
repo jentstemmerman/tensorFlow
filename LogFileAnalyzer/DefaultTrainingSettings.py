@@ -1,6 +1,6 @@
 TrainingsParameter = {"Model": {#"Network":"LSTMMultiModel",
-                                "Network":"Transformer",
-                                #"Network":"Transformer_DecoderOnly",
+                                #"Network":"Transformer",
+                                "Network":"Transformer_DecoderOnly",
                                 "returnState":True,
                                 "rnn_units":1024,
                                 "seq_length":64,

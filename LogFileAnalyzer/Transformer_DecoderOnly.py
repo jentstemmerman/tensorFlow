@@ -7,7 +7,7 @@ import MultiDimensionalModel
 
 # JENTS: this looks like the classic positional encoding. 
 @tf.function
-def positional_encoding(length, depth): # lenght is the sequence lenght, depth the embedding dimension
+def positional_encoding(length, depth, DataTypeForTensors): # lenght is the sequence lenght, depth the embedding dimension
   """
   Generates a matrix of position encodings for an input sequence.
 
@@ -30,7 +30,7 @@ def positional_encoding(length, depth): # lenght is the sequence lenght, depth t
       [np.sin(angle_rads), np.cos(angle_rads)],
       axis=-1)
 
-  return tf.cast(pos_encoding, dtype=tf.float32)
+  return tf.cast(pos_encoding, dtype=DataTypeForTensors)
 
 
 class PositionalEmbedding(tf.keras.layers.Layer):
@@ -48,7 +48,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
       call(x): This method performs the computation for the layer.
 
   """
-  def __init__(self, vocab_size, d_model, seq_length):
+  def __init__(self, vocab_size, d_model, seq_length, DataTypeForTensors):
     """
     Initializes the PositionalEmbedding layer.
 
@@ -59,8 +59,10 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     super().__init__()
     self.seq_length = seq_length
     self.d_model = d_model
+    self.DataTypeForTensors = DataTypeForTensors
+    self.tf_dtype = tf.as_dtype(self.DataTypeForTensors)
     self.embedding = tf.keras.layers.Embedding(vocab_size, d_model, mask_zero=True)
-    self.pos_encoding = positional_encoding(length=seq_length, depth=d_model)
+    self.pos_encoding = positional_encoding(length=seq_length, depth=d_model, DataTypeForTensors=DataTypeForTensors)
     print(self.pos_encoding.shape)
 
   def compute_mask(self, *args, **kwargs):
@@ -91,7 +93,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     
     x = self.embedding(x)
     # This factor sets the relative scale of the embedding and positonal_encoding.
-    x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+    x *= tf.math.sqrt(tf.cast(self.d_model, self.tf_dtype))
     
     length = self.seq_length # tf.shape(x)[1]
     x = x + self.pos_encoding[tf.newaxis, :length, :]
@@ -138,6 +140,7 @@ class CausalSelfAttention(BaseAttention):
       Output sequence tensor of the same shape as the input, after self-attention
       and residual connection with layer normalization applied.
   """
+  @tf.function
   def call(self, x, return_attention_scores=False):
     multiHeadAttentionOutput = self.mha(
         query=x,
@@ -304,8 +307,7 @@ class Decoder(tf.keras.layers.Layer):
       Returns:
         ndarray: A tensor of shape (batch_size, target_seq_len, d_model), representing the output from the decoder layers.
   """
-  def __init__(self, *, num_layers, num_heads, dff, featureList, embeddingDimensionList, datatype, seq_length, stateSampleLayer,
-               dropout_rate=0.1):
+  def __init__(self, *, num_layers, num_heads, dff, featureList, embeddingDimensionList, DataTypeForTensors, seq_length, stateSampleLayer, dropout_rate=0.1):
     super(Decoder, self).__init__()
     
     self.num_layers = num_layers
@@ -319,9 +321,9 @@ class Decoder(tf.keras.layers.Layer):
         output_dimension += embeddingDimensionList[i]
 
         if (feature["embedded"]):
-            input_layer = PositionalEmbedding(vocab_size=feature["vocab_size"], d_model=embeddingDimensionList[i], seq_length=seq_length)
+            input_layer = PositionalEmbedding(vocab_size=feature["vocab_size"], d_model=embeddingDimensionList[i], seq_length=seq_length, DataTypeForTensors=DataTypeForTensors)
         else:
-            input_layer = MultiDimensionalModel.CustomIdentityLayer(datatype=datatype)  # no positional encoding for non-embedded features, might be wrong to do this
+            input_layer = MultiDimensionalModel.CustomIdentityLayer(datatype=DataTypeForTensors)  # no positional encoding for non-embedded features, might be wrong to do this
         
        
         self.input_layerList.append(input_layer)    
@@ -406,14 +408,14 @@ class Decoder(tf.keras.layers.Layer):
   
 class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
-  def __init__(self, *, num_layers, num_heads, dff, featureList, embeddingDimensionList, seq_length, datatype,
+  def __init__(self, *, num_layers, num_heads, dff, featureList, embeddingDimensionList, seq_length, DataTypeForTensors,
                dropout_rate=0.1):
     super().__init__()
     
     self.encoder = None
     
     self.decoder = Decoder(num_layers=num_layers, featureList=featureList,
-                           num_heads=num_heads, dff=dff, embeddingDimensionList=embeddingDimensionList, datatype=datatype,
+                           num_heads=num_heads, dff=dff, embeddingDimensionList=embeddingDimensionList, DataTypeForTensors=DataTypeForTensors,
                            seq_length=seq_length,
                            dropout_rate=dropout_rate, stateSampleLayer=num_layers/2)
 
@@ -475,12 +477,12 @@ class Transformer(tf.keras.Model):
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
   def __init__(self, *, num_layers, num_heads, dff,
-               featureList, datatype, seq_length, dropout_rate=0.1):
+               featureList, DataTypeForTensors, seq_length, dropout_rate=0.1):
     super().__init__()
     
     embeddingDimensionList = Transformer.CalculateEmbeddingDimensions(featureList)
     
-    self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, featureList=featureList, datatype=datatype, num_heads=num_heads, dff=dff, embeddingDimensionList=embeddingDimensionList,
+    self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, featureList=featureList, DataTypeForTensors=DataTypeForTensors, num_heads=num_heads, dff=dff, embeddingDimensionList=embeddingDimensionList,
                seq_length=seq_length, dropout_rate=dropout_rate)
 
   

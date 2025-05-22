@@ -5,7 +5,7 @@ import ModelHash
 
 
 # JENTS: this looks like the classic positional encoding. 
-def positional_encoding(length, depth): # lenght is the sequence lenght, depth the embedding dimension
+def positional_encoding(length, depth, DataTypeForTensors): # lenght is the sequence lenght, depth the embedding dimension
   """
   Generates a matrix of position encodings for an input sequence.
 
@@ -28,7 +28,7 @@ def positional_encoding(length, depth): # lenght is the sequence lenght, depth t
       [np.sin(angle_rads), np.cos(angle_rads)],
       axis=-1)
 
-  return tf.cast(pos_encoding, dtype=tf.float32)
+  return tf.cast(pos_encoding, dtype=DataTypeForTensors)
 
 
 class PositionalEmbedding(tf.keras.layers.Layer):
@@ -46,7 +46,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
       call(x): This method performs the computation for the layer.
 
   """
-  def __init__(self, vocab_size, d_model, seq_length):
+  def __init__(self, vocab_size, d_model, seq_length, DataTypeForTensors):
     """
     Initializes the PositionalEmbedding layer.
 
@@ -57,7 +57,8 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     super().__init__()
     self.d_model = d_model
     self.embedding = tf.keras.layers.Embedding(vocab_size, d_model, mask_zero=True)
-    self.pos_encoding = positional_encoding(length=seq_length, depth=d_model)
+    self.pos_encoding = positional_encoding(length=seq_length, depth=d_model, DataTypeForTensors=DataTypeForTensors)
+    self.DataTypeForTensors = DataTypeForTensors
     print(self.pos_encoding.shape)
 
   def compute_mask(self, *args, **kwargs):
@@ -88,7 +89,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     length = tf.shape(x)[1]
     x = self.embedding(x)
     # This factor sets the relative scale of the embedding and positonal_encoding.
-    x *= tf.math.sqrt(tf.cast(self.d_model, tf.float32))
+    x *= tf.math.sqrt(tf.cast(self.d_model, self.DataTypeForTensors))
     x = x + self.pos_encoding[tf.newaxis, :length, :]
     return x
 
@@ -331,14 +332,14 @@ class Encoder(tf.keras.layers.Layer):
     `(batch_size, seq_len, d_model)`.
   """
   def __init__(self, *, num_layers, d_model, num_heads,
-               dff, vocab_size, seq_length, dropout_rate=0.1):
+               dff, vocab_size, seq_length, dropout_rate=0.1, DataTypeForTensors="float32"):
     super().__init__()
 
     self.d_model = d_model
     self.num_layers = num_layers
 
     self.pos_embedding = PositionalEmbedding(
-        vocab_size=vocab_size, seq_length=seq_length, d_model=self.d_model)
+        vocab_size=vocab_size, seq_length=seq_length, d_model=self.d_model, DataTypeForTensors=DataTypeForTensors)
 
     self.enc_layers = [
         EncoderLayer(d_model=d_model,
@@ -457,14 +458,14 @@ class Decoder(tf.keras.layers.Layer):
         ndarray: A tensor of shape (batch_size, target_seq_len, d_model), representing the output from the decoder layers.
   """
   def __init__(self, *, num_layers, d_model, num_heads, dff, vocab_size, seq_length,
-               dropout_rate=0.1):
+               dropout_rate=0.1, DataTypeForTensors="float32"):
     super(Decoder, self).__init__()
 
     self.d_model = d_model
     self.num_layers = num_layers
 
     self.pos_embedding = PositionalEmbedding(vocab_size=vocab_size, 
-                                             d_model=d_model, seq_length=seq_length)
+                                             d_model=d_model, seq_length=seq_length, DataTypeForTensors=DataTypeForTensors)
     self.dropout = tf.keras.layers.Dropout(dropout_rate)
     self.dec_layers = [
         DecoderLayer(d_model=d_model, num_heads=num_heads,
@@ -523,7 +524,7 @@ class Transformer(tf.keras.Model):
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
   def __init__(self, *, num_layers, d_model, num_heads, dff,
-               input_vocab_size, target_vocab_size, featureList, seq_length, hashAtCreation=None, dropout_rate=0.1):
+               input_vocab_size, target_vocab_size, featureList, seq_length, hashAtCreation=None, dropout_rate=0.1, DataTypeForTensors="float32"):
     super().__init__()
 
     self.hashAtCreation=hashAtCreation
@@ -547,7 +548,7 @@ class Transformer(tf.keras.Model):
     self.decoder = Decoder(num_layers=num_layers, d_model=d_model,
                            num_heads=num_heads, dff=dff,
                            vocab_size=target_vocab_size, seq_length=seq_length,
-                           dropout_rate=dropout_rate)
+                           dropout_rate=dropout_rate, DataTypeForTensors=DataTypeForTensors)
 
     self.final_layer = tf.keras.layers.Dense(target_vocab_size)
 
@@ -672,7 +673,8 @@ if __name__ == "__main__":
       input_vocab_size=input_vocab_size,       #tokenizers.pt.get_vocab_size().numpy(),
       target_vocab_size=target_vocab_size,     #tokenizers.en.get_vocab_size().numpy(),
       featureList=None,
-      dropout_rate=dropout_rate)
+      dropout_rate=dropout_rate,
+      DataTypeForTensors="float32")
 
 
   # Generate random sequences for input and target

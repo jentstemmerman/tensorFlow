@@ -6,11 +6,11 @@ from mpld3 import save_html
 import sys
 import threading
 
-def MakeSimularityPlot(SimularityFile, block=False, Save=True):
+def MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensors='float32'):
      
     base_name = os.path.splitext(os.path.basename(SimularityFile))[0]
     print("SimularityFile: ", base_name)
-    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(SimularityFile, data_type="float32", numbers_per_line=1, sequence_length=None)
+    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(SimularityFile, data_type=DataTypeForTensors, numbers_per_line=1, sequence_length=None)
     recordCount = outputBinaryFileHandler.get_recordCount()
     
     

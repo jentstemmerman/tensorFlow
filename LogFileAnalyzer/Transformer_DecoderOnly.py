@@ -92,6 +92,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     """
     
     x = self.embedding(x)
+    x = tf.cast(x, self.tf_dtype)
     # This factor sets the relative scale of the embedding and positonal_encoding.
     x *= tf.math.sqrt(tf.cast(self.d_model, self.tf_dtype))
     
@@ -446,7 +447,15 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
     try:
       # Drop the keras mask, so it doesn't scale the losses/metrics.
       # b/250038731
-      del logits._keras_mask
+      for logitss in logits:
+
+        if hasattr(logitss, '_keras_mask'): 
+          # Remove the mask from the logits.
+          # This is needed to avoid issues with the loss function.
+          # See
+          del logitss._keras_mask
+        else:
+          print("No _keras_mask found in logits")
     except AttributeError:
       pass
 

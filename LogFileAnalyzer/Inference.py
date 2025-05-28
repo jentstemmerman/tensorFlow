@@ -77,7 +77,7 @@ def AddProbabilitiesPrintfFileParallel(model,
     with tf.device('/CPU:0'):
             
         maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
-        onlyLogLogitsVector                  = True
+        onlyLogLogitsVector                  = False
         
         numberOfFeatures = len(id_from_tokenList)
         queueTimeout                         = 50000

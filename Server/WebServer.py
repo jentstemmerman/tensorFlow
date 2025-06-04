@@ -233,7 +233,8 @@ def analyze_file(file_name):
         
         inferenceDataSetFile = Constants.GetInferenceDataSetPath(file_path, userId, temperature)
         
-        CommandAnalyzeFile.AnalyzeFile(modelDirectory, 
+        CommandAnalyzeFile.AnalyzeFile(modelDirectory,
+                                       userId, 
                                        file_path, 
                                        inferenceDataSetFile, 
                                        LogFileAnalyzedPath, 

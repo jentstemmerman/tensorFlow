@@ -136,6 +136,9 @@ def CalculateSignatureFromHiddenVectors(batchedvectors, receivedAttention):
 
     return pooledVector
 
+
+
+
 #  startVectorOffset 0 means the first line in the logfile
 def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberOfLines, DataTypeForTensors):
     
@@ -156,7 +159,7 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
     assert modelHash1 == modelHash2, f"Model hashes from first and last logits file do not match. {modelHash1} != {modelHash2}"
     assert modelHash1 == modelHash3, f"Model hashes from first and all logits file do not match. {modelHash1} != {modelHash3}"
     assert modelHash1 == modelHash4, f"Model hashes from first and predicted logits file do not match. {modelHash1} != {modelHash4}"
-    assert modelHash1 == modelHash5, f"Model hashes from first and Received Attention file do not match. {modelHash1} != {modelHash5s}"
+    assert modelHash1 == modelHash5, f"Model hashes from first and Received Attention file do not match. {modelHash1} != {modelHash5}"
     
     sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
     
@@ -241,6 +244,59 @@ def CalculateSimularityBatched(signature, tensor, receivedAttention):
     similarity = tf.keras.losses.cosine_similarity(signature, pooledVector)
     
     return similarity
+
+def CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, seq_length, one_step_model, itemList):
+    datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1, numberOfShards=1)
+    datasetStreamer = datasetStreamReader.GetStreamingDataset()
+    inputTensorList = []
+    nexttokenIdsList = []
+    
+    batch = datasetStreamer.take(1)
+    for (ids, nextIds) in batch:
+        inputTensor = ids
+        nexttokenIds = nextIds
+        inputTensorList.append(inputTensor)
+        nexttokenIdsList.append(nexttokenIds)
+        
+    inputTensor = tf.stack(inputTensorList, axis=0)
+    nexttokenIds = tf.stack(nexttokenIdsList, axis=0)
+    
+    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, window_size = seq_length, DataTypeForTensors=DataTypeForTensors)
+    numberOfVectors = pooledLogitsVectorData['hidden_state_prediction'].shape[1]
+    return numberOfVectors
+
+
+def GetSignaturesFromDirectory(userId, itemList, logFile, tokenList=None, PrintfList=None):
+    import TokenParser
+    
+    tokenList, PrintfList, numberOfLines = TokenParser.getLinesAndTokens(itemList, logFile, tokenList=None, PrintfList=None)
+    signatureDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
+    signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
+
+    signature_file = signatureIterator.get_first_file()
+    numberOfSignatureFiles = 0
+    
+    numberOfPooledVectorsList = []
+    signatureNames = []
+    signatureTensors = []
+    signatureFiles = []
+    
+    while (signature_file is not None):
+        numberOfSignatureFiles += 1
+        
+        signature_name = os.path.splitext(os.path.basename(signature_file))[0]
+        
+        numberOfPooledVectors, _, signature_tensor, modelHashFromSignature, _, _, _, _, _ = SignatureMatching.read_signature_from_file(signature_file)
+        
+        signatureNames.append(signature_name)
+        signatureFiles.append(signature_file)
+        numberOfPooledVectorsList.append(numberOfPooledVectors)
+        signatureTensors.append(signature_tensor)
+        
+        signature_file = signatureIterator.get_next_file()
+        
+    return numberOfSignatureFiles, numberOfPooledVectorsList, signatureNames, signatureTensors, signatureFiles
+    
 
 # limitation: the output of this file starts at linenumber 0 + max signature length - 1, so a very large signature length will cause a lot of empty lines at the start of the file
 #tf.function

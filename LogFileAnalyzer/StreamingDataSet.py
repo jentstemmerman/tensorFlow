@@ -63,21 +63,22 @@ class DatasetStreamWriter:
         def process_batch(batch_tokens, batch_indices):
             # Process each column in the batch at once.
             transformed_columns_batch = []
-            for col_index, transform_fn in enumerate(self.id_from_tokenList):
+            for col_index, id_from_token in enumerate(self.id_from_tokenList):
                 # Build a list for the current column from every line in the batch.
                 col_batch = [tokens[col_index] for tokens in batch_tokens]
-                if transform_fn is not None:
+                
+                if id_from_token is not None:
                     # Assume the transform function supports batch processing.
-                    transformed_tensor = transform_fn(col_batch)
+                    transformed_tensor = id_from_token(col_batch)
                 else:
-                    transformed_tensor = tf.convert_to_tensor(col_batch,
-                                                            dtype=self.DataTypeForTensors)
+                    transformed_tensor = tf.convert_to_tensor(col_batch, dtype=self.DataTypeForTensors)
+                    
                 # Convert the batch result to a NumPy array.
                 transformed_columns_batch.append(transformed_tensor.numpy())
 
-            # Now, for each line in the batch, create and write the example.
+            # Now, for each line in the batch, create and write 
             for i, lineIndex in enumerate(batch_indices):
-                # For the current example, extract the corresponding row from each column.
+                # extract the corresponding row from each column.
                 row_features = [np.atleast_1d(col[i]) for col in transformed_columns_batch]
                 concatenated = np.concatenate(row_features).flatten()
                 feature = {

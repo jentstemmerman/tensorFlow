@@ -78,6 +78,7 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
     return mean_loss.numpy()
 
 def AnalyzePrintfFile(model, 
+                      userId,
                       inputFile, 
                       inferenceDataSetFile, 
                       LogFileAnalyzedPath, 
@@ -99,6 +100,7 @@ def AnalyzePrintfFile(model,
     LogfileAnalyzed = LogFileAnalyzedPath
     
     Inference.AddProbabilitiesPrintfFileParallel(model=model, 
+                                                 userId=userId,
                                                  numberOfThreads=numberOfThreads, 
                                                  Workers=Workers, 
                                                  itemList=itemList, 
@@ -173,6 +175,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         inferenceDataSetFilePath = os.path.join(outputDirectory, inferenceDataSetFile)
        
         Inference.AddProbabilitiesPrintfFileParallel(model=model, 
+                                                     userId=userId,
                                                      numberOfThreads=numberOfThreads, 
                                                      Workers=Workers, 
                                                      itemList=itemList, 
@@ -331,9 +334,6 @@ def GetHashFromModel(model):
     import hashlib
     model_hash = hashlib.md5(model.to_json().encode('utf-8')).hexdigest()
     return model_hash
-
-
-
 
 def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParameter, TrainingCheckpointDir, TrainingLogFile=None):
 

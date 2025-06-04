@@ -5,7 +5,7 @@ import worker
 import TokenParser
 import Dataset
 
-def AnalyzeFile(modelDirectory, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, FileNamesMachineReadablePooledVectors, FileNamesHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
+def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, FileNamesMachineReadablePooledVectors, FileNamesHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
      
     success = False
     physical_devices = tf.config.list_physical_devices("CPU")
@@ -27,6 +27,7 @@ def AnalyzeFile(modelDirectory, inputFile, inferenceDataSetFile, LogFileAnalyzed
         print("Could not start workers. END")
     else:
         Model.AnalyzePrintfFile(    model=model, 
+                                    userId=userId,
                                     inputFile=inputFile, 
                                     inferenceDataSetFile=inferenceDataSetFile,
                                     LogFileAnalyzedPath=LogFileAnalyzedPath,

@@ -9,7 +9,8 @@ import Model
 import os
 import StreamingDataSet
 import DefaultTrainingSettings
-    
+import SignatureMatching
+
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     
     numberOfParallelExecutions  = maxNumberOfParallelExecutions
@@ -60,6 +61,7 @@ def CreateDataSetFromVerificationFile(LogfileVerification, dataSetFile, itemList
 
 
 def AddProbabilitiesPrintfFileParallel(model, 
+                                       userId,
                                        numberOfThreads, 
                                        Workers, 
                                        itemList, 
@@ -138,7 +140,7 @@ def AddProbabilitiesPrintfFileParallel(model,
         
         numberOfParallelExecutions = maxNumberOfParallelExecutions
    
-             
+        numberOfSignatureFiles, numberOfPooledVectorsList, signatureNames, signatureTensors, signatureFiles = SignatureMatching.GetSignaturesFromDirectory(userId)     
         
         datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
                                                                    dataSetFile=inferenceDataSetFile, 

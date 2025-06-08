@@ -93,6 +93,7 @@ def AddProbabilitiesPrintfFileParallel(model,
         accumulatedPredictedTokenProbability = 0
         
         window_size = seq_length
+    
         
         LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
         
@@ -140,7 +141,6 @@ def AddProbabilitiesPrintfFileParallel(model,
         
         numberOfParallelExecutions = maxNumberOfParallelExecutions
    
-        numberOfSignatureFiles, numberOfPooledVectorsList, signatureNames, signatureTensors, signatureFiles = SignatureMatching.GetSignaturesFromDirectory(userId)     
         
         datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
                                                                    dataSetFile=inferenceDataSetFile, 
@@ -291,7 +291,7 @@ def AddProbabilitiesPrintfFileParallel(model,
                         _, pooledLogitsVectorData = one_step_model.generate_hidded_states(idList[threadId], window_size, DataTypeForTensors)
                         
                         attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
-                        allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all'].numpy()
+                        allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all_flattened'].numpy()
                         firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
                         lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy()
                         predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()  
@@ -312,7 +312,7 @@ def AddProbabilitiesPrintfFileParallel(model,
                         predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], window_size=window_size, DataTypeForTensors=DataTypeForTensors)
                         
                         attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
-                        allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all'].numpy()
+                        allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all_flattened'].numpy()
                         firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
                         lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy() 
                         predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()

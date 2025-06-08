@@ -15,17 +15,75 @@ import time
 import LogFileIterator
 import math
 import SimularityGraph
+import InferenceAssembly
+import Model
+
+
+def GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, startIndex):
+    result = InferenceAssembly.AssembleInputsThread(id_from_tokenList, 0, DataTypeForTensors, startIndex, 1, sharedTokenList, None, window_size)
+
+    inputTensor = result[1]   
+    nexttokenIds = result[2]     
+       
+    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, states=None)
+    numberOfVectors = pooledLogitsVectorData['vector'].shape[1]
+    return numberOfVectors 
  
- 
-def RecalculateSignature(signatureFilePath, userId, newModelDirectory):
+def CalculateSignatureDirectlyFromLogFile(model, logFileName, startLine, numberOfLines, itemList, id_from_tokenList, token_from_idList, temperature, window_size, DataTypeForTensors):
+    import Logfile
+    import ModelClass
+    import Dataset
     
-    signature_name = Constants.GetSignatureName(signatureFilePath)
+    AssertionError(numberOfLines <= window_size)  # this is not supported yet
     
-    numberOfPooledVectors, DataTypeForTensors, old_signature_tensor, modelHash, signature_text, logFileName, modelDirectory, startLine, endLine = read_signature_from_file(signatureFilePath)
-     
-    SaveSignatureFile(signature_name, logFileName, signature_text, startLine, endLine, userId, newModelDirectory)
-     
- 
+    signatureLogFile = Logfile.Logfile(logFileName, itemList, DataTypeForTensors) 
+    
+    #tokenList = signatureLogFile.GetTokens(startLine, startLine + numberOfLines - 1)
+    tokenList = signatureLogFile.GetTokens(startLine, startLine + window_size - 1)
+    
+    tokenIdList = []
+    
+    requiredNumberOfMaskTokens = window_size - numberOfLines    
+       
+    mask_token_filler_list = [Dataset.Universal_Mask_Token] * requiredNumberOfMaskTokens
+    
+    
+    for columnIndex, id_from_token in enumerate(id_from_tokenList):
+        columnList = [column[columnIndex] for column in tokenList]
+        #columnList.extend(mask_token_filler_list)  # add the mask tokens to the end of the column
+               
+        if (id_from_token is None):
+            idColumn = tf.convert_to_tensor(columnList, dtype=DataTypeForTensors)
+        else:
+            idColumn = id_from_token(columnList)
+        
+        tokenIdList.append(idColumn)
+        # After the loop, stack all idColumns along the last dimension to form the input tensor
+        tokenIdList = tf.stack(tokenIdList, axis=-1)
+
+
+    # Add a batch dimension of 1 to tokenIdList
+    tokenIdList = tf.expand_dims(tokenIdList, axis=0)
+    # Cast tokenIdList to float32
+    tokenIdList = tf.cast(tokenIdList, DataTypeForTensors)
+    
+    one_step_model = ModelClass.OneStep(model, Tokens_from_idList=None, temperature=temperature)
+    
+    _, pooledLogitsVectorData = one_step_model.generate_hidded_states(tokenIdList, window_size, DataTypeForTensors)
+
+
+    #receivedAttention = GetReceivedAttention(binaryFileHandlerReceivedAttention, startLine, numberOfLines, sequence_length, batch_size=1, DataTypeForTensors=DataTypeForTensors)
+    
+    hiddenVectors = pooledLogitsVectorData['hidden_state_all']
+
+    hiddenVectors = hiddenVectors[:, 0 : numberOfLines, :]
+    
+    signature = SignatureMatching.CalculateSignatureFromHiddenVectors(hiddenVectors, None)  # No received attention in this case
+
+    return signature
+
+
+
 def read_signature_from_file(filename, userId=0):
     with open(filename, 'r') as file:
         signature_data = json.load(file)    
@@ -41,20 +99,24 @@ def read_signature_from_file(filename, userId=0):
         
         numberOfPooledVectors = endLine - startLine + 1
         
-        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId)
-        
-        calculatedSignature, modelHash, _ = SignatureMatching.CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
- 
+        recalculate_signature = True
+        if recalculate_signature:
+            FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId)
+            
+            calculatedSignature, modelHash, _ = SignatureMatching.CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
+    
 
-        savedSignature_arr = np.array(savedSignature)
-        calculatedSignature_arr = np.array(calculatedSignature)
-        
-        if savedSignature_arr.shape != calculatedSignature_arr.shape:
-            print("Warning: signature shapes are different:", savedSignature_arr.shape, "vs", calculatedSignature_arr.shape)
-        elif not np.allclose(savedSignature_arr, calculatedSignature_arr, atol=1e-6):
-            print("Warning: signature2 is different from signature1")
+            savedSignature_arr = np.array(savedSignature)
+            calculatedSignature_arr = np.array(calculatedSignature)
+            
+            if savedSignature_arr.shape != calculatedSignature_arr.shape:
+                print("Warning: signature shapes are different:", savedSignature_arr.shape, "vs", calculatedSignature_arr.shape)
+            elif not np.allclose(savedSignature_arr, calculatedSignature_arr, atol=1e-6):
+                print("Warning: signature2 is different from signature1")
 
-        signature_tensor = tf.convert_to_tensor(calculatedSignature, dtype=DataTypeForTensors)
+            signature_tensor = tf.convert_to_tensor(calculatedSignature, dtype=DataTypeForTensors)
+        else:
+            signature_tensor = tf.convert_to_tensor(savedSignature, dtype=DataTypeForTensors)
  
         return numberOfPooledVectors, DataTypeForTensors, signature_tensor, modelHash, signature_text, logFileName, modelDirectory, startLine, endLine
 
@@ -96,8 +158,6 @@ def SaveSignatureFile(signature_name, logFileName, signature_text, startLine, en
     except Exception as e:
         print("Error saving signature:", e)
         return None
-        
-        
 
 
 # This function is used in the simularity file calculation
@@ -137,8 +197,6 @@ def CalculateSignatureFromHiddenVectors(batchedvectors, receivedAttention):
     return pooledVector
 
 
-
-
 #  startVectorOffset 0 means the first line in the logfile
 def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberOfLines, DataTypeForTensors):
     
@@ -163,7 +221,7 @@ def CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, numberO
     
     sequence_length = binaryFileHandlerFirstLogits.get_sequenceLength()
     
-    receivedAttention = GetReceivedAttention(binaryFileHandlerReceivedAttention, startLine, numberOfLines, sequence_length, batch_size=1, DataTypeForTensors=DataTypeForTensors)
+    receivedAttention = None # GetReceivedAttention(binaryFileHandlerReceivedAttention, startLine, numberOfLines, sequence_length, batch_size=1, DataTypeForTensors=DataTypeForTensors)
     
     hiddenVectors = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, startLine, numberOfLines, sequence_length, batch_size=1)
     
@@ -265,11 +323,53 @@ def CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, seq_leng
     numberOfVectors = pooledLogitsVectorData['hidden_state_prediction'].shape[1]
     return numberOfVectors
 
+def GetSignaturesFromDirectoryAndRecalculateDirectlyFromLogFile(model, userId, itemList, id_from_tokenList, token_from_idList, temperature, window_size):
+    signatureDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
+    signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
 
-def GetSignaturesFromDirectory(userId, itemList, logFile, tokenList=None, PrintfList=None):
+    signature_file = signatureIterator.get_first_file()
+    numberOfSignatureFiles = 0
+    
+    numberOfPooledVectorsList = []
+    signatureNames = []
+    signatureTensors = []
+    signatureFiles = []
+       
+    
+    while (signature_file is not None):
+        numberOfSignatureFiles += 1
+        
+        signature_name = os.path.splitext(os.path.basename(signature_file))[0]
+                
+        numberOfPooledVectors, DataTypeForTensors, signature_tensor, modelHash, signature_text, logFileName, modelDirectory, startLine, endLine = read_signature_from_file(signature_file, userId)
+        
+        logFileDirectory = Constants.GetUserSpecificBaseDirectory("LogType", userId)
+        
+        logFileName = os.path.join(logFileDirectory, logFileName)
+        # Check if the log file referenced by the signature exists
+        if not os.path.exists(logFileName):
+            print(f"Log file {logFileName} referenced in signature {signature_file} does not exist. Skipping.")
+            signature_file = signatureIterator.get_next_file()
+            continue
+        
+        numberOfLines = endLine - startLine + 1
+        
+        signature_tensor = CalculateSignatureDirectlyFromLogFile(model, logFileName, startLine, numberOfLines, itemList, id_from_tokenList, token_from_idList, temperature, window_size, DataTypeForTensors)
+        signature_tensor = tf.squeeze(signature_tensor, axis=0)  # remove the batch dimension from the tensor
+        signatureNames.append(signature_name)
+        signatureFiles.append(signature_file)
+        numberOfPooledVectorsList.append(numberOfPooledVectors)
+        signatureTensors.append(signature_tensor)
+        
+        signature_file = signatureIterator.get_next_file()
+        
+    return numberOfSignatureFiles, numberOfPooledVectorsList, signatureNames, signatureTensors, signatureFiles
+    
+
+def GetSignaturesFromDirectory(userId, itemList, tokenList=None, PrintfList=None):
     import TokenParser
     
-    tokenList, PrintfList, numberOfLines = TokenParser.getLinesAndTokens(itemList, logFile, tokenList=None, PrintfList=None)
+    
     signatureDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
     signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
 
@@ -285,7 +385,7 @@ def GetSignaturesFromDirectory(userId, itemList, logFile, tokenList=None, Printf
         numberOfSignatureFiles += 1
         
         signature_name = os.path.splitext(os.path.basename(signature_file))[0]
-        
+                
         numberOfPooledVectors, _, signature_tensor, modelHashFromSignature, _, _, _, _, _ = SignatureMatching.read_signature_from_file(signature_file)
         
         signatureNames.append(signature_name)
@@ -305,6 +405,7 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, Data
     if not os.path.exists(LogFileName):
         print(f"[CreateSimularityFilesOfLogFile] LogFileName {LogFileName} does not exist.")
         return False
+    
     
     # first, create list of signature files
     signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
@@ -428,7 +529,7 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, Data
                 signature_tensor = signatureTensors[signatureIndex]
                 signatureLength = numberOfPooledVectorsList[signatureIndex]
                 
-                batched_receivedAttention = GetReceivedAttention(binaryFileHandlerReceivedAttention, lineNumber, signatureLength, sequence_length, batch_size=numberOfSimularityCalculationsPerRead, DataTypeForTensors=DataTypeForTensors)
+                batched_receivedAttention = None # GetReceivedAttention(binaryFileHandlerReceivedAttention, lineNumber, signatureLength, sequence_length, batch_size=numberOfSimularityCalculationsPerRead, DataTypeForTensors=DataTypeForTensors)
                 
                 batched_hidden_state_tensor = GetHiddenVectorsOfLines(binaryFileHandlerAllLogits, binaryFileHandlerLastLogits, lineNumber, signatureLength, sequence_length, numberOfSimularityCalculationsPerRead)
                 

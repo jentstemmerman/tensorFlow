@@ -221,15 +221,15 @@ def analyze_file(file_name):
         FileNamesHumanReadablePooledVectors   = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId)
         
         # Clear directories
-        directories_to_clear = [
-            os.path.dirname(FileNamesMachineReadablePooledVectors["all"]),
-            os.path.dirname(FileNamesHumanReadablePooledVectors["all"])
-        ]
+        # directories_to_clear = [
+        #     os.path.dirname(FileNamesMachineReadablePooledVectors["all"]),
+        #     os.path.dirname(FileNamesHumanReadablePooledVectors["all"])
+        # ]
 
-        for directory in directories_to_clear:
-            if os.path.exists(directory):
-                shutil.rmtree(directory)
-                os.makedirs(directory)
+        # for directory in directories_to_clear:
+        #     if os.path.exists(directory):
+        #         shutil.rmtree(directory)
+        #         os.makedirs(directory)
         
         inferenceDataSetFile = Constants.GetInferenceDataSetPath(file_path, userId, temperature)
         

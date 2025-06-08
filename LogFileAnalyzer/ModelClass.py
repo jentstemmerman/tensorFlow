@@ -189,7 +189,8 @@ class OneStep(tf.keras.Model):
           print("inputTensor shape: ", inputTensor.shape)
           print("window_size: ", window_size)
           print("inputTensor: ", inputTensor)  
-          
+          return None, None
+        
         lastItemInWindow = window_size - 1
         
         hiddenStateOfFirstLineInWindow = tf.gather(hidden_state, indices = 0                   , axis=1)
@@ -224,12 +225,13 @@ class OneStep(tf.keras.Model):
         attention_received_first_query_normalized = tf.nn.softmax(attention_received_first_query_normalized_centered_with_temperature, axis=-1)  # [batch, seq_len]  
           
         # flatten this hidden state here for performance reasons. We will have first the slices in the sequence: for instance [200, 64, 12] will be [200*64, 12]
-        hidden_state = tf.reshape(hidden_state, [hidden_state.shape[0] * hidden_state.shape[1], hidden_state.shape[2]])
+        hidden_state_reshaped_for_file = tf.reshape(hidden_state, [hidden_state.shape[0] * hidden_state.shape[1], hidden_state.shape[2]])
         
         pooledLogitsData = {
                                 'hidden_state_prediction': hiddenStateOfPrediction,
                                 'hidden_state_first':      hiddenStateOfFirstLineInWindow,
                                 'hidden_state_last':       hiddenStateOfLastLineInWindow,
+                                'hidden_state_all_flattened': hidden_state_reshaped_for_file,
                                 'hidden_state_all':        hidden_state,
                                 'attention_received':      attention_received_first_query_normalized,
                            }

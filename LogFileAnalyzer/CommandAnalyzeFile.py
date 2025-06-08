@@ -24,7 +24,10 @@ def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFile
         
     numberOfSignatureFiles1, numberOfPooledVectorsList1, signatureNames1, signatureTensors1, signatureFiles1 = SignatureMatching.GetSignaturesFromDirectoryAndRecalculateDirectlyFromLogFile(model=model, userId=userId, itemList=itemList, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, window_size=TrainingsParameter["Model"]["seq_length"])
         
-    # numberOfSignatureFiles2, numberOfPooledVectorsList2, signatureNames2, signatureTensors2, signatureFiles2 = SignatureMatching.GetSignaturesFromDirectory(userId, itemList)       
+    numberOfSignatureFiles2, numberOfPooledVectorsList2, signatureNames2, signatureTensors2, signatureFiles2 = SignatureMatching.GetSignaturesFromDirectory(userId, itemList)       
+        
+  
+        
         
     Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
 

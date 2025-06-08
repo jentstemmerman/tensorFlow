@@ -50,8 +50,6 @@ class Signature:
                 if startLine is not None and endLine is not None:
                     for i in range(startLine, endLine + 1):
                         self.linesIndexList.append(i)
-            
-            self.logSnipped = logFile, linesIndexList
         else:
             self.logSnipped = None
         
@@ -86,8 +84,6 @@ class Signature:
             logFile = Logfile.Logfile(fileName=self.logFile, itemList=self.itemList, DataTypeForTensors=self.DataTypeForTensors)
             tokenListList = logFile.GetTokensFromLineIndexList(self.linesIndexList)
         else: 
-            logFile = Logfile.Logfile(fileName=self.logFile, itemList=self.itemList, DataTypeForTensors=self.DataTypeForTensors)
-            
             tokenListList = logFile.GetTokensFromLines(self.logSnipped)      
             
         Signature = self.CalculateSignatureFromTokenListList(tokenListList)
@@ -100,7 +96,7 @@ class Signature:
         assert isinstance(tokenListList, list), "tokenListList must be a list."
         assert len(tokenListList) > 0, "tokenListList must not be empty."
         
-        numberOfLines = len(self.tokenListList)
+        numberOfLines = len(tokenListList)
                 
         tokenIdList = []
         
@@ -140,7 +136,7 @@ class Signature:
 
         return signature
     
-    def CalculateSignatureFromHiddenVectors(batchedvectors, receivedAttention):
+    def CalculateSignatureFromHiddenVectors(self, batchedvectors, receivedAttention):
         usePooling = True
         useAveragePooling = True
         useMaxPooling = False

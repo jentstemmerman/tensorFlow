@@ -361,6 +361,23 @@ def GetSignaturesFromDirectoryAndRecalculateDirectlyFromLogFile(model, userId, i
         numberOfPooledVectorsList.append(numberOfPooledVectors)
         signatureTensors.append(signature_tensor)
         
+        import Signature
+        
+        signatureTest = Signature.Signature(
+                                                logSnipped=None, 
+                                                logFile=logFileName, 
+                                                linesIndexList=None, 
+                                                startLine=startLine,
+                                                endLine=endLine,
+                                                itemList=itemList, 
+                                                model = model,
+                                                id_from_tokenList = id_from_tokenList,
+                                                temperature=temperature,
+                                                seq_length=window_size,
+                                                DataTypeForTensors=DataTypeForTensors )
+        
+        signature_tensor2 = signatureTest.CalculateSignature()
+        
         signature_file = signatureIterator.get_next_file()
         
     return numberOfSignatureFiles, numberOfPooledVectorsList, signatureNames, signatureTensors, signatureFiles

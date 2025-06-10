@@ -50,7 +50,7 @@ def CalculateSignatureDirectlyFromLogFile(model, logFileName, startLine, numberO
     
     for columnIndex, id_from_token in enumerate(id_from_tokenList):
         columnList = [column[columnIndex] for column in tokenList]
-        #columnList.extend(mask_token_filler_list)  # add the mask tokens to the end of the column
+        columnList.extend(mask_token_filler_list)  # add the mask tokens to the end of the column
                
         if (id_from_token is None):
             idColumn = tf.convert_to_tensor(columnList, dtype=DataTypeForTensors)
@@ -67,9 +67,9 @@ def CalculateSignatureDirectlyFromLogFile(model, logFileName, startLine, numberO
     # Cast tokenIdList to float32
     tokenIdList = tf.cast(tokenIdList, DataTypeForTensors)
     
-    one_step_model = ModelClass.OneStep(model, seq_length=window_size, Tokens_from_idList=None, id_from_tokenList=None, temperature=temperature)
+    one_step_model = ModelClass.OneStep(model, DataTypeForTensors, seq_length=window_size, itemList=itemList, Tokens_from_idList=None, id_from_tokenList=None, temperature=temperature)
     
-    _, pooledLogitsVectorData = one_step_model.generate_hidded_states(tokenIdList, window_size, DataTypeForTensors)
+    _, pooledLogitsVectorData = one_step_model.generate_hidded_states(tokenIdList)
 
 
     #receivedAttention = GetReceivedAttention(binaryFileHandlerReceivedAttention, startLine, numberOfLines, sequence_length, batch_size=1, DataTypeForTensors=DataTypeForTensors)

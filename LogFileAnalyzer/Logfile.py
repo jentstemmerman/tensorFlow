@@ -3,7 +3,7 @@ import TokenParser
 
 class Logfile:
     
-    def __init__(self, fileName, itemList):
+    def __init__(self, fileName, itemList=None):
         self.fileName = fileName
         self.itemList = itemList
         
@@ -12,7 +12,16 @@ class Logfile:
         else:
             self.dataTreatment = DataTreatment.DataTreatment(len(itemList))
 
-        
+
+    def GetNumberOfLinesInFile(self):
+        numberOfLines = 0
+        with open(self.fileName, "r", errors='ignore') as reading_file:
+            for line in reading_file:
+                if line.strip():  # Check if the line is not empty
+                    numberOfLines += 1
+        return numberOfLines
+    
+    
     def GetTokensFromLines(self, lines): 
         tokenListList = []
         

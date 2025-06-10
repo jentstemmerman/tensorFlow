@@ -39,7 +39,13 @@ def GetItemsInLine(line, itemList, dataTreatment):
 
     return items
 
-
+def GetNumberOfLinesInFile(file):
+    numberOfLines = 0
+    with open(file, "r", errors='ignore') as reading_file:
+        for line in reading_file:
+            if line.strip():  # Check if the line is not empty
+                numberOfLines += 1
+    return numberOfLines
 
 
 def getLinesAndTokens(itemList, reading_file=None, tokenList=None, PrintfList=None): 

@@ -134,6 +134,9 @@ class DatasetStreamWriter:
         for writer in writers:
             writer.close()
 
+        return numberOfLinesInFile
+
+
 
 
 

@@ -115,6 +115,45 @@ with tf.device('/CPU:0'):
 
             return idInnerList, nextIdsInnerList, numberOfSamples
             
+            
+    def SimularityInputsThread(workerParameter,
+                             chardId,
+                             dataSetFile, 
+                             itemList, 
+                             DataTypeForTensors, 
+                             seq_length, 
+                             stride, 
+                             numberOfShards, 
+                             indexOfFirstPrediction, 
+                             numberOfParallelExecutions, 
+                             window_size):
+        
+        with tf.device('/CPU:0'):
+
+            assert (indexOfFirstPrediction >= window_size)
+            
+            global datasetStreamReader
+            global datasetStreamerInterator            
+            
+            numberOfSamples    = 0
+            allSamplesSkipped  = False
+            
+            if (datasetStreamerInterator is None):
+                datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=dataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=stride, numberOfShards=numberOfShards)
+                datasetStreamerInterator = datasetStreamReader.GetStreamingIterator(shard_index=chardId)  
+            else:
+                datasetStreamerInterator, allSamplesSkipped = SkipInferenceDatasetStreamer(seq_length, datasetStreamerInterator)
+            
+            if (not allSamplesSkipped):
+                datasetStreamerInterator, idInnerList, _, numberOfSamples = GetInferenceDataFromDatasetStreamer(numberOfParallelExecutions, datasetStreamerInterator)
+            else:
+                idInnerList = []
+
+                                
+            if (numberOfSamples < numberOfParallelExecutions ):
+                print(f"Thread {chardId} allSamplesSkipped {allSamplesSkipped} numberOfSamples: {numberOfSamples} < numberOfParallelExecutions: {numberOfParallelExecutions}")
+
+            return idInnerList, numberOfSamples
         
         
     def SkipInferenceDatasetStreamer(numberOfSamples, datasetStreamerInterator):

@@ -82,6 +82,8 @@ def AnalyzePrintfFile(model,
                       inputFile, 
                       inferenceDataSetFile, 
                       LogFileAnalyzedPath, 
+                      signatureInputDirectory,
+                      similarityOutputDirectory,
                       FileNamesMachineReadablePooledVectors, 
                       FileNamesHumanReadablePooledVectors, 
                       itemFile, 
@@ -98,6 +100,22 @@ def AnalyzePrintfFile(model,
     printfFileToProcess      = inputFile
 
     LogfileAnalyzed = LogFileAnalyzedPath
+    
+    Inference.InferSimilarities(  model=model, 
+                                userId=userId,
+                                numberOfThreads=numberOfThreads, 
+                                Workers=Workers, 
+                                itemList=itemList, 
+                                DataTypeForTensors=DataTypeForTensors, 
+                                LogfileVerification=printfFileToProcess,
+                                signatureInputDirectory=signatureInputDirectory,
+                                SimilarityOutputDirectory=similarityOutputDirectory,
+                                inferenceDataSetFile=inferenceDataSetFile, 
+                                id_from_tokenList=id_from_tokenList,
+                                token_from_idList=token_from_idList, 
+                                temperature=temperature, 
+                                seq_length=seq_length)
+    
     
     Inference.AddProbabilitiesPrintfFileParallel(model=model, 
                                                  userId=userId,
@@ -134,6 +152,8 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         FileNamesHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(printfFileToProcess, userId)
         FileNameAnalyzed = Constants.GetLogFileAnalyzedPath(printfFileToProcess, userId)
         inferenceDataSetFile = Constants.GetInferenceDataSetPath(printfFileToProcess, userId, temperature)
+        similarityOutputDirectory = os.path.dirname(Constants.GetMachineReadableSimularitiesFile(printfFileToProcess, userId, ""))
+        
         
         FileNamesMachineReadablePooledVectors["first"]     = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["first"])), os.path.basename(FileNamesMachineReadablePooledVectors["first"]))
         FileNamesMachineReadablePooledVectors["last"]      = os.path.join(os.path.basename(os.path.dirname(FileNamesMachineReadablePooledVectors["last"])), os.path.basename(FileNamesMachineReadablePooledVectors["last"]))
@@ -173,7 +193,25 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
                 
         LogFileAnalyzedPath = os.path.join(outputDirectory, FileNameAnalyzed)
         inferenceDataSetFilePath = os.path.join(outputDirectory, inferenceDataSetFile)
-       
+        
+        signatureInputDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
+        
+        Inference.InferSimilarities(  model=model, 
+                                        userId=userId,
+                                        numberOfThreads=numberOfThreads, 
+                                        Workers=Workers, 
+                                        itemList=itemList, 
+                                        DataTypeForTensors=DataTypeForTensors, 
+                                        LogfileVerification=printfFileToProcess,
+                                        signatureInputDirectory=signatureInputDirectory,
+                                        SimilarityOutputDirectory=similarityOutputDirectory,
+                                        inferenceDataSetFile=inferenceDataSetFilePath, 
+                                        id_from_tokenList=id_from_tokenList,
+                                        token_from_idList=token_from_idList, 
+                                        temperature=temperature, 
+                                        seq_length=seq_length)
+           
+           
         Inference.AddProbabilitiesPrintfFileParallel(model=model, 
                                                      userId=userId,
                                                      numberOfThreads=numberOfThreads, 

@@ -75,7 +75,7 @@ def GetMachineReadableSimularitiesFile(logFilename, userId, SignatureFile):
        
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
     
-    FileNameSimularitiesWithSignature = os.path.join(baseDirectory, logFilenameWithoughExtention, "Simularities_" + SignatureName + GetSignatureFilesExtention())
+    FileNameSimularitiesWithSignature = os.path.join(baseDirectory, logFilenameWithoughExtention, "Similarities", "Simularities_" + SignatureName + GetSignatureFilesExtention())
 
     return FileNameSimularitiesWithSignature
 
@@ -87,7 +87,7 @@ def GetHumanReadableSimularitiesFile(logFilename, userId, SignatureFile):
     
     baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzed", userId)
     
-    FileNameSimularitiesWithSignature = os.path.join(baseDirectory, logFilenameWithoughExtention, "Simularities_" + SignatureName + ".txt")
+    FileNameSimularitiesWithSignature = os.path.join(baseDirectory, logFilenameWithoughExtention, "Similarities" , "Simularities_" + SignatureName + ".txt")
 
     return FileNameSimularitiesWithSignature
 

@@ -219,6 +219,9 @@ def analyze_file(file_name):
         FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId)
         FileNamesHumanReadablePooledVectors   = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId)
         
+        signatureInputDirectory = signatureInputDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
+        similarityOutputDirectory = os.path.dirname(Constants.GetMachineReadableSimularitiesFile(file_name, userId, ""))
+        
         # Clear directories
         # directories_to_clear = [
         #     os.path.dirname(FileNamesMachineReadablePooledVectors["all"]),
@@ -237,6 +240,8 @@ def analyze_file(file_name):
                                        file_path, 
                                        inferenceDataSetFile, 
                                        LogFileAnalyzedPath, 
+                                       signatureInputDirectory,
+                                       similarityOutputDirectory,
                                        FileNamesMachineReadablePooledVectors, 
                                        FileNamesHumanReadablePooledVectors, 
                                        OriginalTokenFileDirectory, 

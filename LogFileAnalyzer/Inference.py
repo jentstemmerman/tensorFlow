@@ -12,6 +12,7 @@ import DefaultTrainingSettings
 import SignatureMatching
 import Signature
 import Logfile
+import SignatureCollection
 
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     
@@ -61,7 +62,395 @@ def CreateDataSetFromVerificationFile(LogfileVerification, dataSetFile, itemList
         
     print(f"Dataset from file  {os.path.basename(LogfileVerification)} saved. to {dataSetFile}\n")
 
+def InferSimilarities(  model, 
+                        userId,
+                        numberOfThreads, 
+                        Workers, 
+                        itemList, 
+                        DataTypeForTensors, 
+                        LogfileVerification,
+                        signatureInputDirectory,
+                        SimilarityOutputDirectory,
+                        inferenceDataSetFile, 
+                        id_from_tokenList,
+                        token_from_idList, 
+                        temperature, 
+                        seq_length):
+          
+    with tf.device('/CPU:0'):
+            
+        maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
+        onlyLogLogitsVector                  = False
+        
+        numberOfFeatures = len(id_from_tokenList)
+        queueTimeout                         = 50000
+        numberOfIdenticals                   = 0
 
+        numberOfAnalyzedLines                = 0
+        
+        LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
+        
+        from pathlib import Path
+
+        SimilarityOutputDirectory = Path(SimilarityOutputDirectory)
+        SimilarityOutputDirectory.parent.mkdir(parents=True, exist_ok=True)
+                    
+        one_step_model = ModelClass.OneStep(model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=temperature)
+       
+        LogfileVerificationTemp = os.path.splitext(LogfileVerification)[0] + ".temp"
+        
+        logFile = Logfile.Logfile(LogfileVerification, itemList)
+        
+        numberOfLines = logFile.GetNumberOfLinesInFile()
+        
+        logFile = None
+        
+        remainingNumberOfLines  = numberOfLines - (seq_length + 1)
+        
+        numberOfParallelExecutions = maxNumberOfParallelExecutions
+   
+        signatureCollection = SignatureCollection.SignatureCollection(signatureInputDirectory)
+
+        signatureList = signatureCollection.get_signatures()
+        
+        for signature in signatureList:
+            signature.CalculateSignature(one_step_model)
+   
+        
+        datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
+                                                                   dataSetFile=inferenceDataSetFile, 
+                                                                   itemList=itemList, 
+                                                                   id_from_tokenList=id_from_tokenList, 
+                                                                   DataTypeForTensors=DataTypeForTensors, 
+                                                                   numberOfShards=numberOfThreads,
+                                                                   chardGranularity=numberOfParallelExecutions,
+                                                                   windowSize=seq_length)
+        
+        print("Start writing streaming dataset... This may take a long time")
+        datasetStreamWriter.WriteStreamingDataset()
+        print("Done writing streaming dataset")
+        
+        datasetStreamWriter = None
+        
+        indexOfFirstPrediction = seq_length
+                
+        
+        analyzeStartTime   = time.time()
+       
+        idList          = []
+              
+        print(f"Start creating input data numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
+        
+        numberOfExecutionsInProgress         = [0 for _ in range(numberOfThreads)]
+        
+        indexOfFirstPredictionTemp = indexOfFirstPrediction
+        
+        for threadId in range(0,numberOfThreads):
+            inputQueue  = Workers[threadId]["inputQueue"]
+            print("Before inputQueue.put AssembleInputsThread ", threadId)
+            
+            inputQueue.put((InferenceAssembly.SimularityInputsThread, (threadId,
+                                                                     inferenceDataSetFile, 
+                                                                     itemList, 
+                                                                     DataTypeForTensors, 
+                                                                     seq_length, 
+                                                                     1, 
+                                                                     numberOfThreads, 
+                                                                     indexOfFirstPredictionTemp, 
+                                                                     numberOfParallelExecutions, 
+                                                                     seq_length,)))
+
+            indexOfFirstPredictionTemp += numberOfParallelExecutions
+
+
+        print(f"Start retrieving input data numberOfThreads: {numberOfThreads}") 
+        
+        indexOfFirstPredictionTemp = indexOfFirstPrediction
+        
+        for threadId in range(0,numberOfThreads):
+            outputQueue = Workers[threadId]["outputQueue"]
+            idInnerList, numberOfSamples = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+            numberOfExecutionsInProgress[threadId] = numberOfSamples
+            idList.append(idInnerList)
+            indexOfFirstPrediction += numberOfSamples
+                         
+        print("Start while loop")
+          
+        ########################################################## Main loop starts here ##################################################	    
+            
+        while (True):
+            cycleStartTime = time.time()
+                            
+            if (numberOfParallelExecutions == 0):
+                break
+            
+            remainingNumberOfLines = numberOfLines - indexOfFirstPrediction
+
+            numberOfAnalyzedLinesThisCycle   = 0
+            nextPredictionsList              = []
+            probabilityOfPredictionsList     = []
+            probabilityOfActualsList         = []
+            crossEntropyOfActualsList        = []
+            allLogitsVectorDataList          = []
+            attention_receivedVectorDataList = []
+            lastLogitsVectorDataList         = []
+            firstLogitsVectorDataList        = []
+            predictedLogitsVectorsDataList   = []
+            
+            # Assemble inputs for the next cycle
+
+            indexOfFirstPredictionTemp = indexOfFirstPrediction
+
+            for threadId in range(0,numberOfThreads):
+                
+                inputQueue  = Workers[threadId]["inputQueue"]
+                
+               
+                inputQueue.put((InferenceAssembly.SimularityInputsThread, (threadId,
+                                                                            inferenceDataSetFile, 
+                                                                            itemList, 
+                                                                            DataTypeForTensors, 
+                                                                            seq_length, 
+                                                                            1, 
+                                                                            numberOfThreads, 
+                                                                            indexOfFirstPredictionTemp, 
+                                                                            numberOfParallelExecutions, 
+                                                                            seq_length,)))
+
+
+                indexOfFirstPredictionTemp += numberOfParallelExecutions
+        
+            # Generate inference
+            for threadId in range(0, numberOfThreads):
+
+                if (numberOfExecutionsInProgress[threadId] == 0):
+
+                    allLogitsVectorDataList.append([])
+                    attention_receivedVectorDataList.append([])
+
+                else:
+
+                    if (onlyLogLogitsVector):
+                        #generate_simularity_lists(self, signature_list, inputTensor, window_size, DataTypeForTensors ):
+                        _, pooledLogitsVectorData = one_step_model.generate_simularity_lists(idList[threadId], seq_length, DataTypeForTensors)
+                        
+                        attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
+                        allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all_flattened'].numpy()
+                        firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
+                        lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy()
+                        predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()  
+                        
+                        attention_receivedVectorDataList.append(attention_receivedList)
+                        allLogitsVectorDataList.append(allLogitsVectorsList)
+                        firstLogitsVectorDataList.append(firstLogitsVectorsList)
+                        lastLogitsVectorDataList.append(lastLogitsVectorsList)
+                        predictedLogitsVectorsDataList.append(predictedLogitsVectorsList)
+                        
+                        
+                        nextPredictionsList.append([])
+                        probabilityOfPredictionsList.append([])
+                        probabilityOfActualsList.append([])
+                        crossEntropyOfActualsList.append([])
+                        
+                    else:
+                        predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], window_size=seq_length, DataTypeForTensors=DataTypeForTensors)
+                        
+                        attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
+                        allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all_flattened'].numpy()
+                        firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
+                        lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy() 
+                        predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()
+                        
+                        attention_receivedVectorDataList.append(attention_receivedList)
+                        allLogitsVectorDataList.append(allLogitsVectorsList)
+                        firstLogitsVectorDataList.append(firstLogitsVectorsList)
+                        lastLogitsVectorDataList.append(lastLogitsVectorsList)
+                        predictedLogitsVectorsDataList.append(predictedLogitsVectorsList)
+                        
+                        # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
+                        nextPredictionsList.append(predictions)
+
+                        # probabilityPredictionsList is a tensor of shape (numberOfParallelExecutions, number of features)
+                        probabilityOfPredictionsList.append(probabilityOfPredictions)
+
+                        # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                        probabilityOfActualsList.append(probabilityOfActuals)
+
+                        # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
+                        crossEntropyOfActualsList.append(crossEntropyOfActuals)
+
+
+            # Start output generation
+            for threadId in range(0, numberOfThreads):
+                inputQueue  = Workers[threadId]["inputQueue"]
+                
+                if (onlyLogLogitsVector):
+                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
+                                                                            numberOfExecutionsInProgress[threadId], 
+                                                                            None, 
+                                                                            None, 
+                                                                            None, 
+                                                                            None, 
+                                                                            None, 
+                                                                            None, 
+                                                                            None,
+                                                                            None,
+                                                                            None,
+                                                                            seq_length,
+                                                                            numberOfAnalyzedLines,
+                                                                            onlyLogLogitsVector)))
+                else:
+                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
+                                                    numberOfExecutionsInProgress[threadId], 
+                                                    nextPredictionsList[threadId], 
+                                                    nextIdList[threadId], 
+                                                    printfList[threadId], 
+                                                    probabilityOfActualsList[threadId], 
+                                                    crossEntropyOfActualsList[threadId], 
+                                                    probabilityOfPredictionsList[threadId], 
+                                                    allLogitsVectorDataList[threadId],
+                                                    attention_receivedVectorDataList[threadId],
+                                                    lastLogitsVectorDataList[threadId], 
+                                                    seq_length,
+                                                    numberOfAnalyzedLines,
+                                                    onlyLogLogitsVector)))
+            
+            idList          = []
+            
+            totalNumberOfExecutionsWereInProgress = 0
+            
+            for executionInProgress in numberOfExecutionsInProgress:
+                totalNumberOfExecutionsWereInProgress += executionInProgress
+            
+            numberOfExecutionsInProgress         = [0 for _ in range(numberOfThreads)]
+            
+            # Get inputs for the next inference cycles
+    
+            indexOfFirstPredictionTemp = indexOfFirstPrediction
+            
+            for threadId in range(0,numberOfThreads):
+                outputQueue = Workers[threadId]["outputQueue"]
+
+                idInnerList, numberOfSamples = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
+                
+                numberOfExecutionsInProgress[threadId] = numberOfSamples
+                            
+                idList.append(idInnerList)
+
+                indexOfFirstPredictionTemp += numberOfSamples
+
+            # Get outputs to write to file
+            for threadId in range(0, numberOfThreads):
+
+                outputQueue = Workers[threadId]["outputQueue"]
+                HumanReadableTextOutput, pooledHumanReadableLogitsLastVectorlinesToWrite, pooledHumanReadableLogitsAllVectorlinesToWrite, attention_receivedVectorlinesToWrite, all_attention_receivedVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
+                
+                if (len(firstLogitsVectorDataList) > 0):   
+                    try:    
+                        for lineToWrite in firstLogitsVectorDataList[threadId]:
+                            binaryFileHandlerFirstLogits.append(lineToWrite)   
+                    except Exception as e:
+                        print("Error in writing to binary file: ", e)
+                    
+                    try:
+                        for index, lineToWrite in enumerate(lastLogitsVectorDataList[threadId]):
+                            binaryFileHandlerLastLogits.append(lineToWrite)   
+                    except Exception as e:
+                        print("Error in writing to binary file: ", e)
+                    
+                    try:    
+                        for lineToWrite in predictedLogitsVectorsDataList[threadId]:
+                            binaryFileHandlerPredictedLogits.append(lineToWrite)   
+                    except Exception as e:
+                        print("Error in writing to binary file: ", e)
+                    
+                    try:
+                        for _, lineToWrite in enumerate(allLogitsVectorDataList[threadId]):   # this list is a flattened list of allLogitsVectorDataList. Each element is a timeslice of the sequence. Then the next seqenence and so on.
+                            binaryFileHandlerAllLogits.append(lineToWrite)   
+                    except Exception as e:
+                        print("Error in writing to binary file: ", e)
+                
+                    
+                    try:
+                        for _, lineToWrite in enumerate(attention_receivedVectorDataList[threadId]):   # this list is a flattened list of allLogitsVectorDataList. Each element is a timeslice of the sequence. Then the next seqenence and so on.
+                            binaryFileHandlerReceivedAttention.append(lineToWrite)   
+                    except Exception as e:
+                        print("Error in writing to binary file: ", e)
+
+                    
+
+                    numberOfAnalyzedLines                += (index + 1)
+                    numberOfAnalyzedLinesThisCycle       += (index + 1)
+                
+                if (HumanReadableTextOutput is not None):
+                    
+                    linesToWrite, numberOfIdenticalsInThisCycle, accumulatedActualProbability, accumulatedPredictedProbability,  = HumanReadableTextOutput
+                    for lineToWrite in linesToWrite:
+                        LogfileAnalyzed.write(''.join(lineToWrite))
+                        
+                    accumulatedNextTokenProbability      += accumulatedActualProbability
+                    accumulatedPredictedTokenProbability += accumulatedPredictedProbability
+                    numberOfIdenticals                   += numberOfIdenticalsInThisCycle
+
+
+                if (pooledHumanReadableLogitsLastVectorlinesToWrite is not None):
+                    for lineToWrite in pooledHumanReadableLogitsLastVectorlinesToWrite:
+                        FileHumanReadablePooledLastVectors.write(lineToWrite)
+                
+                if (pooledHumanReadableLogitsAllVectorlinesToWrite is not None):
+                    for lineToWrite in pooledHumanReadableLogitsAllVectorlinesToWrite:
+                        FileHumanReadablePooledAllVectors.write(lineToWrite)
+                
+                if (attention_receivedVectorlinesToWrite is not None):
+                    for lineToWrite in attention_receivedVectorlinesToWrite:
+                        FileHumanReadableReceivedAttention.write(lineToWrite)
+
+                if (all_attention_receivedVectorlinesToWrite is not None):
+                    for lineToWrite in all_attention_receivedVectorlinesToWrite:
+                        FileHumanReadableAllReceivedAttention.write(lineToWrite)
+            
+            
+            Endtime = time.time()
+            averageNextTokenProbabilities    = accumulatedNextTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
+            
+            averageNextTokenProbabilities    = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
+
+            averagePredictedTokenProbability = accumulatedPredictedTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
+            analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
+            remainingTimeInMinutes           = remainingNumberOfLines / (numberOfAnalyzedLines / (time.time() - analyzeStartTime)) / 60
+            
+                            
+            print("Annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) +
+                ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
+                "  Nr Of Ids: " + str(numberOfIdenticals) + 
+                ".".join("  Next token prob = {:2.3f}.".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +
+                    " Pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
+                "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
+                
+            
+            indexOfFirstPrediction  += totalNumberOfExecutionsWereInProgress
+            
+            if (totalNumberOfExecutionsWereInProgress == 0):
+                print("No more executions")
+                break
+
+        averageNextTokenProbabilities    = accumulatedNextTokenProbability      / numberOfAnalyzedLines
+        averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
+        IdenticalsToNumberOfLinesRatio   = numberOfIdenticals                   / numberOfAnalyzedLines
+           
+        averageNextTokenProbabilities = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
+        Result = "\nTotal number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) +                \
+                    " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) + ".\n Number Of Identicals: " +      \
+                    str(numberOfIdenticals) + ", ({:2.3f})".format(IdenticalsToNumberOfLinesRatio) +                                \
+                    ".\n".join("Average next token probability = {:2.3f}".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +                            \
+                    ".\n Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n"
+        
+        print(Result)
+        
+        LogfileToAnalyze.close()
+
+        
+        
 def AddProbabilitiesPrintfFileParallel(model, 
                                        userId,
                                        numberOfThreads, 
@@ -134,7 +523,7 @@ def AddProbabilitiesPrintfFileParallel(model,
         FileHumanReadableReceivedAttention.write("Model hash: " + modelHash + "\n")
         FileHumanReadableAllReceivedAttention.write("Model hash: " + modelHash + "\n")       
         
-        one_step_model = ModelClass.OneStep(model, seq_length, token_from_idList, id_from_tokenList, temperature=temperature)
+        one_step_model = ModelClass.OneStep(model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=temperature)
        
         LogfileVerificationTemp = os.path.splitext(LogfileVerification)[0] + ".temp"
         _ , origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, human_readable_output_file=LogfileVerificationTemp)
@@ -290,7 +679,7 @@ def AddProbabilitiesPrintfFileParallel(model,
                 else:
 
                     if (onlyLogLogitsVector):
-                        _, pooledLogitsVectorData = one_step_model.generate_hidded_states(idList[threadId], window_size, DataTypeForTensors)
+                        _, pooledLogitsVectorData = one_step_model.generate_hidded_states(idList[threadId])
                         
                         attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
                         allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all_flattened'].numpy()

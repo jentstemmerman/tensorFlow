@@ -16,47 +16,37 @@ class Signature:
                  logFile=None, 
                  linesIndexList=None, 
                  startLine=None,
-                 endLine=None,
-                 itemList=None, 
-                 model = None,
-                 id_from_tokenList = None,
-                 temperature=None,
-                 seq_length=None,
-                 DataTypeForTensors=None):
+                 endLine=None):
         
         assert name is not None, "Signature name must be provided."
         assert logSnipped is not None or logFile is not None, "Either logSnipped or logFile must be provided."
-        assert DataTypeForTensors is not None, "DataTypeForTensors must be provided."
 
-        
-        self.id_from_tokenList = id_from_tokenList
         self.name = name
-        self.model = model
-        self.seq_length = seq_length
-        self.temperature = temperature
-        self.startLine = startLine
-        self.endLine = endLine
         self.logFile = logFile
         self.linesIndexList = linesIndexList
-        self.DataTypeForTensors = DataTypeForTensors
         self.logSnipped = logSnipped
-        self.itemList = itemList
+        self.signature = None
         
         if logSnipped is not None:
             self.logSnipped = logSnipped
+            self.numberOfLines = len(logSnipped)
         elif logFile is not None:
-           
+            assert startLine is not None or endLine is not None or linesIndexList is not None
+            
             if linesIndexList is not None:
-                self.linesIndexList = linesIndexList                
+                self.linesIndexList = linesIndexList         
+                       
             else:
                 self.linesIndexList = []
                 if startLine is not None and endLine is not None:
                     for i in range(startLine, endLine + 1):
                         self.linesIndexList.append(i)
+                        
+            self.logSnipped = self.GetLogSnipped()
         else:
             self.logSnipped = None
         
-    def compare_with(self, other_signature):
+    def compare_with(self, other_signature, one_step_model):
         assert other_signature is not None, "other_signature must not be None."
         assert isinstance(other_signature, Signature), "other_signature must be an instance of Signature."
         
@@ -86,26 +76,26 @@ class Signature:
             return self.logSnipped
         
         if self.logFile is not None and self.linesIndexList is not None:
-            logFile = Logfile.Logfile(fileName=self.logFile, itemList=self.itemList, DataTypeForTensors=self.DataTypeForTensors)
+            logFile = Logfile.Logfile(fileName=self.logFile)
             logSnipped = logFile.GetTokensFromLineIndexList(self.linesIndexList)
             return logSnipped
         
         return None
 
-    def CalculateSignature(self):
+    def CalculateSignature(self, one_step_model):
+        if self.signature is None:
+            logFile = Logfile.Logfile(fileName=self.logFile, itemList=one_step_model.itemList)
+            if self.logSnipped is None:
+                tokenListList = logFile.GetTokensFromLineIndexList(self.linesIndexList)
+            else: 
+                tokenListList = logFile.GetTokensFromLines(self.logSnipped)      
+                
+            self.signature = self.CalculateSignatureFromTokenListList(tokenListList, one_step_model)
         
-        if self.logSnipped is None:
-            logFile = Logfile.Logfile(fileName=self.logFile, itemList=self.itemList, DataTypeForTensors=self.DataTypeForTensors)
-            tokenListList = logFile.GetTokensFromLineIndexList(self.linesIndexList)
-        else: 
-            tokenListList = logFile.GetTokensFromLines(self.logSnipped)      
-            
-        Signature = self.CalculateSignatureFromTokenListList(tokenListList)
-        
-        return Signature
+        return self.signature
         
                    
-    def CalculateSignatureFromTokenListList(self, tokenListList):
+    def CalculateSignatureFromTokenListList(self, tokenListList, one_step_model):
         assert tokenListList is not None, "tokenListList must not be None."
         assert isinstance(tokenListList, list), "tokenListList must be a list."
         assert len(tokenListList) > 0, "tokenListList must not be empty."
@@ -113,18 +103,20 @@ class Signature:
         numberOfLines = len(tokenListList)
                 
         tokenIdList = []
+        seq_length = one_step_model.seq_length
         
-        requiredNumberOfMaskTokens = self.seq_length - numberOfLines    
+        
+        requiredNumberOfMaskTokens = seq_length - numberOfLines    
         
         mask_token_filler_list = [Dataset.Universal_Mask_Token] * requiredNumberOfMaskTokens
         
         
-        for columnIndex, id_from_token in enumerate(self.id_from_tokenList):
+        for columnIndex, id_from_token in enumerate(one_step_model.id_from_tokenList):
             columnList = [column[columnIndex] for column in tokenListList]
             columnList.extend(mask_token_filler_list)  # add the mask tokens to the end of the column
                 
             if (id_from_token is None):
-                idColumn = tf.convert_to_tensor(columnList, dtype=self.DataTypeForTensors)
+                idColumn = tf.convert_to_tensor(columnList, dtype=one_step_model.DataTypeForTensors)
             else:
                 idColumn = id_from_token(columnList)
             
@@ -136,11 +128,9 @@ class Signature:
         # Add a batch dimension of 1 to tokenIdList
         tokenIdList = tf.expand_dims(tokenIdList, axis=0)
         # Cast tokenIdList to float32
-        tokenIdList = tf.cast(tokenIdList, self.DataTypeForTensors)
-        
-        one_step_model = ModelClass.OneStep(self.model, seq_length, Tokens_from_idList=None, id_from_tokenList=None, temperature=self.temperature)
-        
-        _, pooledLogitsVectorData = one_step_model.generate_hidded_states(tokenIdList, self.seq_length, self.DataTypeForTensors)
+        tokenIdList = tf.cast(tokenIdList, one_step_model.DataTypeForTensors)
+                
+        _, pooledLogitsVectorData = one_step_model.generate_hidded_states(tokenIdList)
 
         hiddenVectors = pooledLogitsVectorData['hidden_state_all']
 

@@ -6,7 +6,7 @@ import TokenParser
 import Dataset
 import SignatureMatching
 
-def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, FileNamesMachineReadablePooledVectors, FileNamesHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
+def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, signatureInputDirectory, similarityOutputDirectory, FileNamesMachineReadablePooledVectors, FileNamesHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
      
     success = False
     physical_devices = tf.config.list_physical_devices("CPU")
@@ -39,6 +39,8 @@ def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFile
                                     inputFile=inputFile, 
                                     inferenceDataSetFile=inferenceDataSetFile,
                                     LogFileAnalyzedPath=LogFileAnalyzedPath,
+                                    signatureInputDirectory=signatureInputDirectory,
+                                    similarityOutputDirectory=similarityOutputDirectory,
                                     FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
                                     FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors,
                                     itemFile=itemFile, 

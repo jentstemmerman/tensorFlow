@@ -6,7 +6,7 @@ import Dataset
         
 class OneStep(tf.keras.Model):
   
-  def __init__(self, model, seq_length, token_from_idList, id_from_tokenList, temperature=1.0, hidden_stateWeightTemperature=50.0):
+  def __init__(self, model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=1.0, hidden_stateWeightTemperature=50.0):
     super().__init__()
     self.temperature                   = temperature
     self.model                         = model
@@ -14,8 +14,12 @@ class OneStep(tf.keras.Model):
     self.id_from_tokenList             = id_from_tokenList
     self.hidden_stateWeightTemperature = hidden_stateWeightTemperature
     self.seq_length                    = seq_length  
-  
+    self.DataTypeForTensors            = DataTypeForTensors
+    self.itemList                      = itemList  # This is not used in this class, but it is used in the Signature class.
+    
+    
   def GetProbabilityFromLogits(self, softmaxLogits, id):
+    
     probability = softmaxLogits[id].numpy()
     return probability
   
@@ -40,7 +44,7 @@ class OneStep(tf.keras.Model):
         
       inputTensor = self.generate_inputTensor_from_tokenListList(tokenListList, DataTypeForTensors)
 
-      _, pooledLogitsData = self.generate_hidded_states(inputTensor, self.seq_length, DataTypeForTensors)       
+      _, pooledLogitsData = self.generate_hidded_states(inputTensor)       
       hiddenVectorSize = pooledLogitsData['hidden_state_prediction'].shape[1]
       
       return hiddenVectorSize
@@ -83,7 +87,86 @@ class OneStep(tf.keras.Model):
     
     
   #@tf.function
-  def generate_hidded_states(self, inputTensor, window_size, DataTypeForTensors ):
+  def generate_simularity_lists(self, signature_list, inputTensor):
+    with tf.device('/GPU:0'):
+      
+      try:
+        predicted_logits_list, hidden_state, attention_weights, attentionScoresList = self.model(inputs=(inputTensor), training=False)  
+      except Exception as e:
+        print("Error in generate_hidded_states: ", e)
+        print("inputTensor shape: ", inputTensor.shape)
+        print("seq_length: ", self.seq_length)
+        print("inputTensor: ", inputTensor)  
+        return None, None
+      
+      try:
+        lastItemInWindow = self.seq_length - 1
+        
+        hiddenStateOfFirstLineInWindow = tf.gather(hidden_state, indices = 0                   , axis=1)
+        hiddenStateOfPrediction        = tf.gather(hidden_state, indices = lastItemInWindow    , axis=1)
+        hiddenStateOfLastLineInWindow  = tf.gather(hidden_state, indices = lastItemInWindow - 1, axis=1)
+        
+        # attention_weights shape: [batch_size, num_heads, seq_len, seq_len]
+        # The rows (axis=2) are the queries.
+        # - Axis 2: query positions
+        # - Axis 3: key positions
+        # (matrix: (row,column) = (query, key))
+        # To compute attention received by each token (i.e., how much attention each token gets from all others), we sum over the row (axis=2)
+        # For each token, we can store the attention it received from all other tokens by storing the rows of the attention weights.
+        # 
+        # a column shows how important THIS token is to enrich the meaning of other tokens. These score are not reflected in the hidden state.
+        # a row shows how important OTHER tokens enrich the meaning of this token.  These scores are reflected in the hidden state and the resulting logits.
+        
+        
+        # Operation: Mean across all attention heads (axis=1).
+        attention_mean_heads = tf.reduce_mean(attention_weights, axis=1)
+        attention_received_first_query = attention_mean_heads[:, :, 0]  # this is the attention received by the first token in the sequence. How important was this token for the other tokens.
+          
+        # Since this is causal attention, the first token is attented by all tokens, the second token by all but the first one, and so on... 
+        # We need to correct for this bias. We can do this by dividing the attention scores by the number of tokens that attended to this token. 
+        contrib_counts = tf.range(hidden_state.shape[1], 0, -1, dtype=tf.float32)    
+          
+        attention_received_first_query_normalized = attention_received_first_query / contrib_counts  
+        attention_received_first_query_normalized_centered = attention_received_first_query_normalized - tf.reduce_max(attention_received_first_query_normalized, axis=-1, keepdims=True)
+
+        attention_received_first_query_normalized_centered_with_temperature = attention_received_first_query_normalized_centered * self.hidden_stateWeightTemperature 
+        
+        attention_received_first_query_normalized = tf.nn.softmax(attention_received_first_query_normalized_centered_with_temperature, axis=-1)  # [batch, seq_len]  
+          
+        # flatten this hidden state here for performance reasons. We will have first the slices in the sequence: for instance [200, 64, 12] will be [200*64, 12]
+        hidden_state_reshaped_for_file = tf.reshape(hidden_state, [hidden_state.shape[0] * hidden_state.shape[1], hidden_state.shape[2]])
+        
+        pooledLogitsData = {
+                                'hidden_state_prediction': hiddenStateOfPrediction,
+                                'hidden_state_first':      hiddenStateOfFirstLineInWindow,
+                                'hidden_state_last':       hiddenStateOfLastLineInWindow,
+                                'hidden_state_all_flattened': hidden_state_reshaped_for_file,
+                                'hidden_state_all':        hidden_state,
+                                'attention_received':      attention_received_first_query_normalized,
+                                'similarity_list':         similarity_list,
+                           }
+        
+       # for index, signature in enumerate(signature_list):
+          
+        
+        
+        
+        
+        
+      except Exception as e:
+        print("Error in generate_hidded_states: ", e)
+        print("inputTensor shape: ", inputTensor.shape)
+        print("seq_length: ", self.seq_length)
+        print("inputTensor: ", inputTensor)
+      
+      return predicted_logits_list, pooledLogitsData
+    
+    
+  #@tf.function
+  def generate_hidded_states(self, inputTensor):
+    
+    
+    
     with tf.device('/GPU:0'):
       try:
         
@@ -92,11 +175,11 @@ class OneStep(tf.keras.Model):
         except Exception as e:
           print("Error in generate_hidded_states: ", e)
           print("inputTensor shape: ", inputTensor.shape)
-          print("window_size: ", window_size)
+          print("seq_length: ", self.seq_length)
           print("inputTensor: ", inputTensor)  
           return None, None
         
-        lastItemInWindow = window_size - 1
+        lastItemInWindow = self.seq_length - 1
         
         hiddenStateOfFirstLineInWindow = tf.gather(hidden_state, indices = 0                   , axis=1)
         hiddenStateOfPrediction        = tf.gather(hidden_state, indices = lastItemInWindow    , axis=1)
@@ -145,7 +228,7 @@ class OneStep(tf.keras.Model):
       except Exception as e:
         print("Error in generate_hidded_states: ", e)
         print("inputTensor shape: ", inputTensor.shape)
-        print("window_size: ", window_size)
+        print("seq_length: ", self.seq_length)
         print("inputTensor: ", inputTensor)
       
       return predicted_logits_list, pooledLogitsData

@@ -10,7 +10,7 @@ def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFile
      
     success = False
     physical_devices = tf.config.list_physical_devices("CPU")
-    numberOfThreads = 7  # 1 for the main process
+    numberOfThreads = 2  # 1 for the main process
     print("Calling CreateWorkers numberOfThreads: ", numberOfThreads, "/ physical_devices: ", physical_devices)
 
     itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
@@ -22,9 +22,9 @@ def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFile
     modelSource = {"Source": "FromFile", "ModelDirectory": modelDirectory, "Network": TrainingsParameter["Model"]["Network"]}
     model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
         
-    numberOfSignatureFiles1, numberOfPooledVectorsList1, signatureNames1, signatureTensors1, signatureFiles1 = SignatureMatching.GetSignaturesFromDirectoryAndRecalculateDirectlyFromLogFile(model=model, userId=userId, itemList=itemList, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, window_size=TrainingsParameter["Model"]["seq_length"])
+#    numberOfSignatureFiles1, numberOfPooledVectorsList1, signatureNames1, signatureTensors1, signatureFiles1 = SignatureMatching.GetSignaturesFromDirectoryAndRecalculateDirectlyFromLogFile(model=model, userId=userId, itemList=itemList, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, window_size=TrainingsParameter["Model"]["seq_length"])
         
-    numberOfSignatureFiles2, numberOfPooledVectorsList2, signatureNames2, signatureTensors2, signatureFiles2 = SignatureMatching.GetSignaturesFromDirectory(userId, itemList)       
+#    numberOfSignatureFiles2, numberOfPooledVectorsList2, signatureNames2, signatureTensors2, signatureFiles2 = SignatureMatching.GetSignaturesFromDirectory(userId, itemList)       
         
   
         

@@ -67,7 +67,7 @@ def CalculateSignatureDirectlyFromLogFile(model, logFileName, startLine, numberO
     # Cast tokenIdList to float32
     tokenIdList = tf.cast(tokenIdList, DataTypeForTensors)
     
-    one_step_model = ModelClass.OneStep(model, Tokens_from_idList=None, temperature=temperature)
+    one_step_model = ModelClass.OneStep(model, seq_length=window_size, Tokens_from_idList=None, id_from_tokenList=None, temperature=temperature)
     
     _, pooledLogitsVectorData = one_step_model.generate_hidded_states(tokenIdList, window_size, DataTypeForTensors)
 
@@ -119,46 +119,6 @@ def read_signature_from_file(filename, userId=0):
             signature_tensor = tf.convert_to_tensor(savedSignature, dtype=DataTypeForTensors)
  
         return numberOfPooledVectors, DataTypeForTensors, signature_tensor, modelHash, signature_text, logFileName, modelDirectory, startLine, endLine
-
-def SaveSignatureFile(signature_name, logFileName, signature_text, startLine, endLine, userId, modelDirectory):
-    try:
-        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(logFileName, userId)
-        DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
-        modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
-
-        # the modelHash is taken from the header of the machineReadablePooledVectors file
-        signature, modelHash, hiddenVectors = SignatureMatching.CalculateSignature(FileNamesMachineReadablePooledVectors, startLine, endLine - startLine + 1, DataTypeForTensors)
-
-        # Pack all these values into a json and save that to the file
-        signature_data = {
-            "modelDirectory": modelDirectory,
-            "signature_name": signature_name,
-            "logFileName": logFileName,
-            "signature_text": signature_text,
-            "startLine": startLine,
-            "endLine": endLine,
-            "DataTypeForTensors": DataTypeForTensors,
-            "modelHash": modelHash,
-            "signature": signature.numpy().tolist(),
-            "hiddenVectors": [[float(f"{x:8.3f}") for x in row] for row in hiddenVectors.numpy()],
-        }
-
-        file_path = Constants.GetSignatureFilePath(signature_name, userId)
-
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-        with open(file_path, "w") as file:
-            json.dump(signature_data, file, indent=4, sort_keys=True)
-
-        print("Signature saved. modelHash: ", modelHash) 
-        return signature_name
-        
-
-    except Exception as e:
-        print("Error saving signature:", e)
-        return None
-
 
 # This function is used in the simularity file calculation
 #@tf.function
@@ -302,26 +262,6 @@ def CalculateSimularityBatched(signature, tensor, receivedAttention):
     similarity = tf.keras.losses.cosine_similarity(signature, pooledVector)
     
     return similarity
-
-def CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, seq_length, one_step_model, itemList):
-    datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1, numberOfShards=1)
-    datasetStreamer = datasetStreamReader.GetStreamingDataset()
-    inputTensorList = []
-    nexttokenIdsList = []
-    
-    batch = datasetStreamer.take(1)
-    for (ids, nextIds) in batch:
-        inputTensor = ids
-        nexttokenIds = nextIds
-        inputTensorList.append(inputTensor)
-        nexttokenIdsList.append(nexttokenIds)
-        
-    inputTensor = tf.stack(inputTensorList, axis=0)
-    nexttokenIds = tf.stack(nexttokenIdsList, axis=0)
-    
-    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, window_size = seq_length, DataTypeForTensors=DataTypeForTensors)
-    numberOfVectors = pooledLogitsVectorData['hidden_state_prediction'].shape[1]
-    return numberOfVectors
 
 def GetSignaturesFromDirectoryAndRecalculateDirectlyFromLogFile(model, userId, itemList, id_from_tokenList, token_from_idList, temperature, window_size):
     signatureDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)

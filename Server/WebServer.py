@@ -13,8 +13,7 @@ sys.path.append('../LogFileAnalyzer')
 import CommandAnalyzeFile # type: ignore
 import DefaultTrainingSettings # type: ignore
 import SignatureMatching # type: ignore
-import AnnotationManager # type: ignore
-import shutil
+import Signature # type: ignore
 
 WebServer = Flask(__name__)
 cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
@@ -373,34 +372,15 @@ def create_file():
 def upload_signature():
     print("/api/createSignatureFile")
 
-
     signature_name = request.form["signature_name"]
     logFileName = request.form["logFileName"]
-    signature_text = request.form["signature_text"]
-    startLine = int(request.form["startLine"])
-    endLine = int(request.form["endLine"])
+    selectedTextForSignature = json.loads(request.form["selectedTextForSignaturee"])
+    
     userId = request.form["userId"]
-    modelDirectory = request.form["modelDirectory"]
-
+    baseDirectory = Constants.GetUserSpecificBaseDirectory("LogType", userId)
     
-    print("uploadSignature: ",
-        "signature_name: ",
-        signature_name,
-        "userId: ",
-        userId,
-        "modelDirectory: ",
-        modelDirectory,
-        "logFileName: ",
-        logFileName,
-        "signature_text: ",
-        signature_text,
-        "startLine: ",
-        startLine,
-        "endLine: ",
-        endLine,
-    )
-    
-    signature_name = SignatureMatching.SaveSignatureFile(signature_name, logFileName, signature_text, startLine, endLine, userId, modelDirectory)
+    logFileName = os.path.join(baseDirectory, logFileName)
+    Signature.Signature.SaveSignatureFile(signature_name, logFileName, selectedTextForSignature, userId)
 
     if signature_name is not None:
         return jsonify(

@@ -192,34 +192,6 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
 
         printfFileToProcess = verificationFileIterator.get_next_file()
 
-def CalculateAverageProbabilityNextToken(OutputDirectoryVerification, temperature, DataTypeForTensors):
-
-    calculateAverage = 0
-
-    if (calculateAverage):
-        verificationFileIterator = TokenParser.FileIterator(OutputDirectoryVerification)
-        tokenLogfileToProcess    = verificationFileIterator.get_first_file()
-
-        if (tokenLogfileToProcess == None):
-            exit()
-    
-        TestFileNumpyList = np.loadtxt(tokenLogfileToProcess, delimiter=",", dtype=str)
-
-        one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
-        window_size = 8
-        Accumulator = 0
-        AccumulatorCount = 0
-        for i in range(TestFileNumpyList.shape[0] - (window_size + 1)):
-            window    = TestFileNumpyList[i:i + window_size - 1]
-            nextToken = TestFileNumpyList[i + window_size]
-            idsLogFile = id_from_tokenList(window) 
-            inputTensor = tf.convert_to_tensor(idsLogFile, dtype=DataTypeForTensors)
-            probability = one_step_model.GetTokenProbability(inputTensor, nextToken)
-            AccumulatorCount = AccumulatorCount + 1
-            Accumulator = Accumulator + probability
-
-    return Accumulator / AccumulatorCount
-
 def GetMaskValueList(id_from_tokenList):   # JENTS BUG
     maskValueList = []
 

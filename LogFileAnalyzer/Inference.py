@@ -10,6 +10,8 @@ import os
 import StreamingDataSet
 import DefaultTrainingSettings
 import SignatureMatching
+import Signature
+import Logfile
 
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     
@@ -132,7 +134,7 @@ def AddProbabilitiesPrintfFileParallel(model,
         FileHumanReadableReceivedAttention.write("Model hash: " + modelHash + "\n")
         FileHumanReadableAllReceivedAttention.write("Model hash: " + modelHash + "\n")       
         
-        one_step_model = ModelClass.OneStep(model, token_from_idList, temperature=temperature)
+        one_step_model = ModelClass.OneStep(model, seq_length, token_from_idList, id_from_tokenList, temperature=temperature)
        
         LogfileVerificationTemp = os.path.splitext(LogfileVerification)[0] + ".temp"
         _ , origPrintfList, numberOfLines = TokenParser.process_file_to_tokenFile(itemList, LogfileVerification, human_readable_output_file=LogfileVerificationTemp)
@@ -158,8 +160,8 @@ def AddProbabilitiesPrintfFileParallel(model,
         datasetStreamWriter = None
         
         indexOfFirstPrediction = window_size
-               
-        hiddenVectorSize = CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, window_size, one_step_model, itemList)
+                
+        hiddenVectorSize = one_step_model.CalculateHiddenVectorSize()
           
         binaryFileHandlerFirstLogits          = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["first"], sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)  
         binaryFileHandlerLastLogits           = BinaryFileHandler.BinaryFileHandler(FileNamesMachineReadablePooledVectors["last"],  sequence_length=window_size, data_type=DataTypeForTensors, numbers_per_line=hiddenVectorSize, modelHash=modelHash)        
@@ -525,26 +527,6 @@ def AddProbabilitiesPrintfFileParallel(model,
         
         LogfileToAnalyze.close()
         LogfileAnalyzed.close()   
-
-def CalculateHiddenVectorSize(DataTypeForTensors, inferenceDataSetFile, seq_length, one_step_model, itemList):
-    datasetStreamReader = StreamingDataSet.DatasetStreamReader(dataSetFile=inferenceDataSetFile, itemList=itemList, DataTypeForTensors=DataTypeForTensors, seq_length=seq_length, stride=1, numberOfShards=1)
-    datasetStreamer = datasetStreamReader.GetStreamingDataset()
-    inputTensorList = []
-    nexttokenIdsList = []
-    
-    batch = datasetStreamer.take(1)
-    for (ids, nextIds) in batch:
-        inputTensor = ids
-        nexttokenIds = nextIds
-        inputTensorList.append(inputTensor)
-        nexttokenIdsList.append(nexttokenIds)
-        
-    inputTensor = tf.stack(inputTensorList, axis=0)
-    nexttokenIds = tf.stack(nexttokenIdsList, axis=0)
-    
-    _, _, _, _, pooledLogitsVectorData = one_step_model.generate_steps_optimized(inputTensor, nexttokenIds, window_size = seq_length, DataTypeForTensors=DataTypeForTensors)
-    numberOfVectors = pooledLogitsVectorData['hidden_state_prediction'].shape[1]
-    return numberOfVectors
 
 def force_gpu_init():
 

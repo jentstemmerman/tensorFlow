@@ -2,10 +2,16 @@ import Logfile
 import tensorflow as tf
 import ModelClass
 import Dataset
+import Constants                    # type: ignore
+import DefaultTrainingSettings
+import os
+import json
+
 
 class Signature:
     
     def __init__(self, 
+                 name,
                  logSnipped=None, 
                  logFile=None, 
                  linesIndexList=None, 
@@ -18,16 +24,13 @@ class Signature:
                  seq_length=None,
                  DataTypeForTensors=None):
         
+        assert name is not None, "Signature name must be provided."
         assert logSnipped is not None or logFile is not None, "Either logSnipped or logFile must be provided."
-        assert linesIndexList is not None or (startLine is not None and endLine is not None), "Either linesIndexList or startLine and endLine must be provided."
-        assert itemList is not None, "itemList must be provided."
-        assert id_from_tokenList is not None, "id_from_tokenList must be provided."
-        assert temperature is not None, "temperature must be provided."
-        assert seq_length is not None, "seq_length must be provided."
         assert DataTypeForTensors is not None, "DataTypeForTensors must be provided."
-        assert model is not None, "model must be provided."
+
         
         self.id_from_tokenList = id_from_tokenList
+        self.name = name
         self.model = model
         self.seq_length = seq_length
         self.temperature = temperature
@@ -78,6 +81,17 @@ class Signature:
         return cosine_similarity
         
 
+    def GetLogSnipped(self):
+        if self.logSnipped is not None:
+            return self.logSnipped
+        
+        if self.logFile is not None and self.linesIndexList is not None:
+            logFile = Logfile.Logfile(fileName=self.logFile, itemList=self.itemList, DataTypeForTensors=self.DataTypeForTensors)
+            logSnipped = logFile.GetTokensFromLineIndexList(self.linesIndexList)
+            return logSnipped
+        
+        return None
+
     def CalculateSignature(self):
         
         if self.logSnipped is None:
@@ -124,7 +138,7 @@ class Signature:
         # Cast tokenIdList to float32
         tokenIdList = tf.cast(tokenIdList, self.DataTypeForTensors)
         
-        one_step_model = ModelClass.OneStep(self.model, Tokens_from_idList=None, temperature=self.temperature)
+        one_step_model = ModelClass.OneStep(self.model, seq_length, Tokens_from_idList=None, id_from_tokenList=None, temperature=self.temperature)
         
         _, pooledLogitsVectorData = one_step_model.generate_hidded_states(tokenIdList, self.seq_length, self.DataTypeForTensors)
 
@@ -169,3 +183,65 @@ class Signature:
             pooledVector = batchedvectors[:, -1, :]
 
         return pooledVector
+    
+    @staticmethod
+    def LoadSignatureFromFile(signatureFilename):
+        with open(signatureFilename, 'r') as file:
+            signature_data = json.load(file)    
+                        
+            signature_name = signature_data['signature_name'] ,
+            signature_text = signature_data['signature_text']
+            logFileName = signature_data['logFileName']
+
+            # Create the Signature instance
+            signature_instance = Signature(
+                name=signature_name,
+                logSnipped=signature_text,
+                logFile=logFileName,
+                linesIndexList=None,
+            )
+
+            return signature_instance
+    
+    @staticmethod
+    def SaveSignatureFile(signature_name, logFileName, selectedTextForSignature, userId):
+        try:
+
+            linesIndexList = []
+            
+            selectedTextForSignature = sorted( selectedTextForSignature, 
+                                               key=lambda x: x['selectedLineOffset']['startLine'] )
+            
+            for index, item in enumerate(selectedTextForSignature):
+                startLine = item['selectedLineOffset']['startLine']
+                endLine = item['selectedLineOffset']['endLine']
+                
+                for i in range(startLine, endLine + 1):
+                    linesIndexList.append(i)
+
+            logFile = Logfile.Logfile(fileName=logFileName, itemList=None)
+            
+            signature_text = logFile.GetLinesFromLineIndexList(linesIndexList=linesIndexList)
+            
+            signature_data = {
+                "signature_name": signature_name,
+                "logFileName": logFileName,
+                "signature_text": signature_text,
+            }
+
+            file_path = Constants.GetSignatureFilePath(signature_name, userId)
+
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+            with open(file_path, "w") as file:
+                json.dump(signature_data, file, indent=4, sort_keys=True)
+
+            print("Signature saved at ", file_path)
+             
+            return signature_name
+            
+
+        except Exception as e:
+            print("Error saving signature:", e)
+            return None

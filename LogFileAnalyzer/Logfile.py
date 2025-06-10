@@ -3,11 +3,15 @@ import TokenParser
 
 class Logfile:
     
-    def __init__(self, fileName, itemList, DataTypeForTensors):
+    def __init__(self, fileName, itemList):
         self.fileName = fileName
         self.itemList = itemList
-        self.DataTypeForTensors = DataTypeForTensors
-        self.dataTreatment = DataTreatment.DataTreatment(len(itemList))
+        
+        if itemList is None or len(itemList) == 0:
+            self.dataTreatment = None
+        else:
+            self.dataTreatment = DataTreatment.DataTreatment(len(itemList))
+
         
     def GetTokensFromLines(self, lines): 
         tokenListList = []
@@ -20,7 +24,8 @@ class Logfile:
 
         return tokenListList
 
-    def GetTokens(self, startLine=None, endLine=None):
+
+    def GetLines(self, startLine=None, endLine=None):
         with open(self.fileName, 'r', encoding='utf-8', errors='replace') as file:
             lines = []
             for i, line in enumerate(file):
@@ -32,9 +37,10 @@ class Logfile:
                     if i >= endLine:
                         break
         
-        return self.GetTokensFromLines(lines)
-    
-    def GetTokensFromLineIndexList(self, linesIndexList):
+        return lines
+
+
+    def GetLinesFromLineIndexList(self, linesIndexList):
         if not linesIndexList:
             return []
         
@@ -44,11 +50,29 @@ class Logfile:
         with open(self.fileName, 'r', encoding='utf-8', errors='replace') as file:
             lines = []
             for i, line in enumerate(file):
+                
                 if i > max_index:
                     break
-                if i >= min_index and i <= max_index and i in linesIndexList:
-                    lines.append(line)
+                
+                if i >= min_index and i <= max_index:
+                    if i in linesIndexList:
+                        lines.append(line)
+                    else:
+                        lines.append("")
+                        
                     
+        return lines
+
+
+    def GetTokens(self, startLine=None, endLine=None):
+
+        lines = self.GetLines(startLine, endLine)
+        return self.GetTokensFromLines(lines)
+    
+    
+    def GetTokensFromLineIndexList(self, linesIndexList):
+        
+        lines = self.GetLinesFromLineIndexList(linesIndexList)
         return self.GetTokensFromLines(lines)
                    
                     

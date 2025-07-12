@@ -80,9 +80,9 @@ def InferSimilarities(  model,
     with tf.device('/CPU:0'):
             
         maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
-        onlyLogLogitsVector                  = False
+        onlyLogLogitsVector                  = True
         
-        numberOfFeatures = len(id_from_tokenList)
+        numberOfFeatures                     = len(id_from_tokenList)
         queueTimeout                         = 50000
         numberOfIdenticals                   = 0
 
@@ -97,8 +97,7 @@ def InferSimilarities(  model,
                     
         one_step_model = ModelClass.OneStep(model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=temperature)
        
-        LogfileVerificationTemp = os.path.splitext(LogfileVerification)[0] + ".temp"
-        
+       
         logFile = Logfile.Logfile(LogfileVerification, itemList)
         
         numberOfLines = logFile.GetNumberOfLinesInFile()
@@ -110,13 +109,9 @@ def InferSimilarities(  model,
         numberOfParallelExecutions = maxNumberOfParallelExecutions
    
         signatureCollection = SignatureCollection.SignatureCollection(signatureInputDirectory)
-
-        signatureList = signatureCollection.get_signatures()
-        
-        for signature in signatureList:
-            signature.CalculateSignature(one_step_model)
-   
-        
+       
+        signatureList = signatureCollection.get_signatures_and_calculateVectors(one_step_model)
+           
         datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
                                                                    dataSetFile=inferenceDataSetFile, 
                                                                    itemList=itemList, 
@@ -231,8 +226,8 @@ def InferSimilarities(  model,
                 else:
 
                     if (onlyLogLogitsVector):
-                        #generate_simularity_lists(self, signature_list, inputTensor, window_size, DataTypeForTensors ):
-                        _, pooledLogitsVectorData = one_step_model.generate_simularity_lists(idList[threadId], seq_length, DataTypeForTensors)
+
+                        _, pooledLogitsVectorData = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
                         
                         attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
                         allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all_flattened'].numpy()

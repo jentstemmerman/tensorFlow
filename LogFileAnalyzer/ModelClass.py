@@ -87,7 +87,7 @@ class OneStep(tf.keras.Model):
     
     
   #@tf.function
-  def generate_simularity_lists(self, signature_list, inputTensor):
+  def generate_simularity_lists(self, inputTensor, signature_list):
     with tf.device('/GPU:0'):
       
       try:
@@ -100,6 +100,8 @@ class OneStep(tf.keras.Model):
         return None, None
       
       try:
+
+        
         lastItemInWindow = self.seq_length - 1
         
         hiddenStateOfFirstLineInWindow = tf.gather(hidden_state, indices = 0                   , axis=1)
@@ -132,6 +134,15 @@ class OneStep(tf.keras.Model):
         attention_received_first_query_normalized_centered_with_temperature = attention_received_first_query_normalized_centered * self.hidden_stateWeightTemperature 
         
         attention_received_first_query_normalized = tf.nn.softmax(attention_received_first_query_normalized_centered_with_temperature, axis=-1)  # [batch, seq_len]  
+          
+        similarity_list = []  
+
+        for signature in signature_list:
+          hidden_state_tensor = hidden_state[:,0:signature.numberOfLines, :]
+          attention_received_tensor = attention_received_first_query_normalized[:,0:signature.numberOfLines]
+          simularity = signature.CalculateSimularityBatched(hidden_state_tensor, attention_received_tensor)  
+          similarity_list.append(simularity)
+          
           
         # flatten this hidden state here for performance reasons. We will have first the slices in the sequence: for instance [200, 64, 12] will be [200*64, 12]
         hidden_state_reshaped_for_file = tf.reshape(hidden_state, [hidden_state.shape[0] * hidden_state.shape[1], hidden_state.shape[2]])

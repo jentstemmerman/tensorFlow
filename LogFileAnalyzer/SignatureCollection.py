@@ -30,6 +30,12 @@ class SignatureCollection:
 
     def get_signatures(self):
         return self.signatureList
+    
+    def get_signatures_and_calculateVectors(self, one_step_model):
+        for signature in self.signatureList:
+            signature.CalculateSignature(one_step_model)
+        
+        return self.signatureList
 
     def clear_signatures(self):
         self.signatureList.clear()

@@ -117,21 +117,21 @@ def AnalyzePrintfFile(model,
                                 seq_length=seq_length)
     
     
-    Inference.AddProbabilitiesPrintfFileParallel(model=model, 
-                                                 userId=userId,
-                                                 numberOfThreads=numberOfThreads, 
-                                                 Workers=Workers, 
-                                                 itemList=itemList, 
-                                                 DataTypeForTensors=DataTypeForTensors, 
-                                                 LogfileVerification=printfFileToProcess, 
-                                                 inferenceDataSetFile=inferenceDataSetFile, 
-                                                 FileNameAnalyzed=LogfileAnalyzed, 
-                                                 FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors,
-                                                 FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
-                                                 id_from_tokenList=id_from_tokenList, 
-                                                 token_from_idList=token_from_idList, 
-                                                 temperature=temperature, 
-                                                 seq_length=seq_length)
+    # Inference.AddProbabilitiesPrintfFileParallel(model=model, 
+    #                                              userId=userId,
+    #                                              numberOfThreads=numberOfThreads, 
+    #                                              Workers=Workers, 
+    #                                              itemList=itemList, 
+    #                                              DataTypeForTensors=DataTypeForTensors, 
+    #                                              LogfileVerification=printfFileToProcess, 
+    #                                              inferenceDataSetFile=inferenceDataSetFile, 
+    #                                              FileNameAnalyzed=LogfileAnalyzed, 
+    #                                              FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors,
+    #                                              FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
+    #                                              id_from_tokenList=id_from_tokenList, 
+    #                                              token_from_idList=token_from_idList, 
+    #                                              temperature=temperature, 
+    #                                              seq_length=seq_length)
     
     print("Done analyzing ", os.path.basename(printfFileToProcess), ".")
 
@@ -212,21 +212,21 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
                                         seq_length=seq_length)
            
            
-        Inference.AddProbabilitiesPrintfFileParallel(model=model, 
-                                                     userId=userId,
-                                                     numberOfThreads=numberOfThreads, 
-                                                     Workers=Workers, 
-                                                     itemList=itemList, 
-                                                     DataTypeForTensors=DataTypeForTensors, 
-                                                     LogfileVerification=printfFileToProcess, 
-                                                     inferenceDataSetFile=inferenceDataSetFilePath, 
-                                                     FileNameAnalyzed=LogFileAnalyzedPath, 
-                                                     FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors, 
-                                                     FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
-                                                     id_from_tokenList=id_from_tokenList, 
-                                                     token_from_idList=token_from_idList, 
-                                                     temperature=temperature, 
-                                                     seq_length=seq_length)
+        # Inference.AddProbabilitiesPrintfFileParallel(model=model, 
+        #                                              userId=userId,
+        #                                              numberOfThreads=numberOfThreads, 
+        #                                              Workers=Workers, 
+        #                                              itemList=itemList, 
+        #                                              DataTypeForTensors=DataTypeForTensors, 
+        #                                              LogfileVerification=printfFileToProcess, 
+        #                                              inferenceDataSetFile=inferenceDataSetFilePath, 
+        #                                              FileNameAnalyzed=LogFileAnalyzedPath, 
+        #                                              FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors, 
+        #                                              FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
+        #                                              id_from_tokenList=id_from_tokenList, 
+        #                                              token_from_idList=token_from_idList, 
+        #                                              temperature=temperature, 
+        #                                              seq_length=seq_length)
 
         printfFileToProcess = verificationFileIterator.get_next_file()
 

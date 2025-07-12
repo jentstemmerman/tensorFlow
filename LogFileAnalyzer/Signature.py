@@ -94,7 +94,7 @@ class Signature:
         
         return self.signature
         
-                   
+    # the resulting signature is a vector of shape (batch, hidden_vectors ( contatenated over the features))                
     def CalculateSignatureFromTokenListList(self, tokenListList, one_step_model):
         assert tokenListList is not None, "tokenListList must not be None."
         assert isinstance(tokenListList, list), "tokenListList must be a list."
@@ -138,12 +138,23 @@ class Signature:
         
         signature = self.CalculateSignatureFromHiddenVectors(hiddenVectors, None)  # No received attention in this case
 
+        assert signature is not None, "Signature must not be None."
+        assert signature.shape[0] == 1, "Signature must have a batch dimension of 1."
+        
+        # we need to remove the batch dimension
+        signature = tf.squeeze(signature, axis=0)
+        
         return signature
     
+    # This function expects batchedvectors with shape (batch, features, seq_length)
+    # returns a vector of shape (batch, hidden vector). The features are already concatenated into one hidden vector.
     def CalculateSignatureFromHiddenVectors(self, batchedvectors, receivedAttention):
         usePooling = True
         useAveragePooling = True
         useMaxPooling = False
+        
+        #batchedvectors = tf.concat(batchedvectors, axis=1)  
+        #batchedvectors = tf.squeeze(batchedvectors, axis=1)  
         
         if usePooling:
             
@@ -173,6 +184,21 @@ class Signature:
             pooledVector = batchedvectors[:, -1, :]
 
         return pooledVector
+    
+    def CalculateSimularityBatched(self, tensor, receivedAttention):
+        
+        assert self.signature is not None, "signature must not be None."
+        
+        pooledVector = self.CalculateSignatureFromHiddenVectors(tensor, receivedAttention)
+        signature = tf.linalg.l2_normalize(self.signature, axis=-1)
+        
+        batched_signature_tensor = tf.stack([signature] * tensor.shape[0], axis=0)
+        pooledVector = tf.linalg.l2_normalize(pooledVector, axis=-1)
+        
+        similarity = tf.keras.losses.cosine_similarity(batched_signature_tensor, pooledVector)
+    
+        return similarity
+    
     
     @staticmethod
     def LoadSignatureFromFile(signatureFilename):

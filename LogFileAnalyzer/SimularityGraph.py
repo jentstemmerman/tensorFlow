@@ -8,9 +8,17 @@ import threading
 
 def MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensors='float32'):
      
-    base_name = os.path.splitext(os.path.basename(SimularityFile))[0]
-    print("SimularityFile: ", base_name)
-    outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(SimularityFile, data_type=DataTypeForTensors, numbers_per_line=1, sequence_length=None)
+    if type(SimularityFile) is str:
+        base_name = os.path.splitext(os.path.basename(SimularityFile))[0]
+        directory = os.path.dirname(SimularityFile)
+        print("SimularityFile: ", base_name)
+        outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(SimularityFile, data_type=DataTypeForTensors, numbers_per_line=1, sequence_length=None)
+    else:
+        assert isinstance(SimularityFile, BinaryFileHandler.BinaryFileHandler), "SimularityFile must be a BinaryFileHandler instance"
+        outputBinaryFileHandler = SimularityFile
+        base_name = os.path.splitext(os.path.basename(SimularityFile.filename))[0]
+        directory = os.path.dirname(SimularityFile.filename)
+        
     recordCount = outputBinaryFileHandler.get_recordCount()
     
     
@@ -40,7 +48,7 @@ def MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensor
     
     if (Save):
         # Save the plot to a file
-        output_file = os.path.join(os.path.dirname(SimularityFile), f"SimularitiesPlot_{base_name}.png")
+        output_file = os.path.join(directory, f"SimularitiesPlot_{base_name}.png")
         plt.savefig(output_file, dpi=300)  # Save with high resolution
         print(f"Plot saved as {output_file}")
     

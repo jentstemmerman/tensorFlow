@@ -148,6 +148,7 @@ class Signature:
     
     # This function expects batchedvectors with shape (batch, features, seq_length)
     # returns a vector of shape (batch, hidden vector). The features are already concatenated into one hidden vector.
+    @tf.function
     def CalculateSignatureFromHiddenVectors(self, batchedvectors, receivedAttention):
         usePooling = True
         useAveragePooling = True
@@ -185,6 +186,7 @@ class Signature:
 
         return pooledVector
     
+    @tf.function
     def CalculateSimularityBatched(self, tensor, receivedAttention):
         
         assert self.signature is not None, "signature must not be None."

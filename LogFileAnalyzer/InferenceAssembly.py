@@ -151,7 +151,7 @@ with tf.device('/CPU:0'):
 
                                 
             if (numberOfSamples < numberOfParallelExecutions ):
-                print(f"Thread {chardId} allSamplesSkipped {allSamplesSkipped} numberOfSamples: {numberOfSamples} < numberOfParallelExecutions: {numberOfParallelExecutions}")
+                print(f"Thread {chardId} allSamplesSkipped {allSamplesSkipped} numberOfSamples: {numberOfSamples} < numberOfParallelExecutions: {numberOfParallelExecutions}\n")
 
             return idInnerList, numberOfSamples
         

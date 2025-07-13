@@ -1,5 +1,6 @@
 import time
 import tensorflow as tf
+import SimularityGraph
 import TokenParser
 import ModelClass
 import InferenceAssembly
@@ -310,6 +311,9 @@ def InferSimilarities(  model,
         
         
         LogfileToAnalyze.close()
+        
+        for SimularityFile in machineReadableOutputFileList:
+            SimularityGraph.MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensors=DataTypeForTensors)
 
         
         

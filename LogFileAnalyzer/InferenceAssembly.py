@@ -111,7 +111,7 @@ with tf.device('/CPU:0'):
                 nextIdsInnerList = []
                                 
             if (numberOfSamples < numberOfParallelExecutions ):
-                print(f"Thread {chardId} allSamplesSkipped {allSamplesSkipped} numberOfSamples: {numberOfSamples} < numberOfParallelExecutions: {numberOfParallelExecutions}")
+                print(f"Thread {chardId} allSamplesSkipped {allSamplesSkipped} numberOfSamples: {numberOfSamples} < numberOfParallelExecutions: {numberOfParallelExecutions} \n")
 
             return idInnerList, nextIdsInnerList, numberOfSamples
             
@@ -165,7 +165,7 @@ with tf.device('/CPU:0'):
                     next(datasetStreamerInterator)
                     numberOfSamplesTaken += 1
             except StopIteration:
-                print(f"[SkipInferenceDatasetStreamer] End of dataset reached, numberOfSamplesTaken: {numberOfSamplesTaken}")
+                print(f"[SkipInferenceDatasetStreamer] End of dataset reached, numberOfSamplesTaken: {numberOfSamplesTaken}\n")
 
         allSamplesSkipped = (numberOfSamplesTaken == 0)
         

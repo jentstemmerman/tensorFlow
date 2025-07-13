@@ -82,12 +82,7 @@ def InferSimilarities(  model,
     with tf.device('/CPU:0'):
             
         maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
-        onlyLogLogitsVector                  = True
-        
-        numberOfFeatures                     = len(id_from_tokenList)
         queueTimeout                         = 50000
-        numberOfIdenticals                   = 0
-
         numberOfAnalyzedLines                = 0
         
         LogfileToAnalyze = open(LogfileVerification, "r", errors='ignore')
@@ -98,8 +93,7 @@ def InferSimilarities(  model,
         SimilarityOutputDirectory.parent.mkdir(parents=True, exist_ok=True)
                     
         one_step_model = ModelClass.OneStep(model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=temperature)
-       
-       
+              
         logFile = Logfile.Logfile(LogfileVerification, itemList)
         
         numberOfLines = logFile.GetNumberOfLinesInFile()
@@ -162,7 +156,8 @@ def InferSimilarities(  model,
               
         print(f"Start creating input data numberOfThreads: {numberOfThreads}, numberOfParallelExecutions {numberOfParallelExecutions}") 
         
-        numberOfExecutionsInProgress         = [0 for _ in range(numberOfThreads)]
+        # set this list to 0. An entry for each thread
+        numberOfExecutionsInProgressPerThread = [0 for _ in range(numberOfThreads)]
         
         indexOfFirstPredictionTemp = indexOfFirstPrediction
         
@@ -193,7 +188,7 @@ def InferSimilarities(  model,
         for threadId in range(0,numberOfThreads):
             outputQueue = Workers[threadId]["outputQueue"]
             idInnerList, numberOfSamples = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
-            numberOfExecutionsInProgress[threadId] = numberOfSamples
+            numberOfExecutionsInProgressPerThread[threadId] = numberOfSamples
             idList.append(idInnerList)
             indexOfFirstPrediction += numberOfSamples
                          
@@ -210,19 +205,9 @@ def InferSimilarities(  model,
             remainingNumberOfLines = numberOfLines - indexOfFirstPrediction
 
             numberOfAnalyzedLinesThisCycle   = 0
-            nextPredictionsList              = []
-            probabilityOfPredictionsList     = []
-            probabilityOfActualsList         = []
-            crossEntropyOfActualsList        = []
-            allLogitsVectorDataList          = []
-            attention_receivedVectorDataList = []
-            lastLogitsVectorDataList         = []
-            firstLogitsVectorDataList        = []
-            predictedLogitsVectorsDataList   = []
             similarityDataList               = []
             
             # Assemble inputs for the next cycle
-
             indexOfFirstPredictionTemp = indexOfFirstPrediction
 
             for threadId in range(0,numberOfThreads):
@@ -247,110 +232,24 @@ def InferSimilarities(  model,
             # Generate inference
             for threadId in range(0, numberOfThreads):
 
-                if (numberOfExecutionsInProgress[threadId] == 0):
+                if (numberOfExecutionsInProgressPerThread[threadId] > 0):
 
-                    allLogitsVectorDataList.append([])
-                    attention_receivedVectorDataList.append([])
-
-                else:
-
-                    if (onlyLogLogitsVector):
-
-                        _, pooledLogitsVectorData = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
-                        
-                        attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
-                        allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all_flattened'].numpy()
-                        firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
-                        lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy()
-                        predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()  
-                        similarity = pooledLogitsVectorData['similarity_list']
-                        
-                        attention_receivedVectorDataList.append(attention_receivedList)
-                        allLogitsVectorDataList.append(allLogitsVectorsList)
-                        firstLogitsVectorDataList.append(firstLogitsVectorsList)
-                        lastLogitsVectorDataList.append(lastLogitsVectorsList)
-                        predictedLogitsVectorsDataList.append(predictedLogitsVectorsList)
-                        similarityDataList.append(similarity)
-                        
-                        nextPredictionsList.append([])
-                        probabilityOfPredictionsList.append([])
-                        probabilityOfActualsList.append([])
-                        crossEntropyOfActualsList.append([])
-                        
-                    else:
-                        predictions, probabilityOfPredictions, probabilityOfActuals, crossEntropyOfActuals, pooledLogitsVectorData = one_step_model.generate_steps_optimized(idList[threadId], nextIdList[threadId], window_size=seq_length, DataTypeForTensors=DataTypeForTensors)
-                        
-                        attention_receivedList = pooledLogitsVectorData['attention_received'].numpy()
-                        allLogitsVectorsList = pooledLogitsVectorData['hidden_state_all_flattened'].numpy()
-                        firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
-                        lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy() 
-                        predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()
-                        
-                        attention_receivedVectorDataList.append(attention_receivedList)
-                        allLogitsVectorDataList.append(allLogitsVectorsList)
-                        firstLogitsVectorDataList.append(firstLogitsVectorsList)
-                        lastLogitsVectorDataList.append(lastLogitsVectorsList)
-                        predictedLogitsVectorsDataList.append(predictedLogitsVectorsList)
-                        
-                        # predictions is een lijst (1 voor elke numberOfParallelExecutions) van een lijst van next predicted tokens of scalars ( 1 voor elke feature )
-                        nextPredictionsList.append(predictions)
-
-                        # probabilityPredictionsList is a tensor of shape (numberOfParallelExecutions, number of features)
-                        probabilityOfPredictionsList.append(probabilityOfPredictions)
-
-                        # probabilityActuals is a tensor of shape (numberOfParallelExecutions, number of features)
-                        probabilityOfActualsList.append(probabilityOfActuals)
-
-                        # crossEntropyOfActuals is a tensor of shape (numberOfParallelExecutions, number of features)
-                        crossEntropyOfActualsList.append(crossEntropyOfActuals)
-
-
-            # Start output generation
-            for threadId in range(0, numberOfThreads):
-                inputQueue  = Workers[threadId]["inputQueue"]
-                
-                if (onlyLogLogitsVector):
-                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
-                                                                            numberOfExecutionsInProgress[threadId], 
-                                                                            None, 
-                                                                            None, 
-                                                                            None, 
-                                                                            None, 
-                                                                            None, 
-                                                                            None, 
-                                                                            None,
-                                                                            None,
-                                                                            None,
-                                                                            seq_length,
-                                                                            numberOfAnalyzedLines,
-                                                                            onlyLogLogitsVector)))
-                else:
-                    inputQueue.put((InferenceOutput.InferenceOutputThread, (threadId, 
-                                                    numberOfExecutionsInProgress[threadId], 
-                                                    nextPredictionsList[threadId], 
-                                                    nextIdList[threadId], 
-                                                    printfList[threadId], 
-                                                    probabilityOfActualsList[threadId], 
-                                                    crossEntropyOfActualsList[threadId], 
-                                                    probabilityOfPredictionsList[threadId], 
-                                                    allLogitsVectorDataList[threadId],
-                                                    attention_receivedVectorDataList[threadId],
-                                                    lastLogitsVectorDataList[threadId], 
-                                                    seq_length,
-                                                    numberOfAnalyzedLines,
-                                                    onlyLogLogitsVector)))
-            
+                    _, pooledLogitsVectorData = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
+                    
+                    similarity = pooledLogitsVectorData['similarity_list']
+                    
+                    similarityDataList.append(similarity)      
+                    
+                          
             idList          = []
             
             totalNumberOfExecutionsWereInProgress = 0
             
-            for executionInProgress in numberOfExecutionsInProgress:
+            for executionInProgress in numberOfExecutionsInProgressPerThread:
                 totalNumberOfExecutionsWereInProgress += executionInProgress
             
-            numberOfExecutionsInProgress         = [0 for _ in range(numberOfThreads)]
-            
-            # Get inputs for the next inference cycles
-    
+            numberOfExecutionsInProgressPerThread         = [0 for _ in range(numberOfThreads)]
+           
             indexOfFirstPredictionTemp = indexOfFirstPrediction
             
             for threadId in range(0,numberOfThreads):
@@ -358,7 +257,7 @@ def InferSimilarities(  model,
 
                 idInnerList, numberOfSamples = outputQueue.get(timeout=queueTimeout) #nextTokens is a list of a list of tokens
                 
-                numberOfExecutionsInProgress[threadId] = numberOfSamples
+                numberOfExecutionsInProgressPerThread[threadId] = numberOfSamples
                             
                 idList.append(idInnerList)
 
@@ -368,19 +267,15 @@ def InferSimilarities(  model,
             assert len(signatureList) == numberOfThreads, "Number of signatures in signatureList does not match numberOfThreads"
             
             for threadId in range(0, numberOfThreads):
+                if (numberOfExecutionsInProgressPerThread[threadId] > 0):
+                    for signatureIndex, simularityData in enumerate(similarityDataList[threadId]):
+                        for lineIndex, signature in enumerate(simularityData):      
+                            humanReadableOutputFileList[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{signature.numpy()}\n")              
+                            machineReadableOutputFileList[signatureIndex].append(signature.numpy())
+                            simularityCalculationIndexes[signatureIndex] += 1
 
-                outputQueue = Workers[threadId]["outputQueue"]
-                HumanReadableTextOutput, pooledHumanReadableLogitsLastVectorlinesToWrite, pooledHumanReadableLogitsAllVectorlinesToWrite, attention_receivedVectorlinesToWrite, all_attention_receivedVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
-                
-
-                for signatureIndex, simularityData in enumerate(similarityDataList[threadId]):
-                    for lineIndex, signature in enumerate(simularityData):      
-                        humanReadableOutputFileList[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{signature.numpy()}\n")              
-                        machineReadableOutputFileList[signatureIndex].append(signature.numpy())
-                        simularityCalculationIndexes[signatureIndex] += 1
-
-                        numberOfAnalyzedLines                += 1
-                        numberOfAnalyzedLinesThisCycle       += 1
+                numberOfAnalyzedLines                += numberOfExecutionsInProgressPerThread[threadId]
+                numberOfAnalyzedLinesThisCycle       += numberOfExecutionsInProgressPerThread[threadId]
                 
                        
             Endtime = time.time()
@@ -398,8 +293,10 @@ def InferSimilarities(  model,
             indexOfFirstPrediction  += totalNumberOfExecutionsWereInProgress
             
             if (totalNumberOfExecutionsWereInProgress == 0):
-                print("No more executions")
+                print("No more executions \n")
                 break
+            else:
+                print("Total number of executions in progress: ", totalNumberOfExecutionsWereInProgress, "\n")
            
 
         Result = "\nTotal number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) +                \

@@ -205,7 +205,7 @@ class Signature:
         with open(signatureFilename, 'r') as file:
             signature_data = json.load(file)    
                         
-            signature_name = signature_data['signature_name'] ,
+            signature_name = signature_data['signature_name']
             signature_text = signature_data['signature_text']
             logFileName = signature_data['logFileName']
 

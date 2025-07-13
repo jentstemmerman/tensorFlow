@@ -8,11 +8,13 @@ import BinaryFileHandler
 import Model
 import os
 import StreamingDataSet
+import numpy as np
 import DefaultTrainingSettings
 import SignatureMatching
 import Signature
 import Logfile
 import SignatureCollection
+import Constants
 
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     
@@ -111,6 +113,18 @@ def InferSimilarities(  model,
         signatureCollection = SignatureCollection.SignatureCollection(signatureInputDirectory)
        
         signatureList = signatureCollection.get_signatures_and_calculateVectors(one_step_model)
+       
+        machineReadableOutputFileList = []
+        humanReadableOutputFileList   = []
+        
+        for signature in signatureList:
+            signatureFile = Constants.GetSignatureFilePath(signature.name, userId)
+            
+            machineReadableOutputFile = Constants.GetMachineReadableSimularitiesFile(LogfileVerification, userId, signatureFile)
+            humanReadableOutputFile   = Constants.GetHumanReadableSimularitiesFile(LogfileVerification, userId, signatureFile)
+            machineReadableOutputFileList.append(machineReadableOutputFile)
+            humanReadableOutputFileList.append(humanReadableOutputFile)
+           
            
         datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
                                                                    dataSetFile=inferenceDataSetFile, 
@@ -139,6 +153,8 @@ def InferSimilarities(  model,
         numberOfExecutionsInProgress         = [0 for _ in range(numberOfThreads)]
         
         indexOfFirstPredictionTemp = indexOfFirstPrediction
+        
+        simularityCalculationIndexes = np.ones(len(signatureList), dtype=int) # because the output of the model starts at line 1
         
         for threadId in range(0,numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]

@@ -54,7 +54,7 @@ def GetLogFileAnalyzedPath(logFilename, userId):
 
 def GetSignatureFilePath(signatureName, userId):
     userId = str(userId)
-    signatureName = os.path.basename(signatureName)
+
     baseDirectory = GetUserSpecificBaseDirectory("SignatureType", userId)
 
     signature_file_path = os.path.join(baseDirectory, signatureName + GetSignatureFilesExtention())

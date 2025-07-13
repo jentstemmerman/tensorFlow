@@ -122,8 +122,20 @@ def InferSimilarities(  model,
             
             machineReadableOutputFile = Constants.GetMachineReadableSimularitiesFile(LogfileVerification, userId, signatureFile)
             humanReadableOutputFile   = Constants.GetHumanReadableSimularitiesFile(LogfileVerification, userId, signatureFile)
-            machineReadableOutputFileList.append(machineReadableOutputFile)
-            humanReadableOutputFileList.append(humanReadableOutputFile)
+            
+            # Delete output files if they exist
+            if os.path.exists(machineReadableOutputFile):
+                os.remove(machineReadableOutputFile)
+            if os.path.exists(humanReadableOutputFile):
+                os.remove(humanReadableOutputFile)
+            
+            
+            humanReadableOutputFileHandler = open(humanReadableOutputFile, 'w')
+            
+            outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=DataTypeForTensors, numbers_per_line=1, sequence_length=None, modelHash="AA")
+            
+            machineReadableOutputFileList.append(outputBinaryFileHandler)
+            humanReadableOutputFileList.append(humanReadableOutputFileHandler)
            
            
         datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
@@ -207,6 +219,7 @@ def InferSimilarities(  model,
             lastLogitsVectorDataList         = []
             firstLogitsVectorDataList        = []
             predictedLogitsVectorsDataList   = []
+            similarityDataList               = []
             
             # Assemble inputs for the next cycle
 
@@ -250,13 +263,14 @@ def InferSimilarities(  model,
                         firstLogitsVectorsList = pooledLogitsVectorData['hidden_state_first'].numpy()   
                         lastLogitsVectorsList = pooledLogitsVectorData['hidden_state_last'].numpy()
                         predictedLogitsVectorsList = pooledLogitsVectorData['hidden_state_prediction'].numpy()  
+                        similarity = pooledLogitsVectorData['similarity_list']
                         
                         attention_receivedVectorDataList.append(attention_receivedList)
                         allLogitsVectorDataList.append(allLogitsVectorsList)
                         firstLogitsVectorDataList.append(firstLogitsVectorsList)
                         lastLogitsVectorDataList.append(lastLogitsVectorsList)
                         predictedLogitsVectorsDataList.append(predictedLogitsVectorsList)
-                        
+                        similarityDataList.append(similarity)
                         
                         nextPredictionsList.append([])
                         probabilityOfPredictionsList.append([])
@@ -351,91 +365,33 @@ def InferSimilarities(  model,
                 indexOfFirstPredictionTemp += numberOfSamples
 
             # Get outputs to write to file
+            assert len(signatureList) == numberOfThreads, "Number of signatures in signatureList does not match numberOfThreads"
+            
             for threadId in range(0, numberOfThreads):
 
                 outputQueue = Workers[threadId]["outputQueue"]
                 HumanReadableTextOutput, pooledHumanReadableLogitsLastVectorlinesToWrite, pooledHumanReadableLogitsAllVectorlinesToWrite, attention_receivedVectorlinesToWrite, all_attention_receivedVectorlinesToWrite = outputQueue.get(timeout=queueTimeout)
                 
-                if (len(firstLogitsVectorDataList) > 0):   
-                    try:    
-                        for lineToWrite in firstLogitsVectorDataList[threadId]:
-                            binaryFileHandlerFirstLogits.append(lineToWrite)   
-                    except Exception as e:
-                        print("Error in writing to binary file: ", e)
-                    
-                    try:
-                        for index, lineToWrite in enumerate(lastLogitsVectorDataList[threadId]):
-                            binaryFileHandlerLastLogits.append(lineToWrite)   
-                    except Exception as e:
-                        print("Error in writing to binary file: ", e)
-                    
-                    try:    
-                        for lineToWrite in predictedLogitsVectorsDataList[threadId]:
-                            binaryFileHandlerPredictedLogits.append(lineToWrite)   
-                    except Exception as e:
-                        print("Error in writing to binary file: ", e)
-                    
-                    try:
-                        for _, lineToWrite in enumerate(allLogitsVectorDataList[threadId]):   # this list is a flattened list of allLogitsVectorDataList. Each element is a timeslice of the sequence. Then the next seqenence and so on.
-                            binaryFileHandlerAllLogits.append(lineToWrite)   
-                    except Exception as e:
-                        print("Error in writing to binary file: ", e)
+
+                for signatureIndex, simularityData in enumerate(similarityDataList[threadId]):
+                    for lineIndex, signature in enumerate(simularityData):      
+                        humanReadableOutputFileList[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{signature.numpy()}\n")              
+                        machineReadableOutputFileList[signatureIndex].append(signature.numpy())
+                        simularityCalculationIndexes[signatureIndex] += 1
+
+                        numberOfAnalyzedLines                += 1
+                        numberOfAnalyzedLinesThisCycle       += 1
                 
-                    
-                    try:
-                        for _, lineToWrite in enumerate(attention_receivedVectorDataList[threadId]):   # this list is a flattened list of allLogitsVectorDataList. Each element is a timeslice of the sequence. Then the next seqenence and so on.
-                            binaryFileHandlerReceivedAttention.append(lineToWrite)   
-                    except Exception as e:
-                        print("Error in writing to binary file: ", e)
-
-                    
-
-                    numberOfAnalyzedLines                += (index + 1)
-                    numberOfAnalyzedLinesThisCycle       += (index + 1)
-                
-                if (HumanReadableTextOutput is not None):
-                    
-                    linesToWrite, numberOfIdenticalsInThisCycle, accumulatedActualProbability, accumulatedPredictedProbability,  = HumanReadableTextOutput
-                    for lineToWrite in linesToWrite:
-                        LogfileAnalyzed.write(''.join(lineToWrite))
-                        
-                    accumulatedNextTokenProbability      += accumulatedActualProbability
-                    accumulatedPredictedTokenProbability += accumulatedPredictedProbability
-                    numberOfIdenticals                   += numberOfIdenticalsInThisCycle
-
-
-                if (pooledHumanReadableLogitsLastVectorlinesToWrite is not None):
-                    for lineToWrite in pooledHumanReadableLogitsLastVectorlinesToWrite:
-                        FileHumanReadablePooledLastVectors.write(lineToWrite)
-                
-                if (pooledHumanReadableLogitsAllVectorlinesToWrite is not None):
-                    for lineToWrite in pooledHumanReadableLogitsAllVectorlinesToWrite:
-                        FileHumanReadablePooledAllVectors.write(lineToWrite)
-                
-                if (attention_receivedVectorlinesToWrite is not None):
-                    for lineToWrite in attention_receivedVectorlinesToWrite:
-                        FileHumanReadableReceivedAttention.write(lineToWrite)
-
-                if (all_attention_receivedVectorlinesToWrite is not None):
-                    for lineToWrite in all_attention_receivedVectorlinesToWrite:
-                        FileHumanReadableAllReceivedAttention.write(lineToWrite)
-            
-            
+                       
             Endtime = time.time()
-            averageNextTokenProbabilities    = accumulatedNextTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
-            
-            averageNextTokenProbabilities    = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
 
-            averagePredictedTokenProbability = accumulatedPredictedTokenProbability / (numberOfAnalyzedLines * numberOfFeatures)
+
             analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
             remainingTimeInMinutes           = remainingNumberOfLines / (numberOfAnalyzedLines / (time.time() - analyzeStartTime)) / 60
             
                             
             print("Annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) +
                 ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
-                "  Nr Of Ids: " + str(numberOfIdenticals) + 
-                ".".join("  Next token prob = {:2.3f}.".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +
-                    " Pred token prob = {:2.3f}.".format(averagePredictedTokenProbability) + 
                 "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
                 
             
@@ -444,19 +400,19 @@ def InferSimilarities(  model,
             if (totalNumberOfExecutionsWereInProgress == 0):
                 print("No more executions")
                 break
-
-        averageNextTokenProbabilities    = accumulatedNextTokenProbability      / numberOfAnalyzedLines
-        averagePredictedTokenProbability = accumulatedPredictedTokenProbability / numberOfAnalyzedLines
-        IdenticalsToNumberOfLinesRatio   = numberOfIdenticals                   / numberOfAnalyzedLines
            
-        averageNextTokenProbabilities = TokenParser.TransformToListIfSingularType(averageNextTokenProbabilities)
+
         Result = "\nTotal number of annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) +                \
-                    " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) + ".\n Number Of Identicals: " +      \
-                    str(numberOfIdenticals) + ", ({:2.3f})".format(IdenticalsToNumberOfLinesRatio) +                                \
-                    ".\n".join("Average next token probability = {:2.3f}".format(averageNextTokenProbability) for averageNextTokenProbability in averageNextTokenProbabilities) +                            \
-                    ".\n Average predicted token probability = {:2.3f}".format(averagePredictedTokenProbability) + "\n"
+                    " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) + "\n"                               
         
         print(Result)
+        
+        for machineReadableOutputFile in machineReadableOutputFileList:
+            machineReadableOutputFile.close()
+        
+        for humanReadableOutputFile in humanReadableOutputFileList:
+            humanReadableOutputFile.close()
+        
         
         LogfileToAnalyze.close()
 

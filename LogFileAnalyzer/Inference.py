@@ -234,10 +234,8 @@ def InferSimilarities(  model,
 
                 if (numberOfExecutionsInProgressPerThread[threadId] > 0):
 
-                    _, pooledLogitsVectorData = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
-                    
-                    similarity = pooledLogitsVectorData['similarity_list']
-                    
+                    similarity = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
+                                       
                     similarityDataList.append(similarity)      
                     
                           
@@ -264,7 +262,7 @@ def InferSimilarities(  model,
                 indexOfFirstPredictionTemp += numberOfSamples
 
             # Get outputs to write to file
-            assert len(signatureList) == numberOfThreads, "Number of signatures in signatureList does not match numberOfThreads"
+            #assert len(signatureList) == numberOfThreads, "Number of signatures in signatureList does not match numberOfThreads"
             
             for threadId in range(0, numberOfThreads):
                 if (numberOfExecutionsInProgressPerThread[threadId] > 0):

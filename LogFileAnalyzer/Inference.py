@@ -124,7 +124,17 @@ def InferSimilarities(  model,
             if os.path.exists(humanReadableOutputFile):
                 os.remove(humanReadableOutputFile)
             
+            # Ensure the directory for humanReadableOutputFile exists
+            human_readable_dir = os.path.dirname(humanReadableOutputFile)
+            if human_readable_dir and not os.path.exists(human_readable_dir):
+                os.makedirs(human_readable_dir, exist_ok=True)
+                
+            machine_readable_dir = os.path.dirname(machineReadableOutputFile)
+            if machine_readable_dir and not os.path.exists(machine_readable_dir):
+                os.makedirs(machine_readable_dir, exist_ok=True)
             
+            
+            # Open the file for writing (creates if it does not exist)
             humanReadableOutputFileHandler = open(humanReadableOutputFile, 'w')
             
             outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableOutputFile, data_type=DataTypeForTensors, numbers_per_line=1, sequence_length=None, modelHash="AA")
@@ -269,7 +279,7 @@ def InferSimilarities(  model,
                 if (numberOfExecutionsInProgressPerThread[threadId] > 0):
                     for signatureIndex, simularityData in enumerate(similarityDataList[threadId]):
                         for lineIndex, signature in enumerate(simularityData):      
-                            humanReadableOutputFileList[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{signature.numpy()}\n")              
+                            #humanReadableOutputFileList[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{signature.numpy()}\n")              
                             machineReadableOutputFileList[signatureIndex].append(signature.numpy())
                             simularityCalculationIndexes[signatureIndex] += 1
 

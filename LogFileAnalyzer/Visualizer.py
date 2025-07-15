@@ -1,26 +1,15 @@
 import struct
 
 import matplotlib.pyplot as plt
+import SimularityGraph
 
 def plot_time_series(filename):
-    # Read the data from the file
-    with open(filename, 'rb') as file:
-        data = []
-        while chunk := file.read(4):  # Assuming each float is 4 bytes (single precision)
-            data.append(struct.unpack('f', chunk)[0])
+    SimularityGraph.MakeSimularityPlot(filename, block=False, Save=True, DataTypeForTensors='float32')
+        
 
-    # Plot the data
-   # plt.figure(figsize=(10, 5))
-    plt.plot(data, label='Time Series Data')
-    plt.xlabel('Time')
-    plt.ylabel('Value')
-    plt.title('Time Series Data Plot')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
 
 
 # Example usage
-plot_time_series('Simularities_Markdirty.dat')
+plot_time_series('../data/UserData/User_0/logFilesAnalyzed/1340_Neo_KioxiaBiCS6_8ch-4TB_SIE_Regression_Combination_RandomBasic_drive_log/Similarities/Simularities_MarkDirty_7.dat')
 
 

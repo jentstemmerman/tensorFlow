@@ -1,13 +1,20 @@
 import tensorflow as tf
 import BinaryFileHandler
-import matplotlib.pyplot as plt
 import os
 from mpld3 import save_html
 import sys
 import threading
+import matplotlib
 
 def MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensors='float32'):
      
+    if block:
+        matplotlib.use('TkAgg')  # Use an interactive backend if block is True
+    else:
+        matplotlib.use('agg')    # Use non-interactive backend for saving only
+
+    import matplotlib.pyplot as plt
+
     if type(SimularityFile) is str:
         base_name = os.path.splitext(os.path.basename(SimularityFile))[0]
         directory = os.path.dirname(SimularityFile)
@@ -30,7 +37,7 @@ def MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensor
    # plt.figure(figsize=(16, 9))  # Set the figure size to full screen (16:9 aspect ratio)
     plt.switch_backend('agg')
     plt.scatter(range(len(graph_data)), graph_data, s=1, label="Data Points")  # 's' sets the size of the points
-    plt.vlines(range(len(graph_data)), 0, graph_data, colors='gray', alpha=0.05, linewidth=0.5, label="Lines to Zero Axis")  # Vertical lines to zero axis
+   # plt.vlines(range(len(graph_data)), 0, graph_data, colors='gray', alpha=0.05, linewidth=0.5, label="Lines to Zero Axis")  # Vertical lines to zero axis
     plt.axhline(y=average.numpy(), color='red', linestyle='--', linewidth=1, label=f"Average: {average.numpy():.4f}")  # Add average line
     plt.ylim(-1, 1)  # Set the vertical scale between -1 and +1
     plt.title("Simularities " + base_name)

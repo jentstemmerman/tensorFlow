@@ -124,6 +124,21 @@ class BinaryFileHandler:
         self._header_cache["record_count"] += 1
         #self.write_file_handler.flush()
         # Update the header in the file
+
+    def appendNumpy(self, np_array):
+        """
+        Append a numpy array of records to the binary file.
+        np_array should be of shape (num_records, numbers_per_line).
+        """
+        if self.write_file_handler is None:
+            self.write_file_handler = open(self.filename, "ab")
+        arr = np.asarray(np_array, dtype=self.data_type)
+        if arr.ndim == 1:
+            arr = arr.reshape(-1, 1)
+        if arr.shape[1] != self.numbers_per_line:
+            raise ValueError(f"Each record must have {self.numbers_per_line} elements.")
+        self.write_file_handler.write(arr.tobytes())
+        self._header_cache["record_count"] += arr.shape[0]
         
 
     def read_next(self):

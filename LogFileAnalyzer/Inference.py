@@ -239,7 +239,10 @@ def InferSimilarities(  model,
 
 
                 indexOfFirstPredictionTemp += numberOfParallelExecutions
-        
+            
+            inputTimeTaken = time.time() - cycleStartTime 
+            
+            InferenceStartTime   = time.time()
             # Generate inference
             for threadId in range(0, numberOfThreads):
 
@@ -249,7 +252,8 @@ def InferSimilarities(  model,
                                        
                     similarityDataList.append(similarity)      
                     
-                          
+            inferenceTimeTaken = time.time() - InferenceStartTime 
+                         
             idList          = []
             
             totalNumberOfExecutionsWereInProgress = 0
@@ -274,11 +278,11 @@ def InferSimilarities(  model,
 
             # Get outputs to write to file
             #assert len(signatureList) == numberOfThreads, "Number of signatures in signatureList does not match numberOfThreads"
-            
+            outputStartTime   = time.time()
             for threadId in range(0, numberOfThreads):
                 if (numberOfExecutionsInProgressPerThread[threadId] > 0):
                     for signatureIndex, simularityData in enumerate(similarityDataList[threadId]):
-                        for lineIndex, signature in enumerate(simularityData):      
+                        for lineIndex, signature in enumerate(simularityData):     
                             #humanReadableOutputFileList[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{signature.numpy()}\n")              
                             machineReadableOutputFileList[signatureIndex].append(signature.numpy())
                             simularityCalculationIndexes[signatureIndex] += 1
@@ -288,7 +292,7 @@ def InferSimilarities(  model,
                 
                        
             Endtime = time.time()
-
+            outputStartTime = Endtime - outputStartTime
 
             analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
             remainingTimeInMinutes           = remainingNumberOfLines / (numberOfAnalyzedLines / (time.time() - analyzeStartTime)) / 60
@@ -296,6 +300,9 @@ def InferSimilarities(  model,
                             
             print("Annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) +
                 ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
+                " inputTimeTaken: {:3.3f}.".format(inputTimeTaken) +
+                " inferenceTimeTaken: {:3.3f}.".format(inferenceTimeTaken) +
+                " outputTimeTaken: {:3.3f}.".format(outputStartTime) +
                 "  Time: {:3.3f}. ".format(Endtime - cycleStartTime) + "Remaining time = {:2.2f} min".format(remainingTimeInMinutes))
                 
             

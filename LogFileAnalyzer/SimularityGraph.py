@@ -3,9 +3,10 @@ import BinaryFileHandler
 import os
 from mpld3 import save_html
 import sys
-import threading
 import matplotlib
-
+import matplotlib.pyplot as plt
+    
+    
 def MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensors='float32'):
      
     if block:
@@ -13,7 +14,6 @@ def MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensor
     else:
         matplotlib.use('agg')    # Use non-interactive backend for saving only
 
-    import matplotlib.pyplot as plt
 
     if type(SimularityFile) is str:
         base_name = os.path.splitext(os.path.basename(SimularityFile))[0]
@@ -35,7 +35,7 @@ def MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensor
     print("Average: ", average.numpy())
     # Plot the graph_data with very small points and lines to the zero axis
    # plt.figure(figsize=(16, 9))  # Set the figure size to full screen (16:9 aspect ratio)
-    plt.switch_backend('agg')
+    
     plt.scatter(range(len(graph_data)), graph_data, s=1, label="Data Points")  # 's' sets the size of the points
    # plt.vlines(range(len(graph_data)), 0, graph_data, colors='gray', alpha=0.05, linewidth=0.5, label="Lines to Zero Axis")  # Vertical lines to zero axis
     plt.axhline(y=average.numpy(), color='red', linestyle='--', linewidth=1, label=f"Average: {average.numpy():.4f}")  # Add average line
@@ -51,13 +51,13 @@ def MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensor
     plt.xticks(rotation=45)  # Rotate x-axis labels for better readability 
     plt.tight_layout()  # Adjust layout to prevent clipping of tick-labels   
     
-    plt.show(block=block)  # Show the plot, blocking if specified
-    
     if (Save):
         # Save the plot to a file
         output_file = os.path.join(directory, f"SimularitiesPlot_{base_name}.png")
         plt.savefig(output_file, dpi=300)  # Save with high resolution
         print(f"Plot saved as {output_file}")
+    
+    plt.show(block=block)  # Show the plot, blocking if specified
     
     plt.close()  # Close the plot to free up memory
     

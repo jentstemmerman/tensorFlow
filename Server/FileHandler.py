@@ -152,21 +152,6 @@ def PostProcessLogFiles(fileName, userId, DataTypeForTensors, similaritythreshol
         signatureDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
         
         logFileIterator = LogFileIterator.FileIterator(logfileBaseDirectory,  Constants.GetLogFilesExtention())
-                
-        logFileName      = logFileIterator.get_first_file()
-        
-        while (logFileName is not None):
-               
-            logFileName_name = os.path.splitext(os.path.basename(logFileName))[0]
-            
-            print(f"Start Creating SimularitiesFiles of logfile {logFileName_name}")
-       
-            SignatureMatching.CreateSimularityFilesOfLogFile(logFileName, signatureDirectory, userId, DataTypeForTensors)                                                 
-            
-            print(f"Finished Creating SimularitiesFile of logfile {logFileName_name}")
-                
-            logFileName = logFileIterator.get_next_file()
-                
         logFileName      = logFileIterator.get_first_file()
         
         signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
@@ -183,7 +168,7 @@ def PostProcessLogFiles(fileName, userId, DataTypeForTensors, similaritythreshol
                 
                 SignatureMatching.CreateAnnotationListFromSimularitiesFile(simularitiesMachineReadableFileName, annotationsOutputFile, DataTypeForTensors, annotationId = annotation_id, threshold = similaritythreshold, comment = signature_name)
 
-                print(f"Finished Creating AnnotationList of logfile {logFileName_name} for signature{signature_name}")
+                print(f"Finished Creating AnnotationList of logfile {logFileName} for signature{signature_name}")
                 
                 signature_file = signatureIterator.get_next_file()
 
@@ -221,8 +206,6 @@ def PostProcessLogFile(logFileName, userId, DataTypeForTensors, similaritythresh
 
         print(f"PostProcessLogFile {logFileName} user {userId}")
         
-        CreateSimularityFiles(logFileName, userId, DataTypeForTensors, similaritythreshold)
-            
         signatureDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
         signatureIterator = LogFileIterator.FileIterator(signatureDirectory, Constants.GetSignatureFilesExtention())
         

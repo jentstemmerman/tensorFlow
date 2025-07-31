@@ -116,6 +116,7 @@ def AnalyzePrintfFile(model,
                                 temperature=temperature, 
                                 seq_length=seq_length)
     
+           
     
     # Inference.AddProbabilitiesPrintfFileParallel(model=model, 
     #                                              userId=userId,

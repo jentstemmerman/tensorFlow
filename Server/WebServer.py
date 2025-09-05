@@ -125,7 +125,7 @@ def get_directory_listing():
             )
 
         print("get_log_files_list: Returning the list of files and directories")
-        print(files_with_paths)
+        #print(files_with_paths)
 
         return jsonify(files_with_paths)
     except Exception as e:
@@ -163,7 +163,7 @@ def get_file_lines(file_name):
         numberOfLines = int(request.args.get("size", 1024))
         userId = str(request.args.get("userId", 0))
         file_path = Constants.GetLogFilePath(logFilename=file_name, userId=userId)
-        # print("get_file_lines file_name: ", file_name, ", lineOffset: ", lineOffset, "numberOfLines: ", numberOfLines, "offset_file_path: ", offset_file_path, "file_path: ", file_path)
+        print("get_file_lines file_name: ", file_name, ", lineOffset: ", lineOffset, "numberOfLines: ", numberOfLines,  "file_path: ", file_path)
 
         if not os.path.exists(file_path):
             return jsonify({"error": "File not found"}), 404

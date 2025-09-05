@@ -16,8 +16,8 @@ annotationManager = None
 
 def read_file_lines(file_path, userId, lineOffset, numberOfLines):
     startOffset = get_line_offset(file_path, userId, lineOffset)
-    endOffset = get_line_offset(file_path, userId, lineOffset + numberOfLines - 1)
-    numberOfBytesToRead = endOffset - startOffset
+    endOffset = get_line_offset(file_path, userId, lineOffset + numberOfLines)
+    numberOfBytesToRead = endOffset - startOffset + 1
 
     chunk = read_file_chunk(file_path, startOffset, numberOfBytesToRead)
 

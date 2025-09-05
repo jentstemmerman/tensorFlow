@@ -31,7 +31,7 @@ class OffsetArrayManager:
                     offset_file_path_mtime = os.path.getmtime(offset_file_path) if os.path.exists(offset_file_path) else 0
                     
                     if log_file_mtime < offset_file_path_mtime:
-                        print("[CreateSimularityFilesOfLogFile] Skipping similarity calculation as the output files exist and are newer than the log file.")
+                        print("[OffsetArrayManager] Skipping generate_offset_file.")
                     else:
                         self.generate_offset_file(file_path, offset_file_path)
                 else:

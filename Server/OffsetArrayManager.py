@@ -39,7 +39,7 @@ class OffsetArrayManager:
 
                 # Update cache with new offsets and file hash
                 offset_file_content = self.read_offset_file(offset_file_path)
-                numberOfLines = self.get_number_of_lines_in_file(offset_file_path)
+                numberOfLines = self.get_number_of_lines_in_file(offset_file_path) - 1 # the offset file has one more line than the original file
 
                 self.offset_cache.put(f"{offset_file_path}_offset_file_path", file_path)
                 self.offset_cache.put(f"{offset_file_path}_numberOfLines", numberOfLines)
@@ -64,16 +64,28 @@ class OffsetArrayManager:
                 open(offset_file_path, "wb") as offset_file,
             ):
                 current_position = 0
+                offset_file.write(current_position.to_bytes(8, byteorder="little"))
+                numberOfLines = 1
+                
                 while True:
+                    
                     line = f.readline()
+                    
                     if not line:
                         break
+                    
+                    current_position += len(line)
+                    
                     numberOfLines += 1
                     # Write the current byte offset as an 8-byte little-endian integer
                     position = current_position.to_bytes(8, byteorder="little")
+                    
                     offset_file.write(position)
                     # Update the current position by the length of the line read
-                    current_position += len(line)
+
+                    
+                    
+                    
         except (IOError, OSError) as e:
             print(f"An error occurred while accessing files: {e}")
 

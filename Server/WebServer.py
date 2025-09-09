@@ -159,20 +159,27 @@ def get_signature_files_list():
 def get_file_lines(file_name):
     """Return a specific part of the file content based on line numbers."""
     try:
+        start_time = time.time()
         lineOffset = int(request.args.get("start", 0))  # 0 means the default value
         numberOfLines = int(request.args.get("size", 1024))
         userId = str(request.args.get("userId", 0))
         file_path = Constants.GetLogFilePath(logFilename=file_name, userId=userId)
-        print("get_file_lines file_name: ", file_name, ", lineOffset: ", lineOffset, "numberOfLines: ", numberOfLines,  "file_path: ", file_path)
 
         if not os.path.exists(file_path):
             return jsonify({"error": "File not found"}), 404
-        
+        test = FileHandler.read_file_lines(
+            file_path, userId, lineOffset, 1
+        )
         content = FileHandler.read_file_lines(
             file_path, userId, lineOffset, numberOfLines
         )
         
         content = content.decode("utf-8", errors="ignore")
+
+        elapsed = time.time() - start_time
+        print(
+            f"get_file_lines file_name: {file_name}, lineOffset: {lineOffset}, numberOfLines: {numberOfLines} - took {elapsed:.4f}s"
+        )
 
         return jsonify(
             {

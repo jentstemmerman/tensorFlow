@@ -70,7 +70,7 @@ def get_directory_listing():
     Return the list of files and directories for a given path.
     Supports folder browsing, including navigation to parent directories.
     """
-    print("get_directory_listing: Returning the list of files and directories")
+    #print("get_directory_listing: Returning the list of files and directories")
 
     # Get the 'path' parameter from the request
     requested_path = request.args.get("path", "")
@@ -124,7 +124,7 @@ def get_directory_listing():
                 }
             )
 
-        print("get_log_files_list: Returning the list of files and directories")
+        #print("get_log_files_list: Returning the list of files and directories")
         #print(files_with_paths)
 
         return jsonify(files_with_paths)
@@ -178,8 +178,16 @@ def get_file_lines(file_name):
 
         elapsed = time.time() - start_time
         print(
-            f"get_file_lines file_name: {file_name}, lineOffset: {lineOffset}, numberOfLines: {numberOfLines} - took {elapsed:.4f}s"
+            f"get_file_lines file_name: lineOffset: {lineOffset}, numberOfLines: {numberOfLines} - took {elapsed:.4f}s"
         )
+
+        # Verify that the returned content has the expected number of lines
+        actual_line_count = len(content.splitlines())
+        
+        if actual_line_count != numberOfLines:
+            print(f"Warning: requested {numberOfLines} lines, but returned {actual_line_count} lines")
+        else:
+            print(f"Success: requested {numberOfLines} lines, and returned {actual_line_count} lines")
 
         return jsonify(
             {

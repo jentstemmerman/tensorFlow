@@ -167,9 +167,7 @@ def get_file_lines(file_name):
 
         if not os.path.exists(file_path):
             return jsonify({"error": "File not found"}), 404
-        test = FileHandler.read_file_lines(
-            file_path, userId, lineOffset, 1
-        )
+
         content = FileHandler.read_file_lines(
             file_path, userId, lineOffset, numberOfLines
         )

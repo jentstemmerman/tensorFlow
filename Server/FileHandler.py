@@ -16,10 +16,27 @@ annotationManager = None
 
 def read_file_lines(file_path, userId, lineOffset, numberOfLines):
     startOffset = get_line_offset(file_path, userId, lineOffset)
-    endOffset = get_line_offset(file_path, userId, lineOffset + numberOfLines) - 1
+    endOffset = get_line_offset(file_path, userId, lineOffset + numberOfLines)
     numberOfBytesToRead = endOffset - startOffset
 
     chunk = read_file_chunk(file_path, startOffset, numberOfBytesToRead)
+
+    if chunk is not None:
+        if isinstance(chunk, (bytes, bytearray)):
+            b = bytes(chunk)
+            if b.endswith(b'\r\n'):
+                chunk = b[:-2]
+            elif b.endswith(b'\n') or b.endswith(b'\r'):
+                chunk = b[:-1]
+            else:
+                chunk = b
+        else:
+            if chunk.endswith('\r\n'):
+                chunk = chunk[:-2]
+            elif chunk.endswith('\n') or chunk.endswith('\r'):
+                chunk = chunk[:-1]
+
+
 
     return chunk
 

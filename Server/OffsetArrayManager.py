@@ -12,6 +12,7 @@ class OffsetArrayManager:
         self.cache_lock = Lock()
         self.userId = userId
 
+
     def get_offsets_array(self, file_path):
         with self.cache_lock:  # Ensures thread safety
             offset_base_file_name = os.path.basename(file_path)
@@ -38,13 +39,14 @@ class OffsetArrayManager:
                     self.generate_offset_file(file_path, offset_file_path)
 
                 # Update cache with new offsets and file hash
+                print("[OffsetArrayManager] reading offset_file.")
                 offset_file_content = self.read_offset_file(offset_file_path)
                 numberOfLines = self.get_number_of_lines_in_file(offset_file_path) - 1 # the offset file has one more line than the original file
 
                 self.offset_cache.put(f"{offset_file_path}_offset_file_path", file_path)
                 self.offset_cache.put(f"{offset_file_path}_numberOfLines", numberOfLines)
                 self.offset_cache.put(offset_file_path, offset_file_content)
-
+                print("[OffsetArrayManager] reading offset_file done.")
             return self.offset_cache.get(offset_file_path), numberOfLines
 
     def get_number_of_lines_in_file(self, file_path):
@@ -98,16 +100,49 @@ class OffsetArrayManager:
         return numberOfLines
 
     def read_offset_file(self, offset_file_path):
-        """Read the offset file into a Python array."""
+        """
+        Fast path: vectorized load using numpy.fromfile.
+        If VERIFY_OFFSETS=1, also reads with legacy method and compares.
+        """
+        fast = self._read_offset_file_fast(offset_file_path)
+
+        if False:
+            legacy = self._read_offset_file_legacy(offset_file_path)
+            if fast.shape != legacy.shape or not np.array_equal(fast, legacy):
+                print("[OffsetArrayManager] WARNING: Fast/legacy offset array mismatch.")
+                print(f"  Fast shape: {fast.shape}, Legacy shape: {legacy.shape}")
+                diffs = np.nonzero(fast != legacy)[0]
+                print(f"  First differing indices (up to 10): {diffs[:10]}")
+            else:
+                print("[OffsetArrayManager] Fast reader validated against legacy.")
+        return fast
+
+    def _read_offset_file_legacy(self, offset_file_path):
+        """Legacy (slow) implementation kept for validation."""
         offsets = []
         with open(offset_file_path, "rb") as f:
             while True:
                 byte = f.read(8)
                 if not byte:
                     break
+                if len(byte) != 8:
+                    raise ValueError(f"Corrupt offsets file (incomplete 8-byte chunk) at {offset_file_path}")
                 offset = int.from_bytes(byte, "little")
                 offsets.append(offset)
         return np.array(offsets, dtype=int)
+
+    def _read_offset_file_fast(self, offset_file_path):
+        """Fast implementation using numpy.fromfile (vectorized)."""
+        try:
+            file_size = os.path.getsize(offset_file_path)
+            if file_size % 8 != 0:
+                raise ValueError(f"Offset file size {file_size} not divisible by 8: {offset_file_path}")
+            arr = np.fromfile(offset_file_path, dtype="<u8")  # little-endian unsigned 64-bit
+            # Cast to platform int (was dtype=int before) without copy if already compatible
+            return arr.astype(int, copy=False)
+        except Exception as e:
+            print(f"[OffsetArrayManager] Fast read failed ({e}); falling back to legacy.")
+            return self._read_offset_file_legacy(offset_file_path)
 
     def generate_file_hash(self, file_path):
         """

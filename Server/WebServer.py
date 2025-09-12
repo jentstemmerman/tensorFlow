@@ -172,7 +172,7 @@ def get_file_lines(file_name):
             file_path, userId, lineOffset, numberOfLines
         )
         
-        content = content.decode("utf-8", errors="ignore")
+        content = content.decode("utf-8", errors="replace")
 
         elapsed = time.time() - start_time
         print(
@@ -183,9 +183,11 @@ def get_file_lines(file_name):
         actual_line_count = len(content.splitlines())
         
         if actual_line_count != numberOfLines:
-            print(f"Warning: requested {numberOfLines} lines, but returned {actual_line_count} lines")
-        else:
-            print(f"Success: requested {numberOfLines} lines, and returned {actual_line_count} lines")
+            nl = content.count('\n')
+            print(f"Warning: requested {numberOfLines} lines, but returned {actual_line_count} lines, counted {nl} newlines")
+            
+        #else:
+        #    print(f"Success: requested {numberOfLines} lines, and returned {actual_line_count} lines")
 
         return jsonify(
             {

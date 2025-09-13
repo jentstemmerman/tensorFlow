@@ -7,11 +7,14 @@ import AnnotationManager
 import time
 import Constants
 import LogFileIterator    # type: ignore
+import threading
 
 fileHandle = None
 file = "./Server/large-file.txt"
 offsetArrayManager = None
 annotationManager = None
+# Re-entrant lock to protect access to the shared file handle across threads
+_file_handle_lock = threading.RLock()
 
 
 def read_file_lines(file_path, userId, lineOffset, numberOfLines):
@@ -42,36 +45,44 @@ def read_file_lines(file_path, userId, lineOffset, numberOfLines):
 
 
 def open_file_once(file_path):
-    """Open the file once and keep the handle in global fileHandle."""
+    """Open the file once and keep the handle in global fileHandle.
+
+    Thread-safe: guarded by _file_handle_lock.
+    """
     global fileHandle
-    if fileHandle is None or fileHandle.name != file_path:
-        if fileHandle is not None:
-            fileHandle.close()
-        try:
-            fileHandle = open(file_path, "rb")
-        except FileNotFoundError:
-            print(f"Error: The file '{file_path}' was not found.")
-        except IOError as e:
-            print(f"IO error occurred: {e}")
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+    with _file_handle_lock:
+        if fileHandle is None or fileHandle.name != file_path:
+            if fileHandle is not None:
+                try:
+                    fileHandle.close()
+                except Exception:
+                    pass
+            try:
+                fileHandle = open(file_path, "rb")
+            except FileNotFoundError:
+                print(f"Error: The file '{file_path}' was not found.")
+            except IOError as e:
+                print(f"IO error occurred: {e}")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
 
 
 def read_file_chunk(file_path, offset, size):
     global fileHandle
     chunk = None
-    # Ensure the file is opened once
+    # Ensure the file is opened once (open_file_once acquires lock internally)
     open_file_once(file_path)
 
-    # If fileHandle is valid, perform the read
-    if fileHandle:
-        try:
-            fileHandle.seek(offset)
-            chunk = fileHandle.read(size)
-        except IOError as e:
-            print(f"IO error occurred: {e}")
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+    # Perform the read under the same lock to avoid race conditions
+    with _file_handle_lock:
+        if fileHandle:
+            try:
+                fileHandle.seek(offset)
+                chunk = fileHandle.read(size)
+            except IOError as e:
+                print(f"IO error occurred: {e}")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
 
     return chunk
 

@@ -77,22 +77,22 @@ def CalculateLossCrossEntropy(datasetForVerification, NumberOfSamples):
 
     return mean_loss.numpy()
 
-def AnalyzePrintfFile(model, 
+def AnalyzePrintfFile(*,
+                      model,
                       userId,
-                      inputFile, 
-                      inferenceDataSetFile, 
-                      LogFileAnalyzedPath, 
+                      progress_cb,
+                      inputFile,
+                      inferenceDataSetFile,
+                      LogFileAnalyzedPath,
                       signatureInputDirectory,
                       similarityOutputDirectory,
-                      FileNamesMachineReadablePooledVectors, 
-                      FileNamesHumanReadablePooledVectors, 
-                      itemFile, 
-                      temperature, 
-                      seq_length, 
-                      id_from_tokenList, 
+                      itemFile,
+                      temperature,
+                      seq_length,
+                      id_from_tokenList,
                       token_from_idList,
-                      numberOfThreads, 
-                      Workers, 
+                      numberOfThreads,
+                      Workers,
                       DataTypeForTensors):
     
     itemList = TokenParser.GetItemListToSearchFor(itemFile)
@@ -101,38 +101,22 @@ def AnalyzePrintfFile(model,
 
     LogfileAnalyzed = LogFileAnalyzedPath
     
-    Inference.InferSimilarities(  model=model, 
-                                userId=userId,
-                                numberOfThreads=numberOfThreads, 
-                                Workers=Workers, 
-                                itemList=itemList, 
-                                DataTypeForTensors=DataTypeForTensors, 
-                                LogfileVerification=printfFileToProcess,
-                                signatureInputDirectory=signatureInputDirectory,
-                                SimilarityOutputDirectory=similarityOutputDirectory,
-                                inferenceDataSetFile=inferenceDataSetFile, 
-                                id_from_tokenList=id_from_tokenList,
-                                token_from_idList=token_from_idList, 
-                                temperature=temperature, 
-                                seq_length=seq_length)
-    
-           
-    
-    # Inference.AddProbabilitiesPrintfFileParallel(model=model, 
-    #                                              userId=userId,
-    #                                              numberOfThreads=numberOfThreads, 
-    #                                              Workers=Workers, 
-    #                                              itemList=itemList, 
-    #                                              DataTypeForTensors=DataTypeForTensors, 
-    #                                              LogfileVerification=printfFileToProcess, 
-    #                                              inferenceDataSetFile=inferenceDataSetFile, 
-    #                                              FileNameAnalyzed=LogfileAnalyzed, 
-    #                                              FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors,
-    #                                              FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
-    #                                              id_from_tokenList=id_from_tokenList, 
-    #                                              token_from_idList=token_from_idList, 
-    #                                              temperature=temperature, 
-    #                                              seq_length=seq_length)
+    Inference.InferSimilarities(  model=model,
+                                  userId=userId,
+                                  progress_cb=progress_cb,
+                                  numberOfThreads=numberOfThreads,
+                                  Workers=Workers,
+                                  itemList=itemList,
+                                  DataTypeForTensors=DataTypeForTensors,
+                                  LogfileVerification=printfFileToProcess,
+                                  signatureInputDirectory=signatureInputDirectory,
+                                  SimilarityOutputDirectory=similarityOutputDirectory,
+                                  inferenceDataSetFile=inferenceDataSetFile,
+                                  id_from_tokenList=id_from_tokenList,
+                                  token_from_idList=token_from_idList,
+                                  temperature=temperature,
+                                  seq_length=seq_length)
+
     
     print("Done analyzing ", os.path.basename(printfFileToProcess), ".")
 

@@ -12,6 +12,9 @@ sys.path.append('../LogFileAnalyzer')
 import CommandAnalyzeFile # type: ignore
 import DefaultTrainingSettings # type: ignore
 import Signature # type: ignore
+import uuid
+
+from queue import Queue
 
 WebServer = Flask(__name__)
 cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
@@ -20,31 +23,118 @@ cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(WebServer, cors_allowed_origins="*")
 
 
-# --- Analyze File Progress Helper -------------------------------------------------
-# Emits websocket events so clients can track progress of long running analyze_file
-# operations. The payload format is:
-#   {
-#       "fileName": str,
-#       "userId": str,
-#       "progress": int,        # 0-100 (stubbed for now)
-#       "status": str,          # one of: started, running, done, error
-#       "error": str (optional)
-#   }
-# Clients should listen for the 'analyze_file_progress' event name.
-def emit_analyze_file_progress(file_name: str, userId: str, progress: int, status: str = "running", error: str | None = None):
+# --- Analyze File Queue ---------------------------------------------------------
+ANALYZE_WORKER_COUNT = 1  # Increase if you want parallel workers (watch CPU/RAM)
+analyze_job_queue: Queue = Queue()
+analyze_job_status = {}      # jobId -> dict(status, progress, fileName, userId, error)
+_analyze_status_lock = threading.Lock()
+
+
+def _set_job_status(job_id, **updates):
+    with _analyze_status_lock:
+        if job_id in analyze_job_status:
+            analyze_job_status[job_id].update(updates)
+
+
+def update_job_and_emit(job_id: str, file_name: str, userId: str, *, progress: int, status: str, error: str | None = None):
+    """Update internal job state and emit websocket progress.
+
+    Keyword-only args for progress/status allow easy functools.partial to pre-bind everything
+    except the changing progress value, e.g.:
+
+        progress_cb = partial(update_job_and_emit, job_id, file_name, userId, status="running")
+        progress_cb(progress=25)
+    """
+    _set_job_status(job_id, status=status, progress=progress, error=error)
+    emit_analyze_file_progress(file_name, userId, progress, status=status, error=error, jobId=job_id)
+
+
+def emit_analyze_file_progress(file_name: str, userId: str, progress: int, status: str = "running", error: str | None = None, jobId: str | None = None):
     try:
         payload = {
             "fileName": file_name,
-            "userId": userId,
+            "userId": userId,  # FIX: was UserId
             "progress": progress,
             "status": status,
         }
+        if jobId:
+            payload["jobId"] = jobId
         if error is not None:
             payload["error"] = str(error)
         socketio.emit("analyze_file_progress", payload)
     except Exception as e:
-        # Fail silently so we never break the server because of a progress update
         print(f"emit_analyze_file_progress failed: {e}")
+
+
+def _analyze_worker():
+    while True:
+        job = analyze_job_queue.get()
+        if job is None:
+            break
+        job_id = job["jobId"]
+        file_name = job["fileName"]
+        userId = job["userId"]
+        modelDirectory = job["modelDirectory"]
+        tokenDirectory = job["tokenDirectory"]
+        try:
+            update_job_and_emit(job_id, file_name, userId, progress=0, status="started")
+
+            modelDirFull = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
+            file_path = Constants.GetLogFilePath(logFilename=file_name, userId=userId)
+            OriginalTokenFileDirectory = os.path.join(Constants.GetTokenFilesPath(), tokenDirectory)
+            itemFile = os.path.join(Constants.GetItemFilesPath(), "Itemfile.txt")
+            LogFileAnalyzedPath = Constants.GetLogFileAnalyzedPath(logFilename=file_name, userId=userId)
+            temperature = 1
+            signatureInputDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
+            similarityOutputDirectory = os.path.dirname(
+                Constants.GetMachineReadableSimularitiesFile(file_name, userId, "")
+            )
+            inferenceDataSetFile = Constants.GetInferenceDataSetPath(file_path, userId, temperature)
+
+            # Early stub progress
+            # Prepare a partial so deeper layers (future) can call progress_cb(progress=..)
+            from functools import partial
+            progress_cb = partial(update_job_and_emit, job_id, file_name, userId, status="starting")
+            progress_cb(progress=0, status="starting")
+
+            # Real analysis
+            CommandAnalyzeFile.AnalyzeFile(
+                modelDirectory=modelDirFull,
+                userId=userId,
+                inputFile=file_path,
+                inferenceDataSetFile=inferenceDataSetFile,
+                LogFileAnalyzedPath=LogFileAnalyzedPath,
+                signatureInputDirectory=signatureInputDirectory,
+                similarityOutputDirectory=similarityOutputDirectory,
+                OriginalTokenFileDirectory=OriginalTokenFileDirectory,
+                itemFile=itemFile,
+                temperature=temperature,
+                progress_cb=progress_cb,
+            )
+
+            # Stub fixed number
+            progress_cb(progress=42)
+
+            update_job_and_emit(job_id, file_name, userId, progress=100, status="done")
+        except Exception as e:
+            print(f"Analyze job {job_id} error: {e}")
+            update_job_and_emit(job_id, file_name, userId, progress=0, status="error", error=str(e))
+        finally:
+            analyze_job_queue.task_done()
+
+
+def _start_analyze_workers():
+    # Idempotent
+    if getattr(_start_analyze_workers, "_started", False):
+        return
+    for _ in range(ANALYZE_WORKER_COUNT):
+        t = threading.Thread(target=_analyze_worker, daemon=True)
+        t.start()
+    _start_analyze_workers._started = True
+
+
+# NOTE: duplicate emit_analyze_file_progress removed here. The active definition with jobId support
+# is located above near the queue setup.
 
 
 # Mock annotations
@@ -226,76 +316,53 @@ def get_file_lines(file_name):
         print(e)
         return jsonify({"error": str(e)}), 500
 
-analyze_file_busy = False
 
 @WebServer.route("/api/file/analyze_file/<file_name>", methods=["GET"])
 def analyze_file(file_name):
-    """Return a specific part of the file content based on line numbers."""
-    global analyze_file_busy
+    userId = request.args.get("userId")
+    modelDirectory = request.args.get("modelDirectory")
+    tokenDirectory = request.args.get("tokenDirectory")
 
-    if analyze_file_busy:
-        print("analyze_file rejected: busy")
-        return jsonify({"error": True, "busy": True}), 429
-
-    userId = request.args.get("userId", None)
-    modelDirectory = request.args.get("modelDirectory", None)
-    tokenDirectory = request.args.get("tokenDirectory", None)
-
-    if userId is None or modelDirectory is None or tokenDirectory is None:
+    if not all([userId, modelDirectory, tokenDirectory]):
         return jsonify({"error": "Missing required parameters"}), 400
 
-    analyze_file_busy = True
-    emit_analyze_file_progress(file_name, userId, 0, status="started")
+    job_id = str(uuid.uuid4())
+    job = {
+        "jobId": job_id,
+        "fileName": file_name,
+        "userId": userId,  # FIX: was UserId
+        "modelDirectory": modelDirectory,
+        "tokenDirectory": tokenDirectory,
+        "created": time.time(),
+    }
 
-    def background_job():
-        global analyze_file_busy
-        try:
-            modelDirFull = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
-            file_path = Constants.GetLogFilePath(logFilename=file_name, userId=userId)
-            OriginalTokenFileDirectory = os.path.join(Constants.GetTokenFilesPath(), tokenDirectory)
-            itemFile = os.path.join(Constants.GetItemFilesPath(), "Itemfile.txt")
-            LogFileAnalyzedPath = Constants.GetLogFileAnalyzedPath(logFilename=file_name, userId=userId)
-            temperature = 1
-            FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId)
-            FileNamesHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId)
-            signatureInputDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
-            similarityOutputDirectory = os.path.dirname(Constants.GetMachineReadableSimularitiesFile(file_name, userId, ""))
-            inferenceDataSetFile = Constants.GetInferenceDataSetPath(file_path, userId, temperature)
+    with _analyze_status_lock:
+        analyze_job_status[job_id] = {
+            "status": "queued",
+            "progress": 0,
+            "fileName": file_name,
+            "userId": userId,  # FIX: was UserId
+            "error": None,
+        }
 
-            # --- Stubbed progress updates ---
-            emit_analyze_file_progress(file_name, userId, 5)
-            # Simulate some staged progress steps while doing real work
+    queue_position = analyze_job_queue.qsize()
+    analyze_job_queue.put(job)
 
-            # Real analysis call
-            CommandAnalyzeFile.AnalyzeFile(
-                modelDirFull,
-                userId,
-                file_path,
-                inferenceDataSetFile,
-                LogFileAnalyzedPath,
-                signatureInputDirectory,
-                similarityOutputDirectory,
-                FileNamesMachineReadablePooledVectors,
-                FileNamesHumanReadablePooledVectors,
-                OriginalTokenFileDirectory,
-                itemFile,
-                temperature=1,
-            )
+    return jsonify({
+        "accepted": True,
+        "jobId": job_id,
+        "queuePosition": queue_position,
+    })
 
-            # Emit stubbed fixed number as requested (e.g. 42)
-            emit_analyze_file_progress(file_name, userId, 42)
 
-            emit_analyze_file_progress(file_name, userId, 100, status="done")
-        except Exception as e:
-            print(f"analyze_file error: {e}")
-            emit_analyze_file_progress(file_name, userId, 0, status="error", error=str(e))
-        finally:
-            analyze_file_busy = False
+@WebServer.route("/api/file/analyze_file/status/<job_id>", methods=["GET"])
+def analyze_file_status(job_id):
+    with _analyze_status_lock:
+        status = analyze_job_status.get(job_id)
+    if not status:
+        return jsonify({"error": "Unknown jobId"}), 404
+    return jsonify({"jobId": job_id, **status})
 
-    threading.Thread(target=background_job, daemon=True).start()
-
-    return jsonify({"started": True})
-    
 
 @WebServer.route("/api/file/checkannotations/<file_name>", methods=["GET"])
 def check_file_annotations(file_name):
@@ -514,6 +581,7 @@ if __name__ == "__main__":
     # Start a background thread to send stubbed data
     threading.Thread(target=send_stubbed_data).start()
 
+    _start_analyze_workers()
     socketio.run(WebServer, host="0.0.0.0", port=5000, debug=True)
 
 

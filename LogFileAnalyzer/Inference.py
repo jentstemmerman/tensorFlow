@@ -10,9 +10,6 @@ import Model
 import os
 import StreamingDataSet
 import numpy as np
-import DefaultTrainingSettings
-import SignatureMatching
-import Signature
 import Logfile
 import SignatureCollection
 import Constants
@@ -67,6 +64,7 @@ def CreateDataSetFromVerificationFile(LogfileVerification, dataSetFile, itemList
 
 def InferSimilarities(  model, 
                         userId,
+                        progress_cb,
                         numberOfThreads, 
                         Workers, 
                         itemList, 
@@ -297,7 +295,13 @@ def InferSimilarities(  model,
             analysedLinesPerSecond           = numberOfAnalyzedLinesThisCycle / (Endtime - cycleStartTime) 
             remainingTimeInMinutes           = remainingNumberOfLines / (numberOfAnalyzedLines / (time.time() - analyzeStartTime)) / 60
             
-                            
+            # Report progress (convert to int percentage). Callback expects keyword argument 'progress'.
+            if progress_cb:
+                try:
+                    progress_percent = int(numberOfAnalyzedLines / numberOfLines * 100)
+                    progress_cb(progress=progress_percent)
+                except Exception as e:
+                    print(f"Progress callback failed: {e}")
             print("Annotated lines: " + str(numberOfAnalyzedLines) + "/" + str(numberOfLines) + " ({:2.2f}%)".format((numberOfAnalyzedLines * 100) / numberOfLines) +
                 ". Nr of lines/s: {:2.2f}.".format(analysedLinesPerSecond) + 
                 " inputTimeTaken: {:3.3f}.".format(inputTimeTaken) +

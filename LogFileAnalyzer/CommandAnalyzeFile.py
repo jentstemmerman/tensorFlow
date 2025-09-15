@@ -4,9 +4,8 @@ import tensorflow as tf
 import worker
 import TokenParser
 import Dataset
-import SignatureMatching
 
-def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, signatureInputDirectory, similarityOutputDirectory, FileNamesMachineReadablePooledVectors, FileNamesHumanReadablePooledVectors, OriginalTokenFileDirectory, itemFile, temperature):
+def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, signatureInputDirectory, similarityOutputDirectory, OriginalTokenFileDirectory, itemFile, temperature, progress_cb=None):
      
     success = False
     physical_devices = tf.config.list_physical_devices("CPU")
@@ -21,36 +20,35 @@ def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFile
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
     modelSource = {"Source": "FromFile", "ModelDirectory": modelDirectory, "Network": TrainingsParameter["Model"]["Network"]}
     model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
-        
-#    numberOfSignatureFiles1, numberOfPooledVectorsList1, signatureNames1, signatureTensors1, signatureFiles1 = SignatureMatching.GetSignaturesFromDirectoryAndRecalculateDirectlyFromLogFile(model=model, userId=userId, itemList=itemList, id_from_tokenList=id_from_tokenList, token_from_idList=token_from_idList, temperature=temperature, window_size=TrainingsParameter["Model"]["seq_length"])
-        
-#    numberOfSignatureFiles2, numberOfPooledVectorsList2, signatureNames2, signatureTensors2, signatureFiles2 = SignatureMatching.GetSignaturesFromDirectory(userId, itemList)       
-        
-  
-        
-        
+    progress_cb(progress=0, status="Creating workers")   
     Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
 
-    if (Workers == None):
+    if Workers is None:
         print("Could not start workers. END")
     else:
-        Model.AnalyzePrintfFile(    model=model, 
-                                    userId=userId,
-                                    inputFile=inputFile, 
-                                    inferenceDataSetFile=inferenceDataSetFile,
-                                    LogFileAnalyzedPath=LogFileAnalyzedPath,
-                                    signatureInputDirectory=signatureInputDirectory,
-                                    similarityOutputDirectory=similarityOutputDirectory,
-                                    FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
-                                    FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors,
-                                    itemFile=itemFile, 
-                                    temperature=temperature, 
-                                    seq_length=TrainingsParameter["Model"]["seq_length"], 
-                                    id_from_tokenList = id_from_tokenList,
-                                    token_from_idList=token_from_idList,
-                                    numberOfThreads=numberOfThreads, 
-                                    Workers=Workers,
-                                    DataTypeForTensors=TrainingsParameter["DataTypeForTensors"] )
+        # Ensure we have a callable progress_cb to avoid conditional branches deeper
+        if progress_cb is None:
+            def progress_cb(**kwargs):
+                return
+
+        Model.AnalyzePrintfFile(
+            model=model,
+            userId=userId,
+            progress_cb=progress_cb,
+            inputFile=inputFile,
+            inferenceDataSetFile=inferenceDataSetFile,
+            LogFileAnalyzedPath=LogFileAnalyzedPath,
+            signatureInputDirectory=signatureInputDirectory,
+            similarityOutputDirectory=similarityOutputDirectory,
+            itemFile=itemFile,
+            temperature=temperature,
+            seq_length=TrainingsParameter["Model"]["seq_length"],
+            id_from_tokenList=id_from_tokenList,
+            token_from_idList=token_from_idList,
+            numberOfThreads=numberOfThreads,
+            Workers=Workers,
+            DataTypeForTensors=TrainingsParameter["DataTypeForTensors"],
+        )
 
         success = True
         worker.KillWorkers(Workers)

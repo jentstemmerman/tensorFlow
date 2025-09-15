@@ -20,7 +20,7 @@ def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFile
     TrainingsParameter = DefaultTrainingSettings.TrainingsParameter
     modelSource = {"Source": "FromFile", "ModelDirectory": modelDirectory, "Network": TrainingsParameter["Model"]["Network"]}
     model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)
-    progress_cb(progress=0, status="Creating workers")   
+    progress_cb(progress=1, status="Creating workers")   
     Workers = worker.CreateWorkers(numberOfThreads, id_from_tokenList)
 
     if Workers is None:
@@ -52,6 +52,13 @@ def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFile
 
         success = True
         worker.KillWorkers(Workers)
+    
+        if progress_cb:
+            try:
+                progress_percent = int(100)
+                progress_cb(progress=progress_percent, status="finished")
+            except Exception as e:
+                print(f"Progress callback failed: {e}")
     
     return success
 

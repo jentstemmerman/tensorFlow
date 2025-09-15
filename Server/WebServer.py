@@ -1,4 +1,3 @@
-from pathlib import Path
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
@@ -12,7 +11,6 @@ import sys
 sys.path.append('../LogFileAnalyzer')
 import CommandAnalyzeFile # type: ignore
 import DefaultTrainingSettings # type: ignore
-import SignatureMatching # type: ignore
 import Signature # type: ignore
 
 WebServer = Flask(__name__)
@@ -20,6 +18,33 @@ cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
 
 # Update this line to allow all origins
 socketio = SocketIO(WebServer, cors_allowed_origins="*")
+
+
+# --- Analyze File Progress Helper -------------------------------------------------
+# Emits websocket events so clients can track progress of long running analyze_file
+# operations. The payload format is:
+#   {
+#       "fileName": str,
+#       "userId": str,
+#       "progress": int,        # 0-100 (stubbed for now)
+#       "status": str,          # one of: started, running, done, error
+#       "error": str (optional)
+#   }
+# Clients should listen for the 'analyze_file_progress' event name.
+def emit_analyze_file_progress(file_name: str, userId: str, progress: int, status: str = "running", error: str | None = None):
+    try:
+        payload = {
+            "fileName": file_name,
+            "userId": userId,
+            "progress": progress,
+            "status": status,
+        }
+        if error is not None:
+            payload["error"] = str(error)
+        socketio.emit("analyze_file_progress", payload)
+    except Exception as e:
+        # Fail silently so we never break the server because of a progress update
+        print(f"emit_analyze_file_progress failed: {e}")
 
 
 # Mock annotations
@@ -206,73 +231,70 @@ analyze_file_busy = False
 @WebServer.route("/api/file/analyze_file/<file_name>", methods=["GET"])
 def analyze_file(file_name):
     """Return a specific part of the file content based on line numbers."""
-    
     global analyze_file_busy
-    
+
     if analyze_file_busy:
-        print("Busy. END")
-        return jsonify({"error": True}), 500
-    
+        print("analyze_file rejected: busy")
+        return jsonify({"error": True, "busy": True}), 429
+
+    userId = request.args.get("userId", None)
+    modelDirectory = request.args.get("modelDirectory", None)
+    tokenDirectory = request.args.get("tokenDirectory", None)
+
+    if userId is None or modelDirectory is None or tokenDirectory is None:
+        return jsonify({"error": "Missing required parameters"}), 400
+
     analyze_file_busy = True
-    
-    try:
-        userId = request.args.get("userId", None)
-        modelDirectory = request.args.get("modelDirectory", None)
-        tokenDirectory = request.args.get("tokenDirectory", None)
-        modelDirectory = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
-        
-        file_path = Constants.GetLogFilePath(logFilename=file_name, userId=userId)
-        
-        OriginalTokenFileDirectory =  os.path.join( Constants.GetTokenFilesPath(), tokenDirectory)
-            
-        itemFile = os.path.join( Constants.GetItemFilesPath(), "Itemfile.txt")
-                
-        LogFileAnalyzedPath = Constants.GetLogFileAnalyzedPath(logFilename=file_name, userId=userId)
-        
-        temperature = 1
-         
-        FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId)
-        FileNamesHumanReadablePooledVectors   = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId)
-        
-        signatureInputDirectory = signatureInputDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
-        similarityOutputDirectory = os.path.dirname(Constants.GetMachineReadableSimularitiesFile(file_name, userId, ""))
-        
-        # Clear directories
-        # directories_to_clear = [
-        #     os.path.dirname(FileNamesMachineReadablePooledVectors["all"]),
-        #     os.path.dirname(FileNamesHumanReadablePooledVectors["all"])
-        # ]
+    emit_analyze_file_progress(file_name, userId, 0, status="started")
 
-        # for directory in directories_to_clear:
-        #     if os.path.exists(directory):
-        #         shutil.rmtree(directory)
-        #         os.makedirs(directory)
-        
-        inferenceDataSetFile = Constants.GetInferenceDataSetPath(file_path, userId, temperature)
-        
-        CommandAnalyzeFile.AnalyzeFile(modelDirectory,
-                                       userId, 
-                                       file_path, 
-                                       inferenceDataSetFile, 
-                                       LogFileAnalyzedPath, 
-                                       signatureInputDirectory,
-                                       similarityOutputDirectory,
-                                       FileNamesMachineReadablePooledVectors, 
-                                       FileNamesHumanReadablePooledVectors, 
-                                       OriginalTokenFileDirectory, 
-                                       itemFile, 
-                                       temperature=1)
-         
-        analyze_file_busy = False
+    def background_job():
+        global analyze_file_busy
+        try:
+            modelDirFull = os.path.join(Constants.GetModelsDirectoryPath(), modelDirectory)
+            file_path = Constants.GetLogFilePath(logFilename=file_name, userId=userId)
+            OriginalTokenFileDirectory = os.path.join(Constants.GetTokenFilesPath(), tokenDirectory)
+            itemFile = os.path.join(Constants.GetItemFilesPath(), "Itemfile.txt")
+            LogFileAnalyzedPath = Constants.GetLogFileAnalyzedPath(logFilename=file_name, userId=userId)
+            temperature = 1
+            FileNamesMachineReadablePooledVectors = Constants.GetLogFileMachineReadableVectorsPath(file_name, userId)
+            FileNamesHumanReadablePooledVectors = Constants.GetLogFileHumanReadableVectorsPath(file_name, userId)
+            signatureInputDirectory = Constants.GetUserSpecificBaseDirectory("SignatureType", userId)
+            similarityOutputDirectory = os.path.dirname(Constants.GetMachineReadableSimularitiesFile(file_name, userId, ""))
+            inferenceDataSetFile = Constants.GetInferenceDataSetPath(file_path, userId, temperature)
 
-        return jsonify(
-            {
-                "ok": 1,
-            }
-        )
-    except Exception as e:
-        print(e)
-        return jsonify({"error": str(e)}), 500
+            # --- Stubbed progress updates ---
+            emit_analyze_file_progress(file_name, userId, 5)
+            # Simulate some staged progress steps while doing real work
+
+            # Real analysis call
+            CommandAnalyzeFile.AnalyzeFile(
+                modelDirFull,
+                userId,
+                file_path,
+                inferenceDataSetFile,
+                LogFileAnalyzedPath,
+                signatureInputDirectory,
+                similarityOutputDirectory,
+                FileNamesMachineReadablePooledVectors,
+                FileNamesHumanReadablePooledVectors,
+                OriginalTokenFileDirectory,
+                itemFile,
+                temperature=1,
+            )
+
+            # Emit stubbed fixed number as requested (e.g. 42)
+            emit_analyze_file_progress(file_name, userId, 42)
+
+            emit_analyze_file_progress(file_name, userId, 100, status="done")
+        except Exception as e:
+            print(f"analyze_file error: {e}")
+            emit_analyze_file_progress(file_name, userId, 0, status="error", error=str(e))
+        finally:
+            analyze_file_busy = False
+
+    threading.Thread(target=background_job, daemon=True).start()
+
+    return jsonify({"started": True})
     
 
 @WebServer.route("/api/file/checkannotations/<file_name>", methods=["GET"])

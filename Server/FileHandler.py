@@ -8,6 +8,7 @@ import time
 import Constants
 import LogFileIterator    # type: ignore
 import threading
+import BinaryFileHandler # type: ignore
 
 fileHandle = None
 file = "./Server/large-file.txt"
@@ -39,10 +40,31 @@ def read_file_lines(file_path, userId, lineOffset, numberOfLines):
             elif chunk.endswith('\n') or chunk.endswith('\r'):
                 chunk = chunk[:-1]
 
-
-
     return chunk
 
+
+def GetSimularityData(SimularityFile, startLine, numberOfLines, DataTypeForTensors):
+
+    if type(SimularityFile) is str:
+        base_name = os.path.splitext(os.path.basename(SimularityFile))[0]
+        print("GetSimularityData: SimularityFile: ", base_name)
+        outputBinaryFileHandler = BinaryFileHandler.BinaryFileHandler(SimularityFile, data_type=DataTypeForTensors, numbers_per_line=1, sequence_length=None)
+    else:
+        assert isinstance(SimularityFile, BinaryFileHandler.BinaryFileHandler), "SimularityFile must be a BinaryFileHandler instance"
+        outputBinaryFileHandler = SimularityFile
+        base_name = os.path.splitext(os.path.basename(SimularityFile.filename))[0]
+
+        
+    recordCount = outputBinaryFileHandler.get_recordCount()
+    records = None
+    
+    if startLine < recordCount:
+        if (startLine + numberOfLines) > recordCount:
+            numberOfLines = recordCount - startLine
+                        
+        records = outputBinaryFileHandler.read_records_into_np(startLine, numberOfLines).squeeze()  # the last dim is 1, so we remove it with squeeze()
+
+    return records
 
 def open_file_once(file_path):
     """Open the file once and keep the handle in global fileHandle.

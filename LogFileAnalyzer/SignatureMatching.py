@@ -521,6 +521,11 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, Data
     for SimularityFile in machineReadableOutputFiles:
         SimularityGraph.MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensors=DataTypeForTensors)
 
+
+
+    
+    
+
 def CreateAnnotationListFromSimularitiesFile(machineReadableSimularityFile, outputFile, data_type, annotationId = 0, threshold = 0.5, comment = ""):
     
     inputFileHandler = BinaryFileHandler.BinaryFileHandler(machineReadableSimularityFile, data_type=data_type, sequence_length=None, numbers_per_line=1)

@@ -181,7 +181,7 @@ class BinaryFileHandler:
             raise ValueError("Invalid index or file corruption.")
         return struct.unpack(self.fmt, data)
 
-    def read_records(self, start_index, num_records):
+    def read_records_into_np(self, start_index, num_records):
         """Read a specified number of records starting from a specific index and return as a TensorFlow tensor."""
 
         header = self._get_header()
@@ -204,8 +204,13 @@ class BinaryFileHandler:
             raise ValueError("Invalid index or file corruption.")
         
         records = np.frombuffer(data, dtype=self.data_type).reshape(num_records, self.numbers_per_line)
-        return tf.convert_to_tensor(records, dtype=self.data_type)
-
+        return records
+    
+    def read_records(self, start_index, num_records):
+        records = self.read_records_into_np(start_index, num_records)
+        return tf.convert_to_tensor(records, dtype=self.data_type)    
+        
+                
     def close(self):
         """Close the file handler if it's open."""
         if self.read_file_handler:

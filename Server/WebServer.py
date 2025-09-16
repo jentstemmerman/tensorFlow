@@ -30,6 +30,45 @@ analyze_job_status = {}      # jobId -> dict(status, progress, fileName, userId,
 _analyze_status_lock = threading.Lock()
 
 
+def _to_serializable(obj):
+    """Recursively convert objects to JSON-serializable types.
+
+    - NumPy arrays -> lists
+    - NumPy scalars -> Python scalars
+    - bytes -> utf-8 strings (replace errors)
+    - tuples -> lists
+    - dicts/lists -> recurse
+    """
+    # Attempt optional numpy handling without hard dependency at import time
+    np_types = None
+    try:
+        import numpy as np  # type: ignore
+        np_types = (np.ndarray, np.generic)
+    except Exception:
+        np_types = None
+
+    if isinstance(obj, dict):
+        return {k: _to_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_to_serializable(v) for v in obj]
+    if isinstance(obj, tuple):
+        return [_to_serializable(v) for v in obj]
+    if np_types is not None:
+        if isinstance(obj, np_types[0]):  # ndarray
+            return obj.tolist()
+        if isinstance(obj, np_types[1]):  # numpy scalar
+            try:
+                return obj.item()
+            except Exception:
+                return str(obj)
+    if isinstance(obj, bytes):
+        try:
+            return obj.decode("utf-8", errors="replace")
+        except Exception:
+            return str(obj)
+    return obj
+
+
 def _set_job_status(job_id, **updates):
     with _analyze_status_lock:
         if job_id in analyze_job_status:
@@ -283,35 +322,57 @@ def get_file_lines(file_name):
         if not os.path.exists(file_path):
             return jsonify({"error": "File not found"}), 404
 
-        content = FileHandler.read_file_lines(
-            file_path, userId, lineOffset, numberOfLines
-        )
+        content = FileHandler.read_file_lines(file_path, userId, lineOffset, numberOfLines)
         
+        simularity_base_directory = os.path.dirname(Constants.GetMachineReadableSimularitiesFile(file_name, userId, ""))
+
+        simularity_files = []
+
+        if os.path.exists(simularity_base_directory):
+            # Only include .dat files (case-insensitive)
+            simularity_files = [
+                f for f in os.listdir(simularity_base_directory)
+                if f.lower().endswith('.dat') and os.path.isfile(os.path.join(simularity_base_directory, f))
+            ]
+
+        simularity_files_with_paths = [
+            {"fileName": file, "filePath": os.path.join(simularity_base_directory, file)}
+            for file in simularity_files
+        ]
+        
+        simularitiesList = []
+        
+        for simularity_file in simularity_files_with_paths:
+            simularities =  FileHandler.GetSimularityData(simularity_file["filePath"], lineOffset, numberOfLines, DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"])
+            simularityData = {}
+            simularityData["simularity_file"] = simularity_file["fileName"]
+            simularityData["simularities"] = simularities.tolist()            
+
+            simularitiesList.append(simularityData)
+
         content = content.decode("utf-8", errors="replace")
 
         elapsed = time.time() - start_time
-        print(
-            f"get_file_lines file_name: lineOffset: {lineOffset}, numberOfLines: {numberOfLines} - took {elapsed:.4f}s"
-        )
-
+        
+        print(f"get_file_lines file_name: lineOffset: {lineOffset}, numberOfLines: {numberOfLines} - took {elapsed:.4f}s")
+        
         # Verify that the returned content has the expected number of lines
         actual_line_count = len(content.splitlines())
         
         if actual_line_count != numberOfLines:
             nl = content.count('\n')
             print(f"Warning: requested {numberOfLines} lines, but returned {actual_line_count} lines, counted {nl} newlines")
-            
-        #else:
-        #    print(f"Success: requested {numberOfLines} lines, and returned {actual_line_count} lines")
-
-        return jsonify(
+        
+        returnValue =   jsonify(
             {
                 "text": content,
                 "start": lineOffset,
                 "size": numberOfLines,
-               # "annotations": ColumnAnnotations,
-            }
-        )
+                "simularities": simularitiesList # _to_serializable(simularitiesList),
+            })
+
+        return returnValue
+    
     except Exception as e:
         print(e)
         return jsonify({"error": str(e)}), 500

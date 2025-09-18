@@ -84,11 +84,10 @@ class Signature:
 
     def CalculateSignature(self, one_step_model):
         if self.signature is None:
+            assert one_step_model is not None, "one_step_model must not be None."
+            assert self.logSnipped is not None, "logSnipped must not be None."
             logFile = Logfile.Logfile(fileName=self.logFile, itemList=one_step_model.itemList)
-            if self.logSnipped is None:
-                tokenListList = logFile.GetTokensFromLineIndexList(self.linesIndexList)
-            else: 
-                tokenListList = logFile.GetTokensFromLines(self.logSnipped)      
+            tokenListList = logFile.GetTokensFromLines(self.logSnipped)      
                 
             self.signature = self.CalculateSignatureFromTokenListList(tokenListList, one_step_model)
         

@@ -149,9 +149,6 @@ class OneStep(tf.keras.Model):
     
   #@tf.function
   def generate_hidded_states(self, inputTensor):
-    
-    
-    
     with tf.device('/GPU:0'):
       try:
         

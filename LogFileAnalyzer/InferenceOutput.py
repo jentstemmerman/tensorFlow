@@ -2,8 +2,8 @@ import TokenParser
 import tensorflow as tf
 import numpy as np
 from numbers import Number
-import Dataset
-import time
+from Mask import Mask
+
 
 def extend_string_with_spaces(s, target_length):
     if len(s) >= target_length:
@@ -104,8 +104,8 @@ def ComposeLineList(numberOfParallelExecutions,
                 else:
                     actual = TranslateToString(token_from_idList[featureIndex](actualNextIdList[executionIndex][featureIndex])) # TranslateToString("DISABLED") #
                     # actual = TranslateToString("DISABLED")  # TranslateToString("DISABLED") #    
-                
-                if (actual == prediction) and (actual != Dataset.Universal_Mask_Token):
+
+                if (actual == prediction) and (actual != Mask.Universal_Mask_Token):
                     prediction = prediction + IdenticalString
                     prediction = extend_string_with_spaces(prediction, string_length)
                     predictionsString  += prediction
@@ -149,7 +149,7 @@ def ComposeLineList(numberOfParallelExecutions,
             #print(f"PrintfList[{executionIndex}], numberOfParallelExecutions = {numberOfParallelExecutions} len(PrintfList) = {len(PrintfList)}")
             
             if (executionIndex >= len(PrintfList)):
-                print(f"Warning (executionIndex >= len(PrintfList))")
+                print("Warning (executionIndex >= len(PrintfList))")
                 printf = "No printf left"
             else:
                 printf = PrintfList[executionIndex]

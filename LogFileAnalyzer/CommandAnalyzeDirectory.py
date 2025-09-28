@@ -1,4 +1,5 @@
 import DefaultTrainingSettings
+from Mask import Mask
 import Model
 import tensorflow as tf
 import worker
@@ -14,7 +15,7 @@ def AnalyzeFilesInDirectory(modelFile, InputDirectory, outputDirectory, Original
         itemList                             = TokenParser.GetItemListToSearchFor(itemFile)
         id_from_tokenList, token_from_idList = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList) 
         modelFeatureList                     = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
-        maskValueList                        = Model.GetMaskValueList(id_from_tokenList)
+        maskValueList                        = Mask.GetMaskValueList(id_from_tokenList, itemList)
 
         modelSource = {"Source": "FromFile", "ModelDirectory": modelFile, "Network": TrainingsParameter["Model"]["Network"]}
         model       = Model.GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter)

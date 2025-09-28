@@ -1,3 +1,4 @@
+from Mask import Mask
 import TokenParser
 import DefaultTrainingSettings
 import Dataset
@@ -7,8 +8,11 @@ import tensorflow as tf
 
 def TrainModelOnDataSet(TrainingDataSetFile, VerificationDataSetFile, id_from_tokenList, itemList, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter):
 
+    # tf.config.run_functions_eagerly(True)  
+    # tf.data.experimental.enable_debug_mode()    
+
     modelFeatureList = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
-    maskValueList    = Model.GetMaskValueList(id_from_tokenList)
+    maskValueList    = Mask.GetMaskValueList(id_from_tokenList, itemList)
 
     modelSource = {"Source": "NewModel", "ModelDirectory": TrainedModelDir, "Network": TrainingsParameter["Model"]["Network"]}
 
@@ -58,9 +62,6 @@ if __name__ == "__main__":
     else:
         print("Did not receive 6 parameters. Parameters received: " + str(sys.argv-1))
     
-  #  tf.config.run_functions_eagerly(True)  
-  #  tf.data.experimental.enable_debug_mode()    
-
     TrainingsParameter   = DefaultTrainingSettings.TrainingsParameter
     itemList             = TokenParser.GetItemListToSearchFor(itemFile)
     id_from_tokenList, _ = Dataset.GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory=OriginalTokenFileDirectory, itemList=itemList, OutputVocabularyDirectory=None)  

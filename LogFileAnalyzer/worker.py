@@ -2,7 +2,7 @@ import multiprocessing
 import queue
 import time
 import tensorflow as tf
-import Dataset
+from Mask import Mask
 import numpy as np
 
 def Worker(cpu, inputQueue, outputQueue, id_from_tokenListNumpy):
@@ -17,8 +17,8 @@ def Worker(cpu, inputQueue, outputQueue, id_from_tokenListNumpy):
                 id_from_token = None
                 token_from_id = None
             else:   
-                id_from_token = tf.keras.layers.StringLookup(vocabulary=id_from_tokenNumpy.tolist(), mask_token=Dataset.Universal_Mask_Token)
-                token_from_id = tf.keras.layers.StringLookup(vocabulary=id_from_tokenNumpy.tolist(), mask_token=Dataset.Universal_Mask_Token, invert=True)
+                id_from_token = tf.keras.layers.StringLookup(vocabulary=id_from_tokenNumpy.tolist(), mask_token=Mask.Universal_Mask_Token)
+                token_from_id = tf.keras.layers.StringLookup(vocabulary=id_from_tokenNumpy.tolist(), mask_token=Mask.Universal_Mask_Token, invert=True)
             id_from_tokenList.append(id_from_token)
             token_from_idList.append(token_from_id)
         

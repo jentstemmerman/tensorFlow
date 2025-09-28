@@ -26,6 +26,7 @@ import neptune
 from neptune.integrations.tensorflow_keras import NeptuneCallback
 import DefaultTrainingSettings
 import math
+import Mask
 
 
 
@@ -195,34 +196,11 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
                                         token_from_idList=token_from_idList, 
                                         temperature=temperature, 
                                         seq_length=seq_length)
-           
-           
-        # Inference.AddProbabilitiesPrintfFileParallel(model=model, 
-        #                                              userId=userId,
-        #                                              numberOfThreads=numberOfThreads, 
-        #                                              Workers=Workers, 
-        #                                              itemList=itemList, 
-        #                                              DataTypeForTensors=DataTypeForTensors, 
-        #                                              LogfileVerification=printfFileToProcess, 
-        #                                              inferenceDataSetFile=inferenceDataSetFilePath, 
-        #                                              FileNameAnalyzed=LogFileAnalyzedPath, 
-        #                                              FileNamesHumanReadablePooledVectors=FileNamesHumanReadablePooledVectors, 
-        #                                              FileNamesMachineReadablePooledVectors=FileNamesMachineReadablePooledVectors, 
-        #                                              id_from_tokenList=id_from_tokenList, 
-        #                                              token_from_idList=token_from_idList, 
-        #                                              temperature=temperature, 
-        #                                              seq_length=seq_length)
+
 
         printfFileToProcess = verificationFileIterator.get_next_file()
 
-def GetMaskValueList(id_from_tokenList):   # JENTS BUG
-    maskValueList = []
 
-    for id_from_token in id_from_tokenList:
-        maskValue = id_from_token(Dataset.Universal_Mask_Token)
-        maskValueList.append(maskValue)
-
-    return maskValueList
 
 def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
     modelFeatureList = []

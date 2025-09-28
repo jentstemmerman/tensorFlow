@@ -1,12 +1,12 @@
 import Logfile
 import tensorflow as tf
-import ModelClass
-import Dataset
+import ModelClass  # noqa: F401
+import Dataset     # noqa: F401
 import Constants                    # type: ignore
-import DefaultTrainingSettings
+# import DefaultTrainingSettings
 import os
 import json
-
+from Mask import Mask
 
 class Signature:
     
@@ -107,10 +107,13 @@ class Signature:
         
         requiredNumberOfMaskTokens = seq_length - numberOfLines    
         
-        mask_token_filler_list = [Dataset.Universal_Mask_Token] * requiredNumberOfMaskTokens
+        mask_token_filler_list = [Mask.Universal_Mask_Token] * requiredNumberOfMaskTokens
         
         
         for columnIndex, id_from_token in enumerate(one_step_model.id_from_tokenList):
+            
+            assert id_from_token is not None, "id_from_token must not be None, if it is, this means that the feature is not tokenized, which is not supported for signature calculation YET"
+
             columnList = [column[columnIndex] for column in tokenListList]
             columnList.extend(mask_token_filler_list)  # add the mask tokens to the end of the column
                 

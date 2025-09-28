@@ -1,12 +1,10 @@
 import tensorflow as tf
-from tensorflow import keras
 import numpy as np
 import TokenParser
 import LogFileIterator
 import Dataset
 import os
-
-Universal_Mask_Token = "MaskedToken"
+from Mask import Mask
 
 
 def GetDataSetInformation(dataSet):
@@ -16,22 +14,9 @@ def GetDataSetInformation(dataSet):
 
     return num_batches_dataset
 
-def GetMaskValue(featureIndex, id_from_tokenList):
-    id_from_token = id_from_tokenList[featureIndex]
-    
-    if ( id_from_token is None):
-        maskValue = float('inf')
-    else:
-        maskValue = id_from_token(Universal_Mask_Token) 
-    
-    return maskValue.numpy()
-
-def CreateTrainingDataSetOfMarker(sample, id_from_tokenList, DataTypeForTensors):
+def CreateTrainingDataSetOfMarker(sample, id_from_tokenList, DataTypeForTensors, itemList):
     input_shape     = sample[-1].shape
     numberOfeatures = sample[-1].shape[1]
-    
-    new_shape = tf.concat([[input_shape[0] + 1], input_shape[1:]], axis=0) # maak een shape die 1 meer is in de eerste dimensie
-    
 
     assert(numberOfeatures == len(id_from_tokenList))
 
@@ -39,7 +24,7 @@ def CreateTrainingDataSetOfMarker(sample, id_from_tokenList, DataTypeForTensors)
     maskList        = []
 
     for featureIndex, id_from_token in enumerate(id_from_tokenList):
-        maskValue  = GetMaskValue(featureIndex, id_from_tokenList)
+        maskValue  = Mask.GetMaskValue(featureIndex, id_from_tokenList, itemList)
         maskColumn = tf.fill(sequenceLength, maskValue)
         maskColumn = tf.cast(maskColumn, DataTypeForTensors)
         maskList.append(maskColumn)
@@ -50,15 +35,14 @@ def CreateTrainingDataSetOfMarker(sample, id_from_tokenList, DataTypeForTensors)
     datasetfast = datasetfast.window(input_shape[0] + 1, shift=1, drop_remainder=True)
     datasetfast = datasetfast.flat_map(lambda window2: window2)
     datasetfast = datasetfast.batch(input_shape[0] + 1, drop_remainder = True)
-    datasetfast = datasetfast.map(TokenParser.split_input_target) 
-    new_sample = next(iter(datasetfast))
+    datasetfast = datasetfast.map(TokenParser.split_input_target)
 
     return datasetfast
 
-def SetMarkerAtTrainingDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors):
+def SetMarkerAtTrainingDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors, itemList):
 
     sample1 = next(iter(dataset))
-    datasetOfMarker = CreateTrainingDataSetOfMarker(sample1, id_from_tokenList, DataTypeForTensors)
+    datasetOfMarker = CreateTrainingDataSetOfMarker(sample1, id_from_tokenList, DataTypeForTensors, itemList)
 
     combined_dataset = dataset.concatenate(datasetOfMarker)
 
@@ -125,8 +109,8 @@ def CreateDatasetFromDirectoryNew(InputDirectory, OutputDirectory, itemList, id_
             Dataset.SaveDataset(concatenated_dataset, OutputDirectory + os.path.sep + 'DirectoryDataSet' + os.path.sep+ 'DataSetOfDirectory.dataset')
 
         for completed_future in concurrent.futures.as_completed(futureList):
-            # Optional: Retrieve the result of each completed future
-            result = completed_future.result()
+            # Ensure exceptions are re-raised
+            completed_future.result()
 
         
 def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride, stride_dataset_inference, seq_length, dual_input, DataTypeForTensors, forTraining, removeDuplicates):
@@ -151,7 +135,7 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
                                                 num_parallel_calls=10, 
                                                 verbose=False)
         
-        dataset = SetMarkerAtTrainingDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
+        dataset = SetMarkerAtTrainingDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors, itemList)
         print("Saving training dataset " + os.path.basename(InputFile) + "...\n")
     else:
         dataset = CreateTrainingDatasetFromFile(InputFile, 
@@ -166,7 +150,7 @@ def process_file(InputFile, OutputDirectory, itemList, id_from_tokenList, stride
                                                 num_parallel_calls=10, 
                                                 verbose=False)
         
-        dataset = SetMarkerAtTrainingDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors)
+        dataset = SetMarkerAtTrainingDataSetEdge(dataset, id_from_tokenList, DataTypeForTensors, itemList)
         print("Saving training dataset " + os.path.basename(InputFile) + "...\n")
         
         
@@ -250,7 +234,7 @@ def CreateTrainingDatasetFromFile(InputFile, IntermediateFile, itemList, id_from
     try:
         datasetfast = datasetfast.window(seq_length + 1, shift=stride, drop_remainder=True)
     except TypeError as e:
-        print("Error: {e}")
+        print(f"Error: {e}")
         print(InputFile  + "\n")
 
     except OSError as e:
@@ -339,7 +323,7 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, Outp
             if ("VocabularyFile" in itemsInLine):
                 OriginalTokenFile = itemsInLine["VocabularyFile"]
                 
-                if (type(OriginalTokenFile) == str):
+                if isinstance(OriginalTokenFile, str):
 
                     OriginalTokenFileName = OriginalTokenFileDirectory + os.path.sep + OriginalTokenFile
                     
@@ -389,11 +373,11 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, Outp
                 raise ValueError("VocabularyFile " + OutputVocabularyFile + " or range not found")
             
 
-            id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyNumpy, mask_token=Universal_Mask_Token)
+            id_from_token = tf.keras.layers.StringLookup(vocabulary=VocabularyNumpy, mask_token=Mask.Universal_Mask_Token)
             id_from_tokenList.append(id_from_token)
             
             # decoder
-            token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyNumpy, mask_token=Universal_Mask_Token, invert=True)
+            token_from_id = tf.keras.layers.StringLookup(vocabulary=VocabularyNumpy, mask_token=Mask.Universal_Mask_Token, invert=True)
             token_from_idList.append(token_from_id)
         else:
             id_from_tokenList.append(None)

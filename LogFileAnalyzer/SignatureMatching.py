@@ -17,7 +17,7 @@ import math
 import SimularityGraph
 import InferenceAssembly
 import Model
-
+from Mask import Mask
 
 def GetInitialInference(DataTypeForTensors, id_from_tokenList, window_size, one_step_model, sharedTokenList, startIndex):
     result = InferenceAssembly.AssembleInputsThread(id_from_tokenList, 0, DataTypeForTensors, startIndex, 1, sharedTokenList, None, window_size)
@@ -33,6 +33,7 @@ def CalculateSignatureDirectlyFromLogFile(model, logFileName, startLine, numberO
     import Logfile
     import ModelClass
     import Dataset
+
     
     AssertionError(numberOfLines <= window_size)  # this is not supported yet
     
@@ -45,7 +46,7 @@ def CalculateSignatureDirectlyFromLogFile(model, logFileName, startLine, numberO
     
     requiredNumberOfMaskTokens = window_size - numberOfLines    
        
-    mask_token_filler_list = [Dataset.Universal_Mask_Token] * requiredNumberOfMaskTokens
+    mask_token_filler_list = [Mask.Universal_Mask_Token] * requiredNumberOfMaskTokens
     
     
     for columnIndex, id_from_token in enumerate(id_from_tokenList):

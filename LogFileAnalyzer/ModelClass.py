@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from tensorflow import keras
-import Dataset
+from Mask import Mask
   
         
 class OneStep(tf.keras.Model):
@@ -51,42 +50,39 @@ class OneStep(tf.keras.Model):
   
   
   def generate_inputTensor_from_tokenListList(self, tokenListList, DataTypeForTensors):
-    
-      assert isinstance(tokenListList, list), "tokenListList should be a list of lists"
-      assert self.id_from_tokenList is not None, "id_from_tokenList should not be None"
-      
-      numberOfLines = len(tokenListList)
-              
-      tokenIdList = []
-      
-      requiredNumberOfMaskTokens = self.seq_length - numberOfLines    
-      
-      mask_token_filler_list = [Dataset.Universal_Mask_Token] * requiredNumberOfMaskTokens
-      
-      
-      for columnIndex, id_from_token in enumerate(self.id_from_tokenList):
-          columnList = [column[columnIndex] for column in tokenListList]
-          columnList.extend(mask_token_filler_list)  # add the mask tokens to the end of the column
-              
-          if (id_from_token is None):
-              idColumn = tf.convert_to_tensor(columnList, dtype=DataTypeForTensors)
-          else:
-              idColumn = id_from_token(columnList)
-          
-          tokenIdList.append(idColumn)
-          # After the loop, stack all idColumns along the last dimension to form the input tensor
-          tokenIdList = tf.stack(tokenIdList, axis=-1)
+    assert isinstance(tokenListList, list), "tokenListList should be a list of lists"
+    assert self.id_from_tokenList is not None, "id_from_tokenList should not be None"
 
+    numberOfLines = len(tokenListList)
 
-      # Add a batch dimension of 1 to tokenIdList
-      tokenIdList = tf.expand_dims(tokenIdList, axis=0)
-      # Cast tokenIdList to float32
-      tokenIdList = tf.cast(tokenIdList, DataTypeForTensors)
-      
-      return tokenIdList
+    tokenIdList = []
+
+    requiredNumberOfMaskTokens = self.seq_length - numberOfLines
+
+    mask_token_filler_list = [Mask.Universal_Mask_Token] * requiredNumberOfMaskTokens
+
+    for columnIndex, id_from_token in enumerate(self.id_from_tokenList):
+      columnList = [column[columnIndex] for column in tokenListList]
+      columnList.extend(mask_token_filler_list)  # add the mask tokens to the end of the column
+
+      if (id_from_token is None):
+        idColumn = tf.convert_to_tensor(columnList, dtype=DataTypeForTensors)
+      else:
+        idColumn = id_from_token(columnList)
+
+      tokenIdList.append(idColumn)
+      # After the loop, stack all idColumns along the last dimension to form the input tensor
+      tokenIdList = tf.stack(tokenIdList, axis=-1)
+
+    # Add a batch dimension of 1 to tokenIdList
+    tokenIdList = tf.expand_dims(tokenIdList, axis=0)
+    # Cast tokenIdList to float32
+    tokenIdList = tf.cast(tokenIdList, DataTypeForTensors)
+
+    return tokenIdList
     
     
-  @tf.function
+  #@tf.function
   def generate_simularity_lists(self, inputTensor, signature_list):
     with tf.device('/GPU:0'):
       

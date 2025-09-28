@@ -346,7 +346,11 @@ def get_file_lines(file_name):
             simularities =  FileHandler.GetSimularityData(simularity_file["filePath"], lineOffset, numberOfLines, DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"])
             simularityData = {}
             simularityData["simularity_file"] = simularity_file["fileName"]
-            simularityData["simularities"] = simularities.tolist()            
+            
+            if simularities is None:
+                simularityData["simularities"] = []
+            else:
+                simularityData["simularities"] = simularities.tolist()            
 
             simularitiesList.append(simularityData)
 

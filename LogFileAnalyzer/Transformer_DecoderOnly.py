@@ -1,12 +1,10 @@
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
-import math
 import MultiDimensionalModel
 
 
 # JENTS: this looks like the classic positional encoding. 
-@tf.function
+#@tf.function
 def positional_encoding(length, depth, DataTypeForTensors): # lenght is the sequence lenght, depth the embedding dimension
   """
   Generates a matrix of position encodings for an input sequence.
@@ -79,7 +77,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     return self.embedding.compute_mask(*args, **kwargs)
   
 
-  @tf.function
+  #@tf.function
   def call(self, x):
     """
     Computes the output of the layer.
@@ -141,28 +139,39 @@ class CausalSelfAttention(BaseAttention):
       Output sequence tensor of the same shape as the input, after self-attention
       and residual connection with layer normalization applied.
   """
-  @tf.function
-  def call(self, x, return_attention_scores=False):
+  #@tf.function
+  def call(self, x, padding_mask=None, return_attention_scores=False, training=None):
+    assert padding_mask is not None, "CausalSelfAttention requires a padding_mask."
+    mask = tf.cast(padding_mask, tf.bool)
+
+    # Ensure shape (B, 1, S) so it can combine with causal mask (1, S, S)
+    if mask.shape.rank == 2:            # (B, S)
+      mask = mask[:, tf.newaxis, :]     # -> (B, 1, S)
+    elif mask.shape.rank == 3:
+      if mask.shape[1] != 1:
+        # If it's (B, T_q, T_k) you can leave as-is
+        pass
+    else:
+      raise ValueError(f"Unsupported mask rank {mask.shape.rank}; expected 2 or 3.")
+
     multiHeadAttentionOutput = self.mha(
         query=x,
         value=x,
         key=x,
+        attention_mask=mask,
         return_attention_scores=return_attention_scores,
-        use_causal_mask=True)
-    
+        use_causal_mask=True,
+        training=training)
+
     if return_attention_scores:
-        attn_output, attn_scores = multiHeadAttentionOutput
+      attn_output, attn_scores = multiHeadAttentionOutput
     else:
-        attn_output = multiHeadAttentionOutput
-        attn_scores = None
+      attn_output = multiHeadAttentionOutput
+      attn_scores = None
 
     x = self.add([x, attn_output])
     x = self.layernorm(x)
-    
-    if return_attention_scores:
-        return x, attn_scores
-    else:
-        return x
+    return (x, attn_scores) if return_attention_scores else x
 
 class FeedForward(tf.keras.layers.Layer):
   """
@@ -202,7 +211,7 @@ class FeedForward(tf.keras.layers.Layer):
     self.add = tf.keras.layers.Add()
     self.layer_norm = tf.keras.layers.LayerNormalization()
 
-  @tf.function
+ # @tf.function
   def call(self, x):
     """
     Passes the input tensor `x` through a feedforward network consisting of two
@@ -257,8 +266,8 @@ class DecoderLayer(tf.keras.layers.Layer):
 
     self.FeedForwardLayer = FeedForward(d_model, dff)
 
-  @tf.function
-  def call(self, x, training):
+  #@tf.function
+  def call(self, x, training, padding_mask=None):
     """
     Forward pass of the `DecoderLayer`.
 
@@ -270,12 +279,12 @@ class DecoderLayer(tf.keras.layers.Layer):
       The output tensor of the `DecoderLayer` or a tuple with output and attention scores.
     """
     isInference = not training
-    
+
     if isInference:
-        x, attn_scores = self.causal_self_attention(x=x, return_attention_scores=True)
+      x, attn_scores = self.causal_self_attention(x=x, padding_mask=padding_mask, return_attention_scores=True, training=training)
     else:
-        x = self.causal_self_attention(x=x, return_attention_scores=False)
-        attn_scores = None
+      x = self.causal_self_attention(x=x, padding_mask=padding_mask, return_attention_scores=False, training=training)
+      attn_scores = None
 
     # Cache the last attention scores for plotting later
     self.last_attn_scores = attn_scores
@@ -352,44 +361,50 @@ class Decoder(tf.keras.layers.Layer):
 
 
 
-  @tf.function
+  # @tf.function
   def call(self, inputs, training=False):
     inputList = []
+    feature_masks = []  # collect per-feature masks where available
     
     for i, input_layer in enumerate(self.input_layerList):
-        input_to_layer = inputs[:, :, i]
-        output = input_layer(input_to_layer, training = training)
-        inputList.append(output)
-    
-    
+      input_to_layer = inputs[:, :, i]
+      output = input_layer(input_to_layer, training = training)
+      inputList.append(output)
+      # Attempt to extract mask for embedded layers (Embedding exposes compute_mask)
+      if hasattr(input_layer, 'compute_mask'):
+        try:
+          mask_i = input_layer.compute_mask(input_to_layer)
+        except TypeError:
+          mask_i = None
+        if mask_i is not None:
+          # mask_i shape: (batch, seq_len); True means valid token
+          feature_masks.append(tf.cast(mask_i, tf.bool))
+
     concatenated_inputs = tf.keras.layers.concatenate(inputList, axis=-1)
     concatenated_inputs = self.dropout(concatenated_inputs)
-    
+
     hidden_state = concatenated_inputs
     sampled_hidden_state = None
     sampled_attention_weights = None
     attentionScoresList = None
-    
+    combined_padding_mask = None
+    if feature_masks:
+      # Combine with logical OR: a time step is valid if any feature is valid.
+      combined_padding_mask = tf.reduce_any(tf.stack(feature_masks, axis=0), axis=0)  # (batch, seq_len)
+
     if training:
-      
       for i in range(self.num_layers):
-          hidden_state = self.dec_layers[i](hidden_state, training=training)
-          
-      attention_weights = None  
-      
+        hidden_state = self.dec_layers[i](hidden_state, training=training, padding_mask=combined_padding_mask)
+      attention_weights = None
     else:
-      
       attentionScoresList = []
       for i in range(self.num_layers):
-          hidden_state, attention_weights = self.dec_layers[i](hidden_state, training=training)
-          
-          attentionScoresList.append(tf.reduce_mean(attention_weights, axis=1))
-          
-          if (i == self.stateSampleLayer):
-            sampled_hidden_state = hidden_state
-            sampled_attention_weights = attention_weights
-            
-        
+        hidden_state, attention_weights = self.dec_layers[i](hidden_state, training=training, padding_mask=combined_padding_mask)
+        attentionScoresList.append(tf.reduce_mean(attention_weights, axis=1))
+        if (i == self.stateSampleLayer):
+          sampled_hidden_state = hidden_state
+          sampled_attention_weights = attention_weights
+
     output_List = []
 
     for i, output_layer in enumerate(self.output_layerList):
@@ -418,11 +433,11 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
     self.decoder = Decoder(num_layers=num_layers, featureList=featureList,
                            num_heads=num_heads, dff=dff, embeddingDimensionList=embeddingDimensionList, DataTypeForTensors=DataTypeForTensors,
                            seq_length=seq_length,
-                           dropout_rate=dropout_rate, stateSampleLayer=num_layers/2)
+                           dropout_rate=dropout_rate, stateSampleLayer=num_layers//2)
 
 
 
-  @tf.function
+  #@tf.function
   def call(self, inputs, training):
     """
     Forward pass of the transformer model.
@@ -444,20 +459,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
         
     logits, hidden_states, attention_weights, attentionScoresList = self.decoder(x, training=training)  
 
-    try:
-      # Drop the keras mask, so it doesn't scale the losses/metrics.
-      # b/250038731
-      for logitss in logits:
-
-        if hasattr(logitss, '_keras_mask'): 
-          # Remove the mask from the logits.
-          # This is needed to avoid issues with the loss function.
-          # See
-          del logitss._keras_mask
-        else:
-          print("No _keras_mask found in logits")
-    except AttributeError:
-      pass
+    # No manual deletion of _keras_mask; rely on explicit masking strategy in loss if needed.
 
     return logits, hidden_states, attention_weights, attentionScoresList
 
@@ -495,7 +497,7 @@ class Transformer(tf.keras.Model):
                seq_length=seq_length, dropout_rate=dropout_rate)
 
   
-  @tf.function
+  # @tf.function
   def call(self, inputs, training=False):
     logits, hidden_state, attention_weights, attentionScoresList = self.decoderOnlyTransformerLayer(inputs, training=training)
     
@@ -510,21 +512,16 @@ class Transformer(tf.keras.Model):
   def CalculateEmbeddingDimensions(featureList):
     embeddingDimension = []
     total_output_dimensions = 0
-
-    for i, feature in enumerate(featureList):
-        if (feature["embedded"]):
-            import math
-            output_dimension = 256 #math.ceil(feature["vocab_size"]**0.25) * 4
-        else:
-            output_dimension = 1
-
-        # the positional encoder heeft een getal deelbaar door 2 nodig
-        if (output_dimension % 2 == 1):
-            output_dimension += 1
-        
-        embeddingDimension.append(output_dimension)
-        total_output_dimensions += output_dimension
-
+    for feature in featureList:
+      if feature["embedded"]:
+        output_dimension = 256   #math.ceil(feature["vocab_size"]**0.25) * 4
+      else:
+        output_dimension = 1
+      # ensure even for positional encoding
+      if output_dimension % 2 == 1:
+        output_dimension += 1
+      embeddingDimension.append(output_dimension)
+      total_output_dimensions += output_dimension
     return embeddingDimension
 
 

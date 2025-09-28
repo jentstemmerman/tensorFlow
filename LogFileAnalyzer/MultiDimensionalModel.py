@@ -1,14 +1,20 @@
 import tensorflow as tf
 import numpy as np
-from tensorflow import keras
 import TokenParser
-import Dataset
 import math 
 import ModelHash
 
 
-def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
-    verbose = False
+def Custom_loss_function(parameter, maskValueList, DataTypeForTensors, embedded_pad_token=0):
+    """Creates a per-feature loss function that masks padded positions.
+
+    Args:
+        parameter: feature metadata list. Each entry must contain key 'embedded'.
+        maskValueList: list of mask (pad) values for NON-embedded (regression) features.
+        DataTypeForTensors: dtype for tensors.
+        embedded_pad_token: pad token id used for embedded categorical features (default 0 to align with Embedding(mask_zero=True)).
+    """
+    # removed unused verbose flag
     counter = 0
     counterBadStuff = 0
     featureIndex = 0
@@ -37,29 +43,31 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors):
         nonlocal modelFeatureList
         nonlocal counter
         nonlocal maskValueList
+        nonlocal embedded_pad_token
         counter += 1
         
         feature_output_true_masked      = None
         feature_output_predicted_masked = None
 
-        feature_output_true = tf.gather(output_true, featureIndex, axis=-1)
-        feature_output_true = tf.expand_dims(feature_output_true,  axis=-1 )
+        feature_output_true = tf.gather(output_true, featureIndex, axis=-1)  # take the feature. This removes the last dimension
+        feature_output_true = tf.expand_dims(feature_output_true,  axis=-1 ) # add the dimension back
 
-        if (modelFeatureList[featureIndex]["embedded"] == True):
-            feature_output_loss = tf.keras.losses.sparse_categorical_crossentropy(feature_output_true, feature_output_predicted, from_logits=True)
+        if modelFeatureList[featureIndex]["embedded"]:
+            # Mask out padded categorical tokens (where token == embedded_pad_token)
+            pad_mask = tf.not_equal(feature_output_true, embedded_pad_token)  # make a tensor that has a false when the position is padded. # True where real token
+            pad_mask_f = tf.cast(pad_mask, dtype=feature_output_predicted.dtype) # make a float out of it.
+            per_token_loss = tf.keras.losses.sparse_categorical_crossentropy(feature_output_true, feature_output_predicted, from_logits=True)
+            per_token_loss = per_token_loss * tf.squeeze(pad_mask_f, axis=-1)   # multiple the loss with 0 where padded, 1 where real token
+            feature_output_loss = per_token_loss
         else:
             mask_value = maskValueList[featureIndex]
-         
             mask = tf.not_equal(feature_output_true, mask_value)
             mask = tf.cast(mask, dtype=DataTypeForTensors)
-            
             feature_output_true_masked      = feature_output_true      * mask
             feature_output_predicted_masked = feature_output_predicted * mask
-
             feature_output_loss = tf.keras.losses.mean_squared_error(feature_output_true_masked, feature_output_predicted_masked)
-                
-        featureIndex = (featureIndex + 1) % numberOfFeatures
 
+        featureIndex = (featureIndex + 1) % numberOfFeatures
         return feature_output_loss
     return custom_multi_output_loss_jents
 
@@ -141,38 +149,29 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
         self.input_layerList  = []
 
-
         for i, feature in enumerate(featureList):
-
             output_dimension = embeddingDimensionList[i]
-        
-            if (feature["embedded"] == True):
+            if feature["embedded"]:
                 input_layer = tf.keras.layers.Embedding(input_dim=feature["vocab_size"], output_dim=output_dimension, dtype=datatype)
             else:
-                input_layer = CustomIdentityLayer(datatype=datatype) 
-            
+                input_layer = CustomIdentityLayer(datatype=datatype)
             self.numberOfInputsToLstm += output_dimension
-            
-            self.input_layerList.append(input_layer)    
+            self.input_layerList.append(input_layer)
 
      #   import Transformer_DecoderOnly
      #   self.decoderOnlyTransformerLayer = Transformer_DecoderOnly.DecoderOnlyTransformerLayer(num_layers=num_layers, d_model=d_model, num_heads=num_heads, dff=dff,
     #                         vocab_size=input_vocab_size, featureList=featureList, seq_length=seq_length, dropout_rate=0.1)
     
-        self.lstm_layer       = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfInputsToLstm), return_sequences=return_sequences, dropout=0.1)
-        
-        self.output_layerList  = []
+        self.lstm_layer = tf.keras.layers.LSTM(units=rnn_units, input_shape=(None, sequence_length, self.numberOfInputsToLstm), return_sequences=return_sequences, dropout=0.1)
 
+        self.output_layerList = []
         for i, feature in enumerate(featureList):
-
             layer_name = feature["layer_name"]
-
-            if (feature["embedded"] == True):
+            if feature["embedded"]:
                 dense_output_layer = tf.keras.layers.Dense(units=feature["vocab_size"], name=layer_name, activation=activationFunctionForDenseLayerAfterLstm)
             else:
-                dense_output_layer = CustomDenseLayer(rnn_units, 1) 
-
-            self.output_layerList.append(dense_output_layer)  
+                dense_output_layer = CustomDenseLayer(rnn_units, 1)
+            self.output_layerList.append(dense_output_layer)
 
     def GetHashAtCreation(self):
         return self.hashAtCreation.getHash()

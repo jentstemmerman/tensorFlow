@@ -172,11 +172,51 @@ def _start_analyze_workers():
     _start_analyze_workers._started = True
 
 
+# NOTE: duplicate emit_analyze_file_progress removed here. The active definition with jobId support
+# is located above near the queue setup.
+
+
+# Mock annotations
+TextAnnotations = {
+    "file1.txt": [{"line": 2, "label": "Important"}, {"line": 5, "label": "To-Do"}],
+    "file2.txt": [{"line": 3, "label": "Note"}, {"line": 4, "label": "Warning"}],
+}
+
+# Mock annotations
+ColumnAnnotations = [
+    {"lineNumber": 2, "lineCount": "3", "color": "red"},
+    {"lineNumber": 7, "lineCount": "1", "color": "red"},
+    {"lineNumber": 17, "lineCount": "2", "color": "green"},
+]
+
+ColumnAnnotations = [
+    {
+        "lineNumber": 2,
+        "lineCount": "3",
+        "AnnotationId": 1,
+        "Comment": "This is a comment",
+    },
+    {
+        "lineNumber": 7,
+        "lineCount": "1",
+        "AnnotationId": 2,
+        "Comment": "This is a comment",
+    },
+    {
+        "lineNumber": 17,
+        "lineCount": "2",
+        "AnnotationId": 1,
+        "Comment": "This is a comment",
+    },
+]
+
+
 def GetOffsetFilePath(LogFilename, userId):
     baseDirectory = Constants.GetUserSpecificBaseDirectory("OffsetsType", userId)
 
     offset_file_path = os.path.join(baseDirectory, LogFilename)
     return offset_file_path
+
 
 @WebServer.route("/api/get_directory_listing", methods=["GET"])
 def get_directory_listing():

@@ -229,9 +229,16 @@ class Signature:
 
             linesIndexList = []
             
-            #selectedTextList   = [e["text"] for e in selectedTextForSignature if "text" in e]
-            linesIndexList     = [e["line"] for e in selectedTextForSignature if "line" in e]
+            selectedTextForSignature = sorted( selectedTextForSignature, 
+                                               key=lambda x: x['selectedLineOffset']['startLine'] )
             
+            for index, item in enumerate(selectedTextForSignature):
+                startLine = item['selectedLineOffset']['startLine']
+                endLine = item['selectedLineOffset']['endLine']
+                
+                for i in range(startLine, endLine + 1):
+                    linesIndexList.append(i)
+
             logFile = Logfile.Logfile(fileName=logFileName, itemList=None)
             
             signature_text = logFile.GetLinesFromLineIndexList(linesIndexList=linesIndexList)

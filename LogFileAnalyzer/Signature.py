@@ -226,18 +226,7 @@ class Signature:
     @staticmethod
     def SaveSignatureFile(signature_name, logFileName, selectedTextForSignature, userId):
         try:
-
-            linesIndexList = []
-            
-            selectedTextForSignature = sorted( selectedTextForSignature, 
-                                               key=lambda x: x['selectedLineOffset']['startLine'] )
-            
-            for index, item in enumerate(selectedTextForSignature):
-                startLine = item['selectedLineOffset']['startLine']
-                endLine = item['selectedLineOffset']['endLine']
-                
-                for i in range(startLine, endLine + 1):
-                    linesIndexList.append(i)
+            linesIndexList = [e["line"] for e in selectedTextForSignature if "line" in e]
 
             logFile = Logfile.Logfile(fileName=logFileName, itemList=None)
             

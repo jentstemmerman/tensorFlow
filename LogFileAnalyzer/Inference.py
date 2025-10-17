@@ -109,8 +109,10 @@ def InferSimilarities(  model,
        
         machineReadableOutputFileList = []
         humanReadableOutputFileList   = []
-        
-        for signature in signatureList:
+        simularityCalculationIndexes = np.ones(len(signatureList), dtype=int) # because the output of the model starts at line 1
+
+
+        for signatureIndex, signature in enumerate(signatureList):
             signatureFile = Constants.GetSignatureFilePath(signature.name, userId)
             
             machineReadableOutputFile = Constants.GetMachineReadableSimularitiesFile(LogfileVerification, userId, signatureFile)
@@ -139,7 +141,14 @@ def InferSimilarities(  model,
             
             machineReadableOutputFileList.append(outputBinaryFileHandler)
             humanReadableOutputFileList.append(humanReadableOutputFileHandler)
-           
+
+            numberOfPaddingAtStart = signature.numberOfLines // 2  # the simularity calculated in a measurement of the whole range, so you could think of it as the simularity of the middle of the sihnature length
+
+            paddedNumpy = np.zeros((numberOfPaddingAtStart,), dtype=int)
+            
+            humanReadableOutputFileList[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{paddedNumpy}\n")              
+            machineReadableOutputFileList[signatureIndex].appendNumpy(paddedNumpy)
+            simularityCalculationIndexes[signatureIndex] += paddedNumpy.shape[0]
            
         datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
                                                                    dataSetFile=inferenceDataSetFile, 
@@ -170,7 +179,7 @@ def InferSimilarities(  model,
         
         indexOfFirstPredictionTemp = indexOfFirstPrediction
         
-        simularityCalculationIndexes = np.ones(len(signatureList), dtype=int) # because the output of the model starts at line 1
+        
         
         for threadId in range(0,numberOfThreads):
             inputQueue  = Workers[threadId]["inputQueue"]

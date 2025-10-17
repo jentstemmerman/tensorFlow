@@ -9,6 +9,8 @@ import Dataset
 def AnalyzeFile(modelDirectory, userId, inputFile, inferenceDataSetFile, LogFileAnalyzedPath, signatureInputDirectory, similarityOutputDirectory, OriginalTokenFileDirectory, itemFile, temperature, progress_cb=None):
      
     success = False
+  #  tf.config.run_functions_eagerly(True)  
+  #  tf.data.experimental.enable_debug_mode()  
     physical_devices = tf.config.list_physical_devices("CPU")
     numberOfThreads = 7  # 1 for the main process
     print("Calling CreateWorkers numberOfThreads: ", numberOfThreads, "/ physical_devices: ", physical_devices)

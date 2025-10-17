@@ -90,7 +90,9 @@ class Signature:
             tokenListList = logFile.GetTokensFromLines(self.logSnipped)      
                 
             self.signature = self.CalculateSignatureFromTokenListList(tokenListList, one_step_model)
-        
+                        
+
+                        
         return self.signature
         
     # the resulting signature is a vector of shape (batch, hidden_vectors ( contatenated over the features))                
@@ -148,6 +150,7 @@ class Signature:
         
         return signature
     
+    
     # This function expects batchedvectors with shape (batch, features, seq_length)
     # returns a vector of shape (batch, hidden vector). The features are already concatenated into one hidden vector.
     @tf.function
@@ -194,10 +197,12 @@ class Signature:
         assert self.signature is not None, "signature must not be None."
         
         pooledVector = self.CalculateSignatureFromHiddenVectors(tensor, receivedAttention)
+        pooledVector = tf.linalg.l2_normalize(pooledVector, axis=-1)
+        
         signature = tf.linalg.l2_normalize(self.signature, axis=-1)
         
         batched_signature_tensor = tf.stack([signature] * tensor.shape[0], axis=0)
-        pooledVector = tf.linalg.l2_normalize(pooledVector, axis=-1)
+        
         
         similarity = tf.keras.losses.cosine_similarity(batched_signature_tensor, pooledVector)
     

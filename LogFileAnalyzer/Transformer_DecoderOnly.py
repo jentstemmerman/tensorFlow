@@ -4,7 +4,7 @@ import MultiDimensionalModel
 
 
 # JENTS: this looks like the classic positional encoding. 
-#@tf.function
+@tf.function
 def positional_encoding(length, depth, DataTypeForTensors): # lenght is the sequence lenght, depth the embedding dimension
   """
   Generates a matrix of position encodings for an input sequence.
@@ -77,7 +77,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     return self.embedding.compute_mask(*args, **kwargs)
   
 
-  #@tf.function
+  @tf.function
   def call(self, x):
     """
     Computes the output of the layer.
@@ -139,7 +139,7 @@ class CausalSelfAttention(BaseAttention):
       Output sequence tensor of the same shape as the input, after self-attention
       and residual connection with layer normalization applied.
   """
-  #@tf.function
+  @tf.function
   def call(self, x, padding_mask=None, return_attention_scores=False, training=None):
     assert padding_mask is not None, "CausalSelfAttention requires a padding_mask."
     mask = tf.cast(padding_mask, tf.bool)
@@ -211,7 +211,7 @@ class FeedForward(tf.keras.layers.Layer):
     self.add = tf.keras.layers.Add()
     self.layer_norm = tf.keras.layers.LayerNormalization()
 
- # @tf.function
+  @tf.function
   def call(self, x):
     """
     Passes the input tensor `x` through a feedforward network consisting of two
@@ -266,7 +266,7 @@ class DecoderLayer(tf.keras.layers.Layer):
 
     self.FeedForwardLayer = FeedForward(d_model, dff)
 
-  #@tf.function
+  @tf.function
   def call(self, x, training, padding_mask=None):
     """
     Forward pass of the `DecoderLayer`.
@@ -361,7 +361,7 @@ class Decoder(tf.keras.layers.Layer):
 
 
 
-  # @tf.function
+  @tf.function
   def call(self, inputs, training=False):
     inputList = []
     feature_masks = []  # collect per-feature masks where available
@@ -437,7 +437,7 @@ class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
 
 
-  #@tf.function
+  @tf.function
   def call(self, inputs, training):
     """
     Forward pass of the transformer model.
@@ -497,7 +497,7 @@ class Transformer(tf.keras.Model):
                seq_length=seq_length, dropout_rate=dropout_rate)
 
   
-  # @tf.function
+  @tf.function
   def call(self, inputs, training=False):
     logits, hidden_state, attention_weights, attentionScoresList = self.decoderOnlyTransformerLayer(inputs, training=training)
     

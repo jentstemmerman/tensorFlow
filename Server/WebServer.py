@@ -8,6 +8,8 @@ from flask_socketio import SocketIO, emit
 import time
 import threading
 import sys
+import math
+
 sys.path.append('../LogFileAnalyzer')
 import CommandAnalyzeFile # type: ignore
 import DefaultTrainingSettings # type: ignore
@@ -37,6 +39,8 @@ def _to_serializable(obj):
     - NumPy scalars -> Python scalars
     - bytes -> utf-8 strings (replace errors)
     - tuples -> lists
+    - sets -> lists
+    - non-finite floats (NaN/Inf) -> None
     - dicts/lists -> recurse
     """
     # Attempt optional numpy handling without hard dependency at import time
@@ -53,6 +57,11 @@ def _to_serializable(obj):
         return [_to_serializable(v) for v in obj]
     if isinstance(obj, tuple):
         return [_to_serializable(v) for v in obj]
+    if isinstance(obj, set):
+        return [_to_serializable(v) for v in obj]
+    if isinstance(obj, float):
+        # Replace non-finite floats to keep JSON valid
+        return obj if math.isfinite(obj) else None
     if np_types is not None:
         if isinstance(obj, np_types[0]):  # ndarray
             return obj.tolist()
@@ -322,8 +331,6 @@ def get_file_lines(file_name):
 
         if not os.path.exists(file_path):
             return jsonify({"error": "File not found"}), 404
-
-        
         
         simularity_base_directory = os.path.dirname(Constants.GetMachineReadableSimularitiesFile(file_name, userId, ""))
 
@@ -351,8 +358,8 @@ def get_file_lines(file_name):
             if simularities is None:
                 simularityData["simularities"] = []
             else:
-                simularityData["simularities"] = simularities.tolist()            
-
+                # Ensure pure Python types for JSON
+                simularityData["simularities"] = _to_serializable(simularities)
             simularitiesList.append(simularityData)
 
         if (similaritiesOnly is False):
@@ -367,24 +374,34 @@ def get_file_lines(file_name):
         
         # Verify that the returned content has the expected number of lines
         actual_line_count = len(content.splitlines())
-        
         if actual_line_count != numberOfLines:
             nl = content.count('\n')
             print(f"Warning: requested {numberOfLines} lines, but returned {actual_line_count} lines, counted {nl} newlines")
         
-        returnValue =   jsonify(
-            {
-                "text": content,
-                "start": lineOffset,
-                "size": numberOfLines,
-                "simularities": simularitiesList # _to_serializable(simularitiesList),
-            })
+        payload = {
+            "text": content,
+            "start": lineOffset,
+            "size": numberOfLines,
+            "simularities": simularitiesList
+        }
 
-        return returnValue
+        # Sanitize to JSON-safe types and encode deterministically
+        safe_payload = _to_serializable(payload)
+        body = json.dumps(safe_payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+        return WebServer.response_class(body, mimetype="application/json; charset=utf-8")
     
     except Exception as e:
         print(e)
-        return jsonify({"error": str(e)}), 500
+        try:
+            return jsonify({"error": str(e)}), 500
+        except Exception as enc_err:
+            # Fallback if jsonify fails due to bad data
+            print(f"JSON encode failed: {enc_err}")
+            return WebServer.response_class(
+                json.dumps({"error": "Serialization failed"}, ensure_ascii=False),
+                status=500,
+                mimetype="application/json; charset=utf-8",
+            )
 
 
 @WebServer.route("/api/file/analyze_file/<file_name>", methods=["GET"])
@@ -553,7 +570,7 @@ def upload_signature():
 
     signature_name = request.form["signature_name"]
     logFileName = request.form["logFileName"]
-    selectedTextForSignature = json.loads(request.form["selectedTextForSignaturee"])
+    selectedTextForSignature = json.loads(request.form["selectedTextForSignature"])
     
     userId = request.form["userId"]
     baseDirectory = Constants.GetUserSpecificBaseDirectory("LogType", userId)

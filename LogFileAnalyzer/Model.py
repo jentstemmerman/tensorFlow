@@ -233,7 +233,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
         optimizer = 'adam'
     elif (modelSource["Network"] == "Transformer") or (modelSource["Network"] == "Transformer_DecoderOnly"):    
-        num_layers = 4
+        num_layers = 24
         num_heads = 8
         dropout_rate = 0.1
 
@@ -273,8 +273,11 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
             
         optimizer = 'adam'
         import CustomSchedule
-        learning_rate = CustomSchedule.CustomSchedule(d_model, warmup_steps=8000)
-
+        learning_rate = tf.keras.optimizers.schedules.CosineDecay(
+            initial_learning_rate=1e-4,
+            decay_steps=200000,
+            alpha=0.1
+        )
         optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
     
     loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  

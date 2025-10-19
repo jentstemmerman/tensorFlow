@@ -9,6 +9,7 @@ import time
 import threading
 import sys
 import math
+import numpy as np
 
 sys.path.append('../LogFileAnalyzer')
 import CommandAnalyzeFile # type: ignore
@@ -358,6 +359,13 @@ def get_file_lines(file_name):
             if simularities is None:
                 simularityData["simularities"] = []
             else:
+                # Downcast to float16 for transmission to reduce payload size and precision
+                # We do NOT change the on-disk storage dtype; only the JSON response is quantized.
+                try:
+                    simularities = np.asarray(simularities).astype(np.float16, copy=False)
+                except Exception:
+                    # If casting fails for any reason, fall back to original
+                    pass
                 # Ensure pure Python types for JSON
                 simularityData["simularities"] = _to_serializable(simularities)
             simularitiesList.append(simularityData)

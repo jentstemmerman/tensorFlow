@@ -13,6 +13,7 @@ import numpy as np
 import Logfile
 import SignatureCollection
 import Constants
+from   SimilarityMaxShifter import SimilarityMaxShifter
 
 def GetInferenceParameters(remainingNumberOfLines, maxNumberOfParallelExecutions, numberOfThreads):
     
@@ -62,6 +63,9 @@ def CreateDataSetFromVerificationFile(LogfileVerification, dataSetFile, itemList
         
     print(f"Dataset from file  {os.path.basename(LogfileVerification)} saved. to {dataSetFile}\n")
 
+
+
+
 def InferSimilarities(  model, 
                         userId,
                         progress_cb,
@@ -91,7 +95,7 @@ def InferSimilarities(  model,
         SimilarityOutputDirectory = Path(SimilarityOutputDirectory)
         SimilarityOutputDirectory.parent.mkdir(parents=True, exist_ok=True)
                     
-        one_step_model = ModelClass.OneStep(model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=temperature)
+
               
         logFile = Logfile.Logfile(LogfileVerification, itemList)
         
@@ -104,9 +108,15 @@ def InferSimilarities(  model,
         numberOfParallelExecutions = maxNumberOfParallelExecutions
    
         signatureCollection = SignatureCollection.SignatureCollection(signatureInputDirectory)
-       
+
+        signatureLengthList = signatureCollection.GetSignatureLengthList()
+        
+        one_step_model = ModelClass.OneStep(model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=temperature, signatureLengthList=signatureLengthList)
+                
         signatureList = signatureCollection.get_signatures_and_calculateVectors(one_step_model)
-       
+        
+
+        
         machineReadableOutputFileList = []
         humanReadableOutputFileList   = []
         simularityCalculationIndexes = np.ones(len(signatureList), dtype=int) # because the output of the model starts at line 1
@@ -255,7 +265,7 @@ def InferSimilarities(  model,
 
                 if (numberOfExecutionsInProgressPerThread[threadId] > 0):
 
-                    similarity = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
+                    similarity, _ = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
                                        
                     similarityDataList.append(similarity)      
                     

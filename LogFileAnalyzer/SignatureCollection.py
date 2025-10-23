@@ -24,7 +24,13 @@ class SignatureCollection:
         for signature in self.signatureList:
             signature.CalculateSignature(one_step_model)        
         
-
+    def GetSignatureLengthList(self):
+        lengthList = []
+        for signature in self.signatureList:
+            lengthList.append(signature.numberOfLines)
+        
+        return lengthList
+    
     def add_signature(self, signature):
         self.signatureList.append(signature)
 

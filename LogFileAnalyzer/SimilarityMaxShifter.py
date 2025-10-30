@@ -52,7 +52,28 @@ def max_shifting(batch, simularityLengths):
 
     return temp__matrix
 
-def max_shifting_batched(batch, simularityLengths):
+def init_remainder_for_batch(batch, simularityLengths, dtype=None):
+    """
+    Initialize the carry-over remainder for the first call to max_shifting_batched.
+
+    Args:
+        batch: Tensor [B, n] similarities for the current chunk.
+        simularityLengths: Tensor/List [B] lengths per similarity; determines Lmax.
+        dtype: Optional tf.DType; defaults to batch.dtype.
+
+    Returns:
+        Tensor zeros of shape [B, Lmax - 1], the initial remainder to pass to max_shifting_batched.
+    """
+    batch = tf.convert_to_tensor(batch)
+    if dtype is None:
+        dtype = batch.dtype
+    simularityLengths = tf.convert_to_tensor(simularityLengths, dtype=tf.int32)
+    B = tf.shape(batch)[0]
+    Lmax = tf.reduce_max(simularityLengths)
+    tail_size = tf.maximum(Lmax - 1, 0)
+    return tf.zeros([B, tail_size], dtype=dtype)
+
+def max_shifting_batched(batch, simularityLengths, previous_remainder=None):
     # batch: [B, n], simularityLengths: [B]
     batch = tf.convert_to_tensor(batch, dtype=tf.float32)
     simularityLengths = tf.convert_to_tensor(simularityLengths, dtype=tf.int32)
@@ -84,12 +105,32 @@ def max_shifting_batched(batch, simularityLengths):
     updates = tf.reshape(updates, [-1])
 
     scattered = tf.scatter_nd(indices, updates, [batchSize, n, C])       # [B,n,C]
-    
-    reduced = tf.reduce_max(scattered, axis=1)                            # [B,C]
 
-    # Split off the last 12 elements along the last dimension
-    # head: [B, C-12], tail12: [B, 12]
-    tail_size = C - n
+    # Incorporate previous remainder into the max calculation for continuity across calls.
+    # previous_remainder is expected shape [B, R_prev] representing the tail from the previous step.
+    # We align it to the first columns and pad/clip to length C, then take max with current step's maxima.
+    reduced_scattered = tf.reduce_max(scattered, axis=1)                  # [B,C]
+
+    if previous_remainder is None:
+        prev_row = tf.zeros([batchSize, C], dtype=batch.dtype)
+    else:
+        prev = tf.convert_to_tensor(previous_remainder, dtype=batch.dtype)
+        # Validate batch dimension matches
+        tf.debugging.assert_equal(
+            tf.shape(prev)[0], batchSize,
+            message="previous_remainder batch dimension must match current batch size",
+        )
+        prev_len = tf.shape(prev)[1]
+        def pad_prev():
+            return tf.pad(prev, paddings=[[0, 0], [0, C - prev_len]])
+        def clip_prev():
+            return prev[:, :C]
+        prev_row = tf.cond(prev_len < C, pad_prev, clip_prev)            # [B,C]
+
+    reduced = tf.maximum(reduced_scattered, prev_row)                     # [B,C]
+
+    # Split off the last tail_size elements along the last dimension for carry-over
+    tail_size = C - n                                                     # equals Lmax - 1
     remainder = reduced[:, -tail_size:]
     filtered = reduced[:, :-tail_size]
     
@@ -98,12 +139,19 @@ def max_shifting_batched(batch, simularityLengths):
 if __name__ == "__main__":
     
     # Example
-    x1 = tf.constant([[4., 2., 5., 1., 7., 3., 4., 5., 1., 6], [4., 2., 5., 1., 7., 3., 4., 5., 1., 6]])
+    x1 = tf.constant([[4., 2., 5., 1., 7., 3., 4., 5., 1., 5], [4., 2., 5., 1., 7., 3., 4., 5., 1., 5]])
     x2 = tf.constant([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.], [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]])
-    simularityLengths = tf.constant([3, 1 ], dtype=tf.int32)
-    
-    filtered, remainder = max_shifting_batched(x1, simularityLengths)
+    simularityLengths = tf.constant([3, 6 ], dtype=tf.int32)
 
-    tf.print("result-head:", filtered)
+    # First step: initialize remainder for this batch
+    remainder0 = init_remainder_for_batch(x1, simularityLengths)
+    filtered1, remainder1 = max_shifting_batched(x1, simularityLengths, previous_remainder=remainder0)
+    tf.print("step1-filtered:", filtered1)
+    tf.print("step1-remainder:", remainder1)
+
+    # Second step: pass remainder forward so it contributes to the max calculation
+    filtered2, remainder2 = max_shifting_batched(x1, simularityLengths, previous_remainder=remainder1)
+    tf.print("step2-filtered:", filtered2)
+    tf.print("step2-remainder:", remainder2)
 
     

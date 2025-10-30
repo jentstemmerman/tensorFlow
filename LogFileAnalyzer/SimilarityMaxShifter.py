@@ -31,7 +31,7 @@ class SimilarityMaxShifter:
         self.shifter.shift_tensor(simularities)
         return self.previous_similarities
     
-def diag_and_right(batch, simularityLengths):
+def max_shifting(batch, simularityLengths):
 
     n = tf.shape(batch)[-1]
 
@@ -52,7 +52,7 @@ def diag_and_right(batch, simularityLengths):
 
     return temp__matrix
 
-def diag_and_right_batched(batch, simularityLengths):
+def max_shifting_batched(batch, simularityLengths):
     # batch: [B, n], simularityLengths: [B]
     batch = tf.convert_to_tensor(batch, dtype=tf.float32)
     simularityLengths = tf.convert_to_tensor(simularityLengths, dtype=tf.int32)
@@ -84,37 +84,26 @@ def diag_and_right_batched(batch, simularityLengths):
     updates = tf.reshape(updates, [-1])
 
     scattered = tf.scatter_nd(indices, updates, [batchSize, n, C])       # [B,n,C]
-    return tf.reduce_max(scattered, axis=1)                      # [B,C]
+    
+    reduced = tf.reduce_max(scattered, axis=1)                            # [B,C]
+
+    # Split off the last 12 elements along the last dimension
+    # head: [B, C-12], tail12: [B, 12]
+    tail_size = C - n
+    remainder = reduced[:, -tail_size:]
+    filtered = reduced[:, :-tail_size]
+    
+    return filtered, remainder
     
 if __name__ == "__main__":
     
     # Example
-    x = tf.constant([[4., 2., 5., 1., 7., 3., 4., 5., 1., 6], [4., 2., 5., 1., 7., 3., 4., 5., 1., 6]])
+    x1 = tf.constant([[4., 2., 5., 1., 7., 3., 4., 5., 1., 6], [4., 2., 5., 1., 7., 3., 4., 5., 1., 6]])
+    x2 = tf.constant([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.], [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]])
     simularityLengths = tf.constant([3, 1 ], dtype=tf.int32)
     
-    y = diag_and_right_batched(x, simularityLengths)
+    filtered, remainder = max_shifting_batched(x1, simularityLengths)
 
-    
-    
-    k = 3
-    
-    tf.print("start:", x)
-    tf.print("result:", y)
-    
-    
-    SimilarityMaxShifter_instance = SimilarityMaxShifter(number_of_simularities=3, max_similarity_length=5, shift=1, signatureLengthList=[3,4,5])
-    simularities = tf.constant([ [2.0, 0.0, 0.0, 0.0, 0.0],
-                                 [3.0, 0.0, 0.0, 0.0, 0.0],
-                                 [4.0, 0.0, 0.0, 0.0, 0.0]])
-    
-    shifted_max_similarities = SimilarityMaxShifter_instance.GetShiftedMaxSimilarity(simularities)
-
-    # Demo for tf.tensor_scatter_nd_max
-    tensor = tf.zeros([3], dtype=tf.int32)
-    indices = tf.range(0, 3)[:, tf.newaxis]  # shape: (3, 1)
-    updates = tf.constant([1, 2, 3], dtype=tf.int32)
-    result = tf.tensor_scatter_nd_max(tensor, indices, updates).numpy()
-    print(result)
-    
+    tf.print("result-head:", filtered)
 
     

@@ -1,5 +1,7 @@
 import tensorflow as tf
 from TensorShift import TensorShifter
+import sys
+import numpy as np
 
 
 class SimilarityMaxShifter:
@@ -139,19 +141,26 @@ def max_shifting_batched(batch, simularityLengths, previous_remainder=None):
 if __name__ == "__main__":
     
     # Example
-    x1 = tf.constant([[4., 2., 5., 1., 7., 3., 4., 5., 1., 5], [4., 2., 5., 1., 7., 3., 4., 5., 1., 5]])
-    x2 = tf.constant([[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.], [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]])
+    x1 = tf.constant([[4., 2., 5., 1., 7., 3., 4., 5., 6., 5], 
+                      [4., 2., 5., 1., 7., 3., 4., 5., 1., 5]])
+    
+    x2 = tf.constant([[0., 7., 0., 0., 0., 0., 0., 0., 0., 0], 
+                      [0., 0., 0., 0., 0., 0., 0., 0., 0., 0]])
+    
     simularityLengths = tf.constant([3, 6 ], dtype=tf.int32)
 
     # First step: initialize remainder for this batch
-    remainder0 = init_remainder_for_batch(x1, simularityLengths)
-    filtered1, remainder1 = max_shifting_batched(x1, simularityLengths, previous_remainder=remainder0)
-    tf.print("step1-filtered:", filtered1)
-    tf.print("step1-remainder:", remainder1)
-
-    # Second step: pass remainder forward so it contributes to the max calculation
-    filtered2, remainder2 = max_shifting_batched(x1, simularityLengths, previous_remainder=remainder1)
-    tf.print("step2-filtered:", filtered2)
-    tf.print("step2-remainder:", remainder2)
-
+    remainder = init_remainder_for_batch(x1, simularityLengths)
+    filtered1, remainder = max_shifting_batched(x1, simularityLengths, previous_remainder=remainder)
+    remainder1=remainder
+        
+    filtered2, remainder = max_shifting_batched(x2, simularityLengths, previous_remainder=remainder)
+    remainder2=remainder
     
+    
+    np.set_printoptions(threshold=sys.maxsize, linewidth=10**6)
+    print("Filtered 1:", filtered1.numpy())
+    print("Remainder 1:", remainder1.numpy())
+
+    print("Filtered 2:", filtered2.numpy())
+    print("Remainder 2:", remainder2.numpy())

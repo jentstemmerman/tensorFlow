@@ -5,7 +5,7 @@ from SimilarityMaxShifter import SimilarityMaxShifter
         
 class OneStep(tf.keras.Model):
   
-  def __init__(self, model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=1.0, hidden_stateWeightTemperature=50.0, signatureLengthList=None):
+  def __init__(self, model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=1.0, hidden_stateWeightTemperature=50.0, signatureLengthList=None, similarityMaxShifter=None):
     super().__init__()
     self.temperature                   = temperature
     self.model                         = model
@@ -16,8 +16,8 @@ class OneStep(tf.keras.Model):
     self.DataTypeForTensors            = DataTypeForTensors
     self.itemList                      = itemList  # This is not used in this class, but it is used in the Signature class.
     self.signatureLengthList           = signatureLengthList
-    self.similarity_max_shifter        = SimilarityMaxShifter(number_of_simularities=len(signature_list), max_similarity_length=self.seq_length, shift=-1, signatureLengthList=self.signatureLengthList)
-   
+    self.similarityMaxShifter          = similarityMaxShifter
+
   def GetProbabilityFromLogits(self, softmaxLogits, id):
     
     probability = softmaxLogits[id].numpy()
@@ -125,21 +125,17 @@ class OneStep(tf.keras.Model):
         attention_received_first_query_normalized = tf.nn.softmax(attention_received_first_query_normalized_centered_with_temperature, axis=-1)  # [batch, seq_len]  
           
         similarity_list = []
-        similarity_list_tensor = None
-        
+
         for signature in signature_list:
           hidden_state_tensor = hidden_state[:,0:signature.numberOfLines, :]
           attention_received_tensor = attention_received_first_query_normalized[:,0:signature.numberOfLines]
           simularity = signature.CalculateSimularityBatched(hidden_state_tensor, attention_received_tensor)  
-          
-          if similarity_list_tensor is None:
-              similarity_list_tensor = simularity
-          else: 
-            similarity_list_tensor = tf.stack([similarity_list_tensor, simularity], axis=0)
-          
+         
           similarity_list.append(simularity)
 
-      
+        similarity_list_tensor = tf.stack(similarity_list, axis=0)
+        
+
           
                   
       except Exception as e:

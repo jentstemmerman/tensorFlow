@@ -111,16 +111,15 @@ def InferSimilarities(  model,
 
         signatureLengthList = signatureCollection.GetSignatureLengthList()
         
-        one_step_model = ModelClass.OneStep(model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=temperature, signatureLengthList=signatureLengthList)
+        similarityMaxShifter  = SimilarityMaxShifter(number_of_simularities=len(signatureLengthList), max_similarity_length=seq_length, shift=-1, signatureLengthList=signatureLengthList, DataTypeForTensors=DataTypeForTensors)
+        
+        one_step_model = ModelClass.OneStep(model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=temperature, signatureLengthList=signatureLengthList, similarityMaxShifter=similarityMaxShifter)
                 
-        signatureList = signatureCollection.get_signatures_and_calculateVectors(one_step_model)
-        
-
-        
+        signatureList         = signatureCollection.get_signatures_and_calculateVectors(one_step_model)
+                
         machineReadableOutputFileList = []
         humanReadableOutputFileList   = []
         simularityCalculationIndexes = np.ones(len(signatureList), dtype=int) # because the output of the model starts at line 1
-
 
         for signatureIndex, signature in enumerate(signatureList):
             signatureFile = Constants.GetSignatureFilePath(signature.name, userId)
@@ -265,12 +264,21 @@ def InferSimilarities(  model,
 
                 if (numberOfExecutionsInProgressPerThread[threadId] > 0):
 
-                    similarity, _ = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
-                                       
-                    similarityDataList.append(similarity)      
-                    
-            inferenceTimeTaken = time.time() - InferenceStartTime 
-                         
+                    # Generate raw per-signature similarities for this window
+                    similarity_list, similarity_list_tensor = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
+                    use_max_shifting = True
+                    if use_max_shifting:
+                        # Apply max shifting with carry-over; get filtered [B, n]
+                        filtered = similarityMaxShifter.max_shifting_batched(similarity_list_tensor)
+                        # Convert to a list of per-signature tensors to match downstream expectations
+                        filtered_list = tf.unstack(filtered, axis=0)
+                        similarityDataList.append(filtered_list)      
+                    else:
+                        similarityDataList.append(similarity_list)
+                        
+                        
+            inferenceTimeTaken = time.time() - InferenceStartTime
+
             idList          = []
             
             totalNumberOfExecutionsWereInProgress = 0

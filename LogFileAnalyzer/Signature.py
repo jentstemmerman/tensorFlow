@@ -158,10 +158,7 @@ class Signature:
         usePooling = True
         useAveragePooling = True
         useMaxPooling = False
-        
-        #batchedvectors = tf.concat(batchedvectors, axis=1)  
-        #batchedvectors = tf.squeeze(batchedvectors, axis=1)  
-        
+               
         if usePooling:
             
             if receivedAttention is not None:

@@ -150,14 +150,6 @@ def InferSimilarities(  model,
             
             machineReadableOutputFileList.append(outputBinaryFileHandler)
             humanReadableOutputFileList.append(humanReadableOutputFileHandler)
-
-            numberOfPaddingAtStart = signature.numberOfLines // 2  # the simularity calculated in a measurement of the whole range, so you could think of it as the simularity of the middle of the sihnature length
-
-            paddedNumpy = np.zeros((numberOfPaddingAtStart,), dtype=int)
-            
-            humanReadableOutputFileList[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{paddedNumpy}\n")              
-            machineReadableOutputFileList[signatureIndex].appendNumpy(paddedNumpy)
-            simularityCalculationIndexes[signatureIndex] += paddedNumpy.shape[0]
            
         datasetStreamWriter = StreamingDataSet.DatasetStreamWriter(inputFile=LogfileVerification, 
                                                                    dataSetFile=inferenceDataSetFile, 
@@ -265,16 +257,14 @@ def InferSimilarities(  model,
                 if (numberOfExecutionsInProgressPerThread[threadId] > 0):
 
                     # Generate raw per-signature similarities for this window
-                    similarity_list, similarity_list_tensor = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
-                    use_max_shifting = True
-                    if use_max_shifting:
-                        # Apply max shifting with carry-over; get filtered [B, n]
-                        filtered = similarityMaxShifter.max_shifting_batched(similarity_list_tensor)
-                        # Convert to a list of per-signature tensors to match downstream expectations
-                        filtered_list = tf.unstack(filtered, axis=0)
-                        similarityDataList.append(filtered_list)      
-                    else:
-                        similarityDataList.append(similarity_list)
+                    similarity_list_tensor = one_step_model.generate_simularity_lists(idList[threadId], signatureList)
+
+                    # Apply max shifting with carry-over; get filtered [B, n]
+                    filtered = similarityMaxShifter.max_shifting_batched(similarity_list_tensor)
+                    # Convert to a list of per-signature tensors to match downstream expectations
+                    filtered_list = tf.unstack(filtered, axis=0)
+                    similarityDataList.append(filtered_list)      
+
                         
                         
             inferenceTimeTaken = time.time() - InferenceStartTime

@@ -134,8 +134,6 @@ class OneStep(tf.keras.Model):
           similarity_list.append(simularity)
 
         similarity_list_tensor = tf.stack(similarity_list, axis=0)
-        
-
           
                   
       except Exception as e:
@@ -144,7 +142,7 @@ class OneStep(tf.keras.Model):
         print("seq_length: ", self.seq_length)
         print("inputTensor: ", inputTensor)
       
-      return similarity_list, similarity_list_tensor
+      return similarity_list_tensor
   
 
 

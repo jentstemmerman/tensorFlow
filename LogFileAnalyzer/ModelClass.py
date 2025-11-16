@@ -124,16 +124,68 @@ class OneStep(tf.keras.Model):
         
         attention_received_first_query_normalized = tf.nn.softmax(attention_received_first_query_normalized_centered_with_temperature, axis=-1)  # [batch, seq_len]  
           
-        similarity_list = []
+        # Vectorized similarity computation across all signatures on GPU
+        # Assumptions:
+        # - Each Signature has: numberOfLines (int) and a precomputed signature vector at signature.signature (shape [D])
+        # - Cosine similarity is computed after L2-normalizing both pooled window vectors and signature vectors
+        # - Pooling mimics the per-signature path: L2-normalize token vectors, multiply by attention weights,
+        #   take an average over the first k tokens (k = numberOfLines)
 
-        for signature in signature_list:
-          hidden_state_tensor = hidden_state[:,0:signature.numberOfLines, :]
-          attention_received_tensor = attention_received_first_query_normalized[:,0:signature.numberOfLines]
-          simularity = signature.CalculateSimularityBatched(hidden_state_tensor, attention_received_tensor)  
-         
-          similarity_list.append(simularity)
+        # Short-circuit if no signatures
+        if len(signature_list) == 0:
+          similarity_list_tensor = tf.zeros([0, tf.shape(hidden_state)[0]], dtype=attention_received_first_query_normalized.dtype)
+        else:
+          # Prepare shapes
+          T = tf.shape(hidden_state)[1]   # sequence length
 
-        similarity_list_tensor = tf.stack(similarity_list, axis=0)
+          # Collect signature lengths and cap to T to avoid over-slicing
+          lengths_py = [int(sig.numberOfLines) for sig in signature_list]
+          lengths = tf.convert_to_tensor(lengths_py, dtype=tf.int32)
+          lengths = tf.minimum(lengths, T)
+
+          # Ensure all signatures have an embedded vector; if any are missing, compute them now
+          # Note: This happens on CPU once; the heavy math below remains on GPU.
+          for sig in signature_list:
+            if getattr(sig, 'signature', None) is None:
+              # Lazily compute and cache signature vector
+              sig.CalculateSignature(self)
+
+          # Stack signature vectors into [S, D]
+          signatures_py = [tf.convert_to_tensor(sig.signature) for sig in signature_list]
+          signatures = tf.stack(signatures_py, axis=0)
+
+          # Normalize signatures across feature dim
+          signatures = tf.nn.l2_normalize(signatures, axis=-1)
+
+          # Build a mask [S, T] where mask[i, t] = 1 if t < lengths[i] else 0
+          mask_ST = tf.sequence_mask(lengths, maxlen=T, dtype=hidden_state.dtype)  # [S, T]
+
+          # Normalize token vectors after applying attention weights (to mimic original semantics)
+          # Shapes:
+          #   hidden_state: [B, T, D]
+          #   attention_received_first_query_normalized: [B, T]
+          A = tf.expand_dims(attention_received_first_query_normalized, -1)  # [B, T, 1]
+          H_att = hidden_state * A                                           # [B, T, D]
+          Hn = tf.nn.l2_normalize(H_att, axis=-1)                            # [B, T, D]
+
+          # Broadcast across signatures: add a leading S dimension
+          Hn = tf.expand_dims(Hn, axis=0)  # [1, B, T, D]
+          M  = tf.expand_dims(tf.expand_dims(mask_ST, axis=1), axis=-1)  # [S, 1, T, 1]
+
+          # Masked token vectors (average without additional attention weighting to match original)
+          weighted = Hn * M
+
+          # Average over the first k tokens (mask ensures only first k contribute)
+          numerator = tf.reduce_sum(weighted, axis=2)  # [S, B, D]
+          denom = tf.cast(tf.reshape(tf.maximum(lengths, 1), [-1, 1, 1]), dtype=hidden_state.dtype)  # [S,1,1]
+          pooled = numerator / denom  # [S, B, D]
+
+          # Normalize pooled vectors per signature-batch
+          pooled = tf.nn.l2_normalize(pooled, axis=-1)  # [S, B, D]
+
+          # Cosine similarity (negated to match tf.keras.losses.cosine_similarity sign)
+          # sim[s, b] = - dot(pooled[s, b, :], signatures[s, :])
+          similarity_list_tensor = -tf.einsum('sbd,sd->sb', pooled, signatures)
           
                   
       except Exception as e:
@@ -142,7 +194,7 @@ class OneStep(tf.keras.Model):
         print("seq_length: ", self.seq_length)
         print("inputTensor: ", inputTensor)
       
-      return similarity_list_tensor
+    return similarity_list_tensor
   
 
 

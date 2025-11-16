@@ -1,4 +1,4 @@
 [
-	{"Regex": "([0-9A-F]{2}(?:\\s[0-9A-F]{2}){3})", "Categorical": "True",  "VocabularyFile": "Tokens.dat"}, 
-    {"Regex": "W\\[([0-9A-Fa-f]+)\\]",              "Categorical": "False",                                 "Numerical": "Hex"              , "Delta": "True", "MaskValue": 64000}  
+	{"Regex": "([0-9A-F]{2}(?:\\s[0-9A-F]{2}){3})", "Categorical": "True",  "VocabularyFile": "Tokens.dat"},
+    {"Regex": "MSO\\[ *([0-9A-Fa-f]+)\\]",          "Categorical": "True",   "Numerical": "Hex", "RangeMin": 0, "RangeMax": 60}
 ]

@@ -154,7 +154,7 @@ class DatasetStreamReader:
     def parse_tfrecord(self, example_proto):
         with tf.device('/CPU:0'):
             features = {
-                "Ids": tf.io.FixedLenFeature([self.num_features], tf.float32),
+                "Ids": tf.io.FixedLenFeature([self.num_features], DataTypeForTensors),
             }
             parsed_features = tf.io.parse_single_example(example_proto, features)
             return [

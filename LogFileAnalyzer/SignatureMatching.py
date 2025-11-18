@@ -520,7 +520,7 @@ def CreateSimularityFilesOfLogFile(LogFileName, signatureDirectory, userId, Data
         return False
     
     for SimularityFile in machineReadableOutputFiles:
-        SimularityGraph.MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensors=DataTypeForTensors)
+        SimularityGraph.MakeSimularityPlot(SimularityFile, DataTypeForTensors=DataTypeForTensors, block=False, Save=True)
 
 
 

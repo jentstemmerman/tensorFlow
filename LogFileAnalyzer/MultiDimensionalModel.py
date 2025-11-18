@@ -54,9 +54,11 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors, embedded_
 
         if modelFeatureList[featureIndex]["embedded"]:
             # Mask out padded categorical tokens (where token == embedded_pad_token)
-            pad_mask = tf.not_equal(feature_output_true, embedded_pad_token)  # make a tensor that has a false when the position is padded. # True where real token
+            # Ensure integer class ids for sparse CE
+            y_true_ids = tf.cast(feature_output_true, tf.int32)
+            pad_mask = tf.not_equal(y_true_ids, tf.cast(embedded_pad_token, tf.int32))  # True where real token
             pad_mask_f = tf.cast(pad_mask, dtype=feature_output_predicted.dtype) # make a float out of it.
-            per_token_loss = tf.keras.losses.sparse_categorical_crossentropy(feature_output_true, feature_output_predicted, from_logits=True)
+            per_token_loss = tf.keras.losses.sparse_categorical_crossentropy(y_true_ids, feature_output_predicted, from_logits=True)
             per_token_loss = per_token_loss * tf.squeeze(pad_mask_f, axis=-1)   # multiple the loss with 0 where padded, 1 where real token
             feature_output_loss = per_token_loss
         else:

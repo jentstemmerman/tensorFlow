@@ -20,6 +20,7 @@ class SimilarityMaxShifter:
             tf.range(max_similarity_length, dtype=tf.int32)[tf.newaxis, :],
             [number_of_simularities, 1]
         )
+        self.DataTypeForTensors = DataTypeForTensors
         self.mask = tf.cast(self.indices < self.signatureLengthList[:, tf.newaxis], DataTypeForTensors)
         self.shifter = TensorShifter(shape=[number_of_simularities, max_similarity_length], axis=1, shift=shift, datatype=DataTypeForTensors)
         self.previous_remainder = self.init_remainder_for_batch(self.signatureLengthList, number_of_simularities, max_similarity_length, dtype=DataTypeForTensors)
@@ -43,10 +44,10 @@ class SimilarityMaxShifter:
         # Choose sentinel in ORIGINAL domain so that after any transform it becomes the neutral element
         if self.mode == "min":
             # We operate on -values internally; store +inf so that -prev -> -inf inside computation
-            sentinel = tf.constant(float('inf'), dtype=dtype or tf.float32)
+            sentinel = tf.constant(float('inf'), dtype=dtype or self.DataTypeForTensors)
         else:
             # Max mode: neutral is -inf
-            sentinel = tf.constant(-float('inf'), dtype=dtype or tf.float32)
+            sentinel = tf.constant(-float('inf'), dtype=dtype or self.DataTypeForTensors)
         return tf.fill([B, tail_size], sentinel)
        
             
@@ -57,7 +58,7 @@ class SimilarityMaxShifter:
 
         simularityLengths = self.signatureLengthList
         # batch: [B, n], simularityLengths: [B]
-        batch = tf.convert_to_tensor(batch, dtype=tf.float32)
+        batch = tf.convert_to_tensor(batch, dtype=self.DataTypeForTensors)
         simularityLengths = tf.convert_to_tensor(simularityLengths, dtype=tf.int32)
 
         batchSize = tf.shape(batch)[0]    # het aantal simularities
@@ -137,7 +138,7 @@ class SimilarityMaxShifter:
         
     def GetShiftedMaxSimilarity(self, simularities):
         # Compute max-shifted similarities and update internal remainder.
-        simularities = tf.convert_to_tensor(simularities, dtype=tf.float32)
+        simularities = tf.convert_to_tensor(simularities, dtype=self.DataTypeForTensors)
         tf.debugging.assert_equal(
             tf.shape(simularities)[0], self.number_of_simularities,
             message="simularities batch size must equal number_of_simularities",

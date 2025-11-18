@@ -16,5 +16,5 @@ TrainingsParameter = {"Model": {#"Network":"LSTMMultiModel",
                       "shuffleTraining":True,
                       "BUFFER_SIZE":65536,
                       "SampleDataSet":False,   # does not really work, using stride is better
-                      "DataTypeForTensors":'float32'
+                      "DataTypeForTensors":'float16'
                     }

@@ -37,11 +37,10 @@ class OneStep(tf.keras.Model):
     return probabilities
   
   def CalculateHiddenVectorSize(self):
-      DataTypeForTensors = "float32"  # does not really matter here, but it is used in the model
-  
+ 
       tokenListList = []
         
-      inputTensor = self.generate_inputTensor_from_tokenListList(tokenListList, DataTypeForTensors)
+      inputTensor = self.generate_inputTensor_from_tokenListList(tokenListList)
 
       _, pooledLogitsData = self.generate_hidded_states(inputTensor)       
       hiddenVectorSize = pooledLogitsData['hidden_state_prediction'].shape[1]
@@ -49,7 +48,7 @@ class OneStep(tf.keras.Model):
       return hiddenVectorSize
   
   
-  def generate_inputTensor_from_tokenListList(self, tokenListList, DataTypeForTensors):
+  def generate_inputTensor_from_tokenListList(self, tokenListList):
     assert isinstance(tokenListList, list), "tokenListList should be a list of lists"
     assert self.id_from_tokenList is not None, "id_from_tokenList should not be None"
 
@@ -66,7 +65,7 @@ class OneStep(tf.keras.Model):
       columnList.extend(mask_token_filler_list)  # add the mask tokens to the end of the column
 
       if (id_from_token is None):
-        idColumn = tf.convert_to_tensor(columnList, dtype=DataTypeForTensors)
+        idColumn = tf.convert_to_tensor(columnList, dtype=self.DataTypeForTensors)
       else:
         idColumn = id_from_token(columnList)
 
@@ -76,8 +75,8 @@ class OneStep(tf.keras.Model):
 
     # Add a batch dimension of 1 to tokenIdList
     tokenIdList = tf.expand_dims(tokenIdList, axis=0)
-    # Cast tokenIdList to float32
-    tokenIdList = tf.cast(tokenIdList, DataTypeForTensors)
+
+    tokenIdList = tf.cast(tokenIdList, self.DataTypeForTensors)
 
     return tokenIdList
         
@@ -115,7 +114,7 @@ class OneStep(tf.keras.Model):
           
         # Since this is causal attention, the first token is attented by all tokens, the second token by all but the first one, and so on... 
         # We need to correct for this bias. We can do this by dividing the attention scores by the number of tokens that attended to this token. 
-        contrib_counts = tf.range(hidden_state.shape[1], 0, -1, dtype=tf.float32)    
+        contrib_counts = tf.range(hidden_state.shape[1], 0, -1, dtype=self.DataTypeForTensors)    
           
         attention_received_first_query_normalized = attention_received_first_query / contrib_counts  
         attention_received_first_query_normalized_centered = attention_received_first_query_normalized - tf.reduce_max(attention_received_first_query_normalized, axis=-1, keepdims=True)
@@ -238,7 +237,7 @@ class OneStep(tf.keras.Model):
           
         # Since this is causal attention, the first token is attented by all tokens, the second token by all but the first one, and so on... 
         # We need to correct for this bias. We can do this by dividing the attention scores by the number of tokens that attended to this token. 
-        contrib_counts = tf.range(hidden_state.shape[1], 0, -1, dtype=tf.float32)    
+        contrib_counts = tf.range(hidden_state.shape[1], 0, -1, dtype=self.DataTypeForTensors)    
           
         attention_received_first_query_normalized = attention_received_first_query / contrib_counts  
         attention_received_first_query_normalized_centered = attention_received_first_query_normalized - tf.reduce_max(attention_received_first_query_normalized, axis=-1, keepdims=True)
@@ -271,7 +270,7 @@ class OneStep(tf.keras.Model):
     
 
   #@tf.function
-  def generate_steps_optimized(self, inputTensor, nexttokenIds, window_size, DataTypeForTensors='float32'):
+  def generate_steps_optimized(self, inputTensor, nexttokenIds, window_size, DataTypeForTensors):
     with tf.device('/GPU:0'):
 
       predicted_logits_list, pooledLogitsData = self.generate_hidded_states(inputTensor, window_size, DataTypeForTensors)

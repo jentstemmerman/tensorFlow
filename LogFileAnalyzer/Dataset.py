@@ -216,14 +216,14 @@ def CreateTrainingDatasetFromFile(InputFile, IntermediateFile, itemList, id_from
     TensorOfThisFile = []
     
     for index, id_from_token in enumerate(id_from_tokenList):
-        
         column = [inner_list[index] for inner_list in tokenListList]
         column = np.array(column)
-        
         if (id_from_token is not None):
-            TransformedItemTensor = id_from_token(column)  # next todo
+            # Keep integer token ids for embeddings
+            TransformedItemTensor = id_from_token(column)  # int64 indices
         else:
-            TransformedItemTensor = tf.convert_to_tensor(column)
+            # Cast numeric features to the configured dtype
+            TransformedItemTensor = tf.convert_to_tensor(column, dtype=DataTypeForTensors)
         
         TensorOfThisFile.append(TransformedItemTensor)
     
@@ -247,7 +247,9 @@ def CreateTrainingDatasetFromFile(InputFile, IntermediateFile, itemList, id_from
     if (removeDuplicates):
         datasetfast = datasetfast.unique()
 
-    datasetfast = datasetfast.map(lambda x: tf.cast(x, DataTypeForTensors))
+        # IMPORTANT: Do not cast categorical token ids to floats globally.
+        # Keep integer dtypes for embedded features (StringLookup outputs int64),
+        # and cast only non-embedded numeric columns up-front when constructing tensors.
     
     if (dual_input):
         datasetfast = datasetfast.map(TokenParser.split_input_target_transformer) 

@@ -358,9 +358,6 @@ class Decoder(tf.keras.layers.Layer):
     self.last_attn_scores = None
 
 
-
-
-
   @tf.function
   def call(self, inputs, training=False):
     inputList = []
@@ -552,10 +549,10 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     super().__init__()
 
     self.d_model = d_model
-    self.d_model = tf.cast(self.d_model, tf.float32)
 
     self.warmup_steps = warmup_steps
 
+  @tf.function
   def __call__(self, step):
     """
     Returns the learning rate at the given step.
@@ -566,7 +563,6 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     Returns:
       The learning rate at the given step as a float32 tensor.
     """
-    step = tf.cast(step, dtype=tf.float32)
     arg1 = tf.math.rsqrt(step)
     arg2 = step * (self.warmup_steps ** -1.5)
 

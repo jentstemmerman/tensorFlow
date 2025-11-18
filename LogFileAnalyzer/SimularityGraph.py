@@ -7,7 +7,7 @@ import matplotlib
 import matplotlib.pyplot as plt
     
     
-def MakeSimularityPlot(SimularityFile, block=False, Save=True, DataTypeForTensors='float32'):
+def MakeSimularityPlot(SimularityFile, DataTypeForTensors, block=False, Save=True):
      
     if block:
         matplotlib.use('TkAgg')  # Use an interactive backend if block is True
@@ -77,4 +77,4 @@ if __name__ == "__main__":
     else:
         print("Did not receive 1 parameters. Parameters received: " + str(sys.argv-1))
     
-    MakeSimularityPlot(SimularityFile, block=True)
+    MakeSimularityPlot(SimularityFile, DataTypeForTensors='float32', block=True)

@@ -8,6 +8,14 @@ import Constants  # type: ignore
 
 import time
 import tensorflow as tf
+from tensorflow.keras import mixed_precision
+
+# Enable mixed precision (float16 compute, float32 variables) for speed
+try:
+    mixed_precision.set_global_policy("mixed_float16")
+except Exception:
+    # If policy is already set or not available, continue without failing
+    pass
 import numpy as np
 import TokenParser
 import Inference
@@ -225,6 +233,9 @@ def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
  
 def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
 
+    # Ensure masks match features
+    assert len(maskValueList) == len(modelFeatureList), "maskValueList must match modelFeatureList length"
+
     if (modelSource["Network"] == "LSTMMultiModel"):
         model = MultiDimensionalModel.LSTMPrintfLogMultiModel(  modelFeatureList, 
                                                                 TrainingsParameter["Model"]["rnn_units"],
@@ -259,7 +270,9 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                 DataTypeForTensors=TrainingsParameter["DataTypeForTensors"])
         else:
             import Transformer_DecoderOnly
-            d_model = Transformer_DecoderOnly.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
+            # FIX: derive d_model for multi-feature. If you concatenate embeddings, sum their dims.
+            # If your model instead projects each feature to the same dimension and sums, set d_model to that shared size.
+            d_model = sum(f["embedding_dim"] for f in modelFeatureList if f.get("embedded", False)) or 128
             dff = d_model * 4
             model = Transformer_DecoderOnly.Transformer(
                 num_layers=num_layers,
@@ -267,7 +280,6 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                 num_heads=num_heads,
                 dff=dff,
                 DataTypeForTensors=TrainingsParameter["DataTypeForTensors"],
-
                 seq_length=TrainingsParameter["Model"]["seq_length"],
                 dropout_rate=dropout_rate)
             
@@ -278,7 +290,14 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
             decay_steps=200000,
             alpha=0.1
         )
-        optimizer = tf.keras.optimizers.Adam(learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
+        # Stabilize optimization: AdamW + gradient clipping + safer epsilon
+        optimizer = tf.keras.optimizers.AdamW(
+            learning_rate=learning_rate,
+            beta_1=0.9, beta_2=0.98,
+            weight_decay=1e-4,
+            epsilon=1e-8,
+            clipnorm=1.0
+        )
     
     loss_function = MultiDimensionalModel.Custom_loss_function(modelFeatureList, maskValueList, TrainingsParameter["DataTypeForTensors"])  
 

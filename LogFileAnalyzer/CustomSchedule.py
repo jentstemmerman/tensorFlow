@@ -23,11 +23,11 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
   Returns:
     The learning rate at the given step.
   """
-  def __init__(self, d_model, warmup_steps=3000):
+  def __init__(self, d_model, DataTypeForTensors, warmup_steps=3000):
     super().__init__()
-
+    self.DataTypeForTensors = DataTypeForTensors
     self.d_model = d_model
-    self.d_model = tf.cast(self.d_model, tf.float32)
+    self.d_model = tf.cast(self.d_model, self.DataTypeForTensors)
 
     self.warmup_steps = warmup_steps
 
@@ -41,7 +41,7 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     Returns:
       The learning rate at the given step as a float32 tensor.
     """
-    step = tf.cast(step, dtype=tf.float32)
+    step = tf.cast(step, dtype=self.DataTypeForTensors)
     arg1 = tf.math.rsqrt(step)
     arg2 = step * (self.warmup_steps ** -1.5)
 

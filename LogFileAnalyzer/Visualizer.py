@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import SimularityGraph
 
 def plot_time_series(filename):
-    SimularityGraph.MakeSimularityPlot(filename, block=True, Save=False, DataTypeForTensors='float32')
+    SimularityGraph.MakeSimularityPlot(filename, DataTypeForTensors='float32', block=True, Save=False)
         
 
 

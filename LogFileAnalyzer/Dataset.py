@@ -26,7 +26,9 @@ def CreateTrainingDataSetOfMarker(sample, id_from_tokenList, DataTypeForTensors,
     for featureIndex, id_from_token in enumerate(id_from_tokenList):
         maskValue  = Mask.GetMaskValue(featureIndex, id_from_tokenList, itemList)
         maskColumn = tf.fill(sequenceLength, maskValue)
-        maskColumn = tf.cast(maskColumn, DataTypeForTensors)
+        if (id_from_token is None):
+            maskColumn = tf.cast(maskColumn, DataTypeForTensors)
+            
         maskList.append(maskColumn)
 
     maskTensor = tf.stack(maskList, axis=-1)

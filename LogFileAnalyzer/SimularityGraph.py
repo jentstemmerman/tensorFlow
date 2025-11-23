@@ -1,7 +1,6 @@
 import tensorflow as tf
 import BinaryFileHandler
 import os
-from mpld3 import save_html
 import sys
 import matplotlib
 import matplotlib.pyplot as plt

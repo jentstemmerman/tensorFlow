@@ -21,7 +21,7 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors, embedded_
     numberOfFeatures = len(parameter)
     modelFeatureList = parameter
 
-    maskValueList = tf.convert_to_tensor(maskValueList, dtype=DataTypeForTensors)
+    maskValueList = tf.convert_to_tensor(maskValueList)  # No conversion to float here, keep original dtype!
     embeddedList  = np.array([modelFeatureList[featureIndex]["embedded"] for featureIndex in range(numberOfFeatures)])
     embeddedList = tf.convert_to_tensor(embeddedList, dtype=tf.bool)
     print(embeddedList)

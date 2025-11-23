@@ -8,8 +8,8 @@ import tensorflow as tf
 
 def TrainModelOnDataSet(TrainingDataSetFile, VerificationDataSetFile, id_from_tokenList, itemList, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter):
 
-    #tf.config.run_functions_eagerly(True)  
-    #tf.data.experimental.enable_debug_mode()    
+    tf.config.run_functions_eagerly(True)  
+    tf.data.experimental.enable_debug_mode()    
 
     modelFeatureList = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
     maskValueList    = Mask.GetMaskValueList(id_from_tokenList, itemList)

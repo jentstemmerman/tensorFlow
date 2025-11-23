@@ -35,42 +35,65 @@ def Custom_loss_function(parameter, maskValueList, DataTypeForTensors, embedded_
     # output_true.shape                = (32,32,4)
     # feature_output_predicted.shape   = (32, 12530)
 
-    @tf.function
+    #@tf.function
     def custom_multi_output_loss_jents(output_true, feature_output_predicted):
-        nonlocal counterBadStuff
-        nonlocal featureIndex
-        nonlocal numberOfFeatures
-        nonlocal modelFeatureList
-        nonlocal counter
-        nonlocal maskValueList
-        nonlocal embedded_pad_token
-        counter += 1
-        
-        feature_output_true_masked      = None
-        feature_output_predicted_masked = None
+        """Per-feature loss with masking and normalization by valid token count.
 
-        feature_output_true = tf.gather(output_true, featureIndex, axis=-1)  # take the feature. This removes the last dimension
-        feature_output_true = tf.expand_dims(feature_output_true,  axis=-1 ) # add the dimension back
+        Args:
+            output_true: Tensor with all feature targets, shape (batch, seq_len, num_features).
+            feature_output_predicted: Predicted logits/values for the current feature.
+
+        Returns:
+            Tensor of shape (batch,) containing normalized loss for the current feature.
+        """
+        nonlocal counterBadStuff, featureIndex, numberOfFeatures, modelFeatureList
+        nonlocal counter, maskValueList, embedded_pad_token
+        counter += 1
+
+        # Extract ground truth for current feature -> (batch, seq_len, 1)
+        feature_output_true = tf.gather(output_true, featureIndex, axis=-1)
+        feature_output_true = tf.expand_dims(feature_output_true, axis=-1)
 
         if modelFeatureList[featureIndex]["embedded"]:
-            # Mask out padded categorical tokens (where token == embedded_pad_token)
-            # Ensure integer class ids for sparse CE
-            y_true_ids = tf.cast(feature_output_true, tf.int32)
-            pad_mask = tf.not_equal(y_true_ids, tf.cast(embedded_pad_token, tf.int32))  # True where real token
-            pad_mask_f = tf.cast(pad_mask, dtype=feature_output_predicted.dtype) # make a float out of it.
-            per_token_loss = tf.keras.losses.sparse_categorical_crossentropy(y_true_ids, feature_output_predicted, from_logits=True)
-            per_token_loss = per_token_loss * tf.squeeze(pad_mask_f, axis=-1)   # multiple the loss with 0 where padded, 1 where real token
-            feature_output_loss = per_token_loss
-        else:
-            mask_value = maskValueList[featureIndex]
-            mask = tf.not_equal(feature_output_true, mask_value)
-            mask = tf.cast(mask, dtype=DataTypeForTensors)
-            feature_output_true_masked      = feature_output_true      * mask
-            feature_output_predicted_masked = feature_output_predicted * mask
-            feature_output_loss = tf.keras.losses.mean_squared_error(feature_output_true_masked, feature_output_predicted_masked)
+            # Categorical (logits) branch with padding mask
+            y_true_ids = tf.cast(feature_output_true, tf.int32)               # (batch, seq_len, 1)
+            pad_mask = tf.not_equal(y_true_ids, tf.cast(embedded_pad_token, tf.int32))  # True where valid
+            pad_mask_f = tf.cast(pad_mask, dtype=feature_output_predicted.dtype)
+            pad_mask_f = tf.squeeze(pad_mask_f, axis=-1)                      # (batch, seq_len)
 
+            # Per-token sparse cross entropy loss -> (batch, seq_len)
+            per_token_loss = tf.keras.losses.sparse_categorical_crossentropy(
+                y_true_ids, feature_output_predicted, from_logits=True
+            )
+            
+            masked_loss = per_token_loss * pad_mask_f
+            valid_count = tf.reduce_sum(pad_mask_f, axis=1)                   # (batch,)
+            sum_loss = tf.reduce_sum(masked_loss, axis=1)                     # (batch,)
+            feature_output_loss = tf.where(valid_count > 0, sum_loss / valid_count, tf.zeros_like(sum_loss))
+        else:
+            # Regression branch with maskValue per feature
+            mask_value = maskValueList[featureIndex]
+            # feature_output_true shape (batch, seq_len, 1), mask same shape
+            mask = tf.not_equal(feature_output_true, mask_value)
+            mask = tf.cast(mask, dtype=feature_output_predicted.dtype)        # (batch, seq_len, 1) or (batch, seq_len)
+            mask_squeezed = tf.squeeze(mask, axis=-1) if mask.shape.rank == 3 else mask  # (batch, seq_len)
+
+            # Ensure predicted has shape (batch, seq_len, 1) for elementwise error
+            if feature_output_predicted.shape.rank == 2:
+                feature_output_predicted_exp = tf.expand_dims(feature_output_predicted, axis=-1)
+            else:
+                feature_output_predicted_exp = feature_output_predicted
+
+            # Elementwise squared error (batch, seq_len, 1) -> squeeze -> (batch, seq_len)
+            squared_error = tf.square(tf.squeeze(feature_output_true - feature_output_predicted_exp, axis=-1))
+            masked_error = squared_error * mask_squeezed
+            valid_count = tf.reduce_sum(mask_squeezed, axis=1)                # (batch,)
+            sum_error = tf.reduce_sum(masked_error, axis=1)                   # (batch,)
+            feature_output_loss = tf.where(valid_count > 0, sum_error / valid_count, tf.zeros_like(sum_error))
+
+        # Advance feature index for next call
         featureIndex = (featureIndex + 1) % numberOfFeatures
-        return feature_output_loss
+        return feature_output_loss  # (batch,)
     return custom_multi_output_loss_jents
 
 class CustomIdentityLayer(tf.keras.layers.Layer):
@@ -112,23 +135,7 @@ def round_up_to_power_of_two(num):
     # Otherwise, find the next power of two
     return 2 ** math.ceil(math.log2(num))
 
-def CalculateEmbeddingDimensions(featureList):
-    embeddingDimension = []
-    total_output_dimensions = 0
 
-    for i, feature in enumerate(featureList):
-        if (feature["embedded"]):
-            output_dimension = math.ceil(feature["vocab_size"]**0.25)
-            if output_dimension % 2 != 0:
-                output_dimension += 1  # Ensure depth is even
-        else:
-            output_dimension = 1  # Maybe change this from 1 to 2 because otherwhise the positional embedding does not work.
-            
-        embeddingDimension.append(output_dimension)
-        total_output_dimensions += output_dimension
-    print("Embedding dimensions:")
-    print(embeddingDimension)
-    return embeddingDimension
 
 class LSTMPrintfLogMultiModel(tf.keras.Model):
     def __init__(self, featureList, rnn_units, sequence_length, return_sequences, datatype, hashAtCreation):
@@ -175,6 +182,25 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
                 dense_output_layer = CustomDenseLayer(rnn_units, 1)
             self.output_layerList.append(dense_output_layer)
 
+
+    def CalculateEmbeddingDimensions(self, featureList):
+        embeddingDimension = []
+        total_output_dimensions = 0
+
+        for i, feature in enumerate(featureList):
+            if (feature["embedded"]):
+                output_dimension = math.ceil(feature["vocab_size"]**0.25)
+                if output_dimension % 2 != 0:
+                    output_dimension += 1  # Ensure depth is even
+            else:
+                output_dimension = 1  # Maybe change this from 1 to 2 because otherwhise the positional embedding does not work.
+                
+            embeddingDimension.append(output_dimension)
+            total_output_dimensions += output_dimension
+        print("Embedding dimensions:")
+        print(embeddingDimension)
+        return embeddingDimension
+
     def GetHashAtCreation(self):
         return self.hashAtCreation.getHash()
 
@@ -192,14 +218,15 @@ class LSTMPrintfLogMultiModel(tf.keras.Model):
 
     @classmethod
     def from_config(cls, config):
-        hashAtCreation = config.pop("hashAtCreation")
-        model = cls(
+        # Safely retrieve hashAtCreation; do not pop to avoid KeyError later.
+        hashAtCreation = config.get("hashAtCreation")
+        return cls(
             featureList=config['featureList'],
             rnn_units=config['rnn_units'],
             return_sequences=config['return_sequences'],
             datatype=config['datatype'],
             sequence_length=config['sequence_length'],
-            hashAtCreation=config['hashAtCreation'],
+            hashAtCreation=hashAtCreation,
         )
 
     def call(self, inputs, training=False):

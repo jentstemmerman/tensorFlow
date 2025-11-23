@@ -1,37 +1,12 @@
+import math
 import tensorflow as tf
 import numpy as np
 import MultiDimensionalModel
 
 
-# JENTS: this looks like the classic positional encoding. 
-@tf.function
-def positional_encoding(length, depth, DataTypeForTensors): # lenght is the sequence lenght, depth the embedding dimension
-  """
-  Generates a matrix of position encodings for an input sequence.
-
-  Args:
-      length: An integer representing the length of the input sequence.
-      depth: An integer representing the dimensionality of the encoding.
-
-  Returns:
-      A `tf.Tensor` of shape `(length, depth)` representing the position encoding matrix.
-  """
-  depth = depth/2
-
-  positions = np.arange(length)[:, np.newaxis]     # (seq, 1)
-  depths = np.arange(depth)[np.newaxis, :]/depth   # (1, depth)
-
-  angle_rates = 1 / (10000**depths)         # (1, depth)
-  angle_rads = positions * angle_rates      # (pos, depth)
-
-  pos_encoding = np.concatenate(
-      [np.sin(angle_rads), np.cos(angle_rads)],
-      axis=-1)
-
-  return tf.cast(pos_encoding, dtype=DataTypeForTensors)
 
 
-class PositionalEmbedding(tf.keras.layers.Layer):
+class Embedding(tf.keras.layers.Layer):
   """
   This layer combines the input embedding with a positional encoding that helps the Transformer to understand
   the relative position of the tokens in a sequence. It takes an input sequence of tokens and converts it to
@@ -55,13 +30,8 @@ class PositionalEmbedding(tf.keras.layers.Layer):
         d_model (int): The number of dimensions in the embedding vector.
     """
     super().__init__()
-    self.seq_length = seq_length
-    self.d_model = d_model
-    self.DataTypeForTensors = DataTypeForTensors
-    self.tf_dtype = tf.as_dtype(self.DataTypeForTensors)
+
     self.embedding = tf.keras.layers.Embedding(vocab_size, d_model, mask_zero=True)
-    self.pos_encoding = positional_encoding(length=seq_length, depth=d_model, DataTypeForTensors=DataTypeForTensors)
-    print(self.pos_encoding.shape)
 
   def compute_mask(self, *args, **kwargs):
     """
@@ -90,11 +60,85 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     """
     
     x = self.embedding(x)
+
+    return x
+
+
+class PositionalEncoding(tf.keras.layers.Layer):
+  """
+  This layer combines the input embedding with a positional encoding that helps the Transformer to understand
+  the relative position of the tokens in a sequence. It takes an input sequence of tokens and converts it to
+  a sequence of embedding vectors, then adds positional information to it.
+
+  Attributes:
+      vocab_size (int): The size of the vocabulary, i.e., the number of unique tokens in the input sequence.
+      d_model (int): The number of dimensions in the embedding vector.
+
+  Methods:
+      compute_mask(*args, **kwargs): This method computes the mask to be applied to the embeddings.
+      call(x): This method performs the computation for the layer.
+
+  """
+  def __init__(self, d_model, seq_length, DataTypeForTensors):
+    """
+    Initializes the PositionalEmbedding layer.
+
+    Args:
+        vocab_size (int): The size of the vocabulary, i.e., the number of unique tokens in the input sequence.
+        d_model (int): The number of dimensions in the embedding vector.
+    """
+    super().__init__()
+    self.seq_length = seq_length
+    self.d_model = d_model
+    self.DataTypeForTensors = DataTypeForTensors
+    self.tf_dtype = tf.as_dtype(self.DataTypeForTensors)
+    self.pos_encoding = self.positional_encoding(length=seq_length, depth=d_model, DataTypeForTensors=DataTypeForTensors)
+    print(self.pos_encoding.shape)
+
+  # JENTS: classic positional encoding. 
+  @tf.function
+  def positional_encoding(self, length, depth, DataTypeForTensors): # lenght is the sequence lenght, depth the embedding dimension
+    """
+    Generates a matrix of position encodings for an input sequence.
+
+    Args:
+        length: An integer representing the length of the input sequence.
+        depth: An integer representing the dimensionality of the encoding.
+
+    Returns:
+        A `tf.Tensor` of shape `(length, depth)` representing the position encoding matrix.
+    """
+    depth = depth/2
+
+    positions = np.arange(length)[:, np.newaxis]     # (seq, 1)
+    depths = np.arange(depth)[np.newaxis, :]/depth   # (1, depth)
+
+    angle_rates = 1 / (10000**depths)         # (1, depth)
+    angle_rads = positions * angle_rates      # (pos, depth)
+
+    pos_encoding = np.concatenate(
+        [np.sin(angle_rads), np.cos(angle_rads)],
+        axis=-1)
+
+    return tf.cast(pos_encoding, dtype=DataTypeForTensors)
+
+  @tf.function
+  def call(self, x):
+    """
+    Computes the output of the layer.
+
+    Args:
+        x (tf.Tensor): Input sequence of tokens.
+
+    Returns:
+        The output sequence of embedding vectors with added positional information.
+    """
+    
     x = tf.cast(x, self.tf_dtype)
     # This factor sets the relative scale of the embedding and positonal_encoding.
     x *= tf.math.sqrt(tf.cast(self.d_model, self.tf_dtype))
     
-    length = self.seq_length # tf.shape(x)[1]
+    length = self.seq_length 
     x = x + self.pos_encoding[tf.newaxis, :length, :]
     return x
 
@@ -326,18 +370,21 @@ class Decoder(tf.keras.layers.Layer):
     self.seq_length = seq_length
     
     self.input_layerList  = []
+     
     for i, feature in enumerate(featureList):
 
         output_dimension += embeddingDimensionList[i]
 
         if (feature["embedded"]):
-            input_layer = PositionalEmbedding(vocab_size=feature["vocab_size"], d_model=embeddingDimensionList[i], seq_length=seq_length, DataTypeForTensors=DataTypeForTensors)
+            input_layer = Embedding(vocab_size=feature["vocab_size"], d_model=embeddingDimensionList[i], seq_length=seq_length, DataTypeForTensors=DataTypeForTensors)
         else:
-            input_layer = MultiDimensionalModel.CustomIdentityLayer(datatype=DataTypeForTensors)  # no positional encoding for non-embedded features, might be wrong to do this
-        
+            input_layer = MultiDimensionalModel.CustomIdentityLayer(datatype=DataTypeForTensors)  # jents no positional encoding for non-embedded features, might be wrong to do this
+
        
         self.input_layerList.append(input_layer)    
-
+  
+    self.pos_encoding = PositionalEncoding(d_model=output_dimension, seq_length=seq_length, DataTypeForTensors=DataTypeForTensors)
+    
     self.dropout = tf.keras.layers.Dropout(dropout_rate)
     self.dec_layers = [DecoderLayer(d_model=output_dimension, num_heads=num_heads, dff=dff, dropout_rate=dropout_rate) for _ in range(num_layers)]
 
@@ -378,6 +425,8 @@ class Decoder(tf.keras.layers.Layer):
           feature_masks.append(tf.cast(mask_i, tf.bool))
 
     concatenated_inputs = tf.keras.layers.concatenate(inputList, axis=-1)
+    concatenated_inputs = self.pos_encoding(concatenated_inputs)
+           
     concatenated_inputs = self.dropout(concatenated_inputs)
 
     hidden_state = concatenated_inputs
@@ -484,12 +533,14 @@ class Transformer(tf.keras.Model):
   Returns:
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
-  def __init__(self, *, num_layers, num_heads, dff,
-               featureList, DataTypeForTensors, seq_length, dropout_rate=0.1):
+  def __init__(self, *, num_layers, num_heads, featureList, DataTypeForTensors, seq_length, dropout_rate=0.1):
     super().__init__()
     
     embeddingDimensionList = Transformer.CalculateEmbeddingDimensions(featureList)
+    d_model = sum(f for f in embeddingDimensionList)
+    dff = d_model * 4
     
+
     self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, featureList=featureList, DataTypeForTensors=DataTypeForTensors, num_heads=num_heads, dff=dff, embeddingDimensionList=embeddingDimensionList,
                seq_length=seq_length, dropout_rate=dropout_rate)
 
@@ -511,7 +562,8 @@ class Transformer(tf.keras.Model):
     total_output_dimensions = 0
     for feature in featureList:
       if feature["embedded"]:
-        output_dimension = 256   #math.ceil(feature["vocab_size"]**0.25) * 4
+        #output_dimension = 256   #math.ceil(feature["vocab_size"]**0.25) * 4
+        output_dimension = math.ceil(feature["vocab_size"]**0.25) * 4
       else:
         output_dimension = 1
       # ensure even for positional encoding

@@ -216,15 +216,14 @@ def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
     for index, item in enumerate(itemList):
         name = "Layer_" + str(index)
         assert(("Categorical" in item) == True)
+       
         if (item["Categorical"] == "True"):
             name = name + "_Cathegorical_layer"
-            #assert(id_from_tokenList[index] is not None, "id_from_tokenList[" + str(index) + "] is None")
+
             VocabularySize = len(id_from_tokenList[index].get_vocabulary())
-            embedded_dimension_rule_of_thumb = int(VocabularySize ** (1/2) )   
-            embedded_dimension_power_of_two = int(2**math.ceil(math.log2(embedded_dimension_rule_of_thumb)))
-            modelFeatureList.append({"embedded": True, "vocab_size" : len(id_from_tokenList[index].get_vocabulary()), "embedding_dim": embedded_dimension_power_of_two, "layer_name": name})
+            modelFeatureList.append({"embedded": True, "vocab_size" : VocabularySize, "layer_name": name})
         else:
-            # assert(id_from_tokenList[index] is None, "id_from_tokenList[" + str(index) + "] is None")
+
             name = name + "_NonCathegorical_layer"
             modelFeatureList.append({"embedded": False, "layer_name": name})
     return modelFeatureList
@@ -272,24 +271,23 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
             import Transformer_DecoderOnly
             # FIX: derive d_model for multi-feature. If you concatenate embeddings, sum their dims.
             # If your model instead projects each feature to the same dimension and sums, set d_model to that shared size.
-            d_model = sum(f["embedding_dim"] for f in modelFeatureList if f.get("embedded", False)) or 128
-            dff = d_model * 4
+
             model = Transformer_DecoderOnly.Transformer(
                 num_layers=num_layers,
                 featureList=modelFeatureList,
                 num_heads=num_heads,
-                dff=dff,
                 DataTypeForTensors=TrainingsParameter["DataTypeForTensors"],
                 seq_length=TrainingsParameter["Model"]["seq_length"],
                 dropout_rate=dropout_rate)
             
-        optimizer = 'adam'
+
         import CustomSchedule
+        
         learning_rate = tf.keras.optimizers.schedules.CosineDecay(
             initial_learning_rate=1e-4,
             decay_steps=200000,
-            alpha=0.1
-        )
+            alpha=0.1  )
+        
         # Stabilize optimization: AdamW + gradient clipping + safer epsilon
         optimizer = tf.keras.optimizers.AdamW(
             learning_rate=learning_rate,
@@ -360,7 +358,12 @@ def TrainModel(model, datasetForTraining, datasetForVerification, TrainingsParam
     keras_log_file = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     keras_log_file =  os.path.join(TrainingCheckpointDir, "TensorBoardLogs", keras_log_file)
 
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=keras_log_file, histogram_freq=1, update_freq=1000)
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(
+        log_dir=keras_log_file,
+        histogram_freq=1,
+        profile_batch=50,          # Profile only batch 50 (can use (50, 52) for a range)
+        update_freq=1000           # Write summaries every 1000 batches (or use 'batch'/'epoch')
+    )
 
     tb = program.TensorBoard()
     tb.configure(argv=[None, "--logdir", keras_log_file, "--host", "0.0.0.0", "--port", "6006"])

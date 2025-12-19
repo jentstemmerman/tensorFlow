@@ -243,7 +243,7 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
         optimizer = 'adam'
     elif (modelSource["Network"] == "Transformer") or (modelSource["Network"] == "Transformer_DecoderOnly"):    
-        num_layers = 8
+        num_layers = 16
         num_heads = 8
         dropout_rate = 0.1
 

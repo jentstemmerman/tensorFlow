@@ -8,8 +8,8 @@ import tensorflow as tf
 
 def TrainModelOnDataSet(TrainingDataSetFile, VerificationDataSetFile, id_from_tokenList, itemList, TrainingCheckpointDir, TrainedModelDir, TrainingsParameter):
 
-    tf.config.run_functions_eagerly(True)  
-    tf.data.experimental.enable_debug_mode()    
+    #tf.config.run_functions_eagerly(True)  
+   # tf.data.experimental.enable_debug_mode()    
 
     modelFeatureList = Model.CreateModelFeatureListFromItemList(itemList, id_from_tokenList)
     maskValueList    = Mask.GetMaskValueList(id_from_tokenList, itemList)
@@ -49,6 +49,12 @@ def TrainModelOnDataSet(TrainingDataSetFile, VerificationDataSetFile, id_from_to
 
 if __name__ == "__main__":
     import sys
+
+    print(tf.__version__)
+    print("Built with CUDA:", tf.test.is_built_with_cuda())
+    print("GPUs:", tf.config.list_physical_devices('GPU'))
+
+
 
     parameters = sys.argv[1:]
 

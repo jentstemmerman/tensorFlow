@@ -193,6 +193,7 @@ def AnalyzePrintfFiles(model, inputDirectory, outputDirectory, itemFile, tempera
         Inference.InferSimilarities(  model=model, 
                                         userId=userId,
                                         numberOfThreads=numberOfThreads, 
+                                        progress_cb=None,
                                         Workers=Workers, 
                                         itemList=itemList, 
                                         DataTypeForTensors=DataTypeForTensors, 

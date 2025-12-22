@@ -125,13 +125,14 @@ class Signature:
                 idColumn = id_from_token(columnList)
             
             tokenIdList.append(idColumn)
-            # After the loop, stack all idColumns along the last dimension to form the input tensor
-            tokenIdList = tf.stack(tokenIdList, axis=-1)
+            
+        # After the loop, stack all idColumns along the last dimension to form the input tensor
+        tokenIdList = tf.stack(tokenIdList, axis=-1)
 
 
         # Add a batch dimension of 1 to tokenIdList
         tokenIdList = tf.expand_dims(tokenIdList, axis=0)
-        tokenIdList = tf.cast(tokenIdList, one_step_model.DataTypeForTensors)
+        # tokenIdList = tf.cast(tokenIdList, one_step_model.DataTypeForTensors)   JENTS: remove this line on 22/12/25
                 
         _, pooledLogitsVectorData = one_step_model.generate_hidded_states(tokenIdList)
 

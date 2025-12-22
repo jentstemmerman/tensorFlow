@@ -313,7 +313,7 @@ def InferSimilarities(  model,
             remainingTimeInMinutes           = remainingNumberOfLines / (numberOfAnalyzedLines / (time.time() - analyzeStartTime)) / 60
             
             # Report progress (convert to int percentage). Callback expects keyword argument 'progress'.
-            if progress_cb:
+            if progress_cb is not None:
                 try:
                     progress_percent = int(numberOfAnalyzedLines / numberOfLines * 100)
                     progress_cb(progress=progress_percent)

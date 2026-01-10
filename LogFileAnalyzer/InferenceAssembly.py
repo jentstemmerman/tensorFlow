@@ -188,6 +188,8 @@ with tf.device('/CPU:0'):
             except StopIteration:
                 print(f"[GetInferenceDataFromDatasetStreamer] End of dataset reached, effectiveNumberOfSamples: {effectiveNumberOfSamples}")
                 
+            idList = [tf.convert_to_tensor(x, dtype=tf.int64) for x in idList]
+            nextIdsList = [tf.convert_to_tensor(x, dtype=tf.int64) for x in nextIdsList]
 
             idList = tf.stack(idList, axis=0)
             nextIdsList = tf.stack(nextIdsList, axis=0)

@@ -560,10 +560,12 @@ class Transformer(tf.keras.Model):
   def CalculateEmbeddingDimensions(featureList):
     embeddingDimension = []
     total_output_dimensions = 0
-    for feature in featureList:
+    for index, feature in enumerate(featureList):
       if feature["embedded"]:
         #output_dimension = 256   #math.ceil(feature["vocab_size"]**0.25) * 4
         output_dimension = math.ceil(feature["vocab_size"]**0.25) * 4
+        if (index == 0):
+            output_dimension = max(128, output_dimension)
       else:
         output_dimension = 1
       # ensure even for positional encoding

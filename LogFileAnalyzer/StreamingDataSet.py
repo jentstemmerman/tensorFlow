@@ -154,12 +154,14 @@ class DatasetStreamReader:
     def parse_tfrecord(self, example_proto):
         with tf.device('/CPU:0'):
             features = {
-                "Ids": tf.io.FixedLenFeature([self.num_features], DataTypeForTensors),
+                # Each example stores a fixed-length float vector under the key
+                # "Ids". Use FixedLenFeature with the expected length and
+                # explicit dtype so TensorFlow can parse it.
+                "Ids": tf.io.FixedLenFeature([self.num_features], tf.float32),
             }
             parsed_features = tf.io.parse_single_example(example_proto, features)
-            return [
-                parsed_features["Ids"],
-            ]
+            ids = tf.cast(parsed_features["Ids"], tf.int64)
+            return [ids]
 
     def GetStreamingDataset(self, shard_index=None):
         with tf.device('/CPU:0'):

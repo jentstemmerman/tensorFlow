@@ -114,8 +114,8 @@ class OneStep(tf.keras.Model):
           
         # Since this is causal attention, the first token is attented by all tokens, the second token by all but the first one, and so on... 
         # We need to correct for this bias. We can do this by dividing the attention scores by the number of tokens that attended to this token. 
-        contrib_counts = tf.range(hidden_state.shape[1], 0, -1, dtype=self.DataTypeForTensors)    
-          
+        contrib_counts = tf.range(hidden_state.shape[1], 0, -1, dtype=tf.int32)  # self.DataTypeForTensors    
+        contrib_counts = tf.cast(contrib_counts,tf.float16)  
         attention_received_first_query_normalized = attention_received_first_query / contrib_counts  
         attention_received_first_query_normalized_centered = attention_received_first_query_normalized - tf.reduce_max(attention_received_first_query_normalized, axis=-1, keepdims=True)
 

@@ -298,7 +298,7 @@ def InferSimilarities(  model,
                 if (numberOfExecutionsInProgressPerThread[threadId] > 0):
                     for signatureIndex, simularityData in enumerate(similarityDataList[threadId]):
     
-                        #shumanReadableOutputFileList[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularityData.numpy()}\n")              
+                        humanReadableOutputFileList[signatureIndex].write(f"{simularityCalculationIndexes[signatureIndex]}\t{simularityData.numpy()}\n")              
                         machineReadableOutputFileList[signatureIndex].appendNumpy(simularityData.numpy())
                         simularityCalculationIndexes[signatureIndex] += simularityData.shape[0]
 

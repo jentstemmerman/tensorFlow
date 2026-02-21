@@ -2,6 +2,10 @@ import datetime
 import sys
 
 from tensorboard import program
+
+from SignatureCollection import SignatureCollection
+from SimilarityMaxShifter import SimilarityMaxShifter
+import SimularityPacker
 sys.path.append('../Server')
 
 import Constants  # type: ignore
@@ -110,22 +114,38 @@ def AnalyzePrintfFile(*,
 
     LogfileAnalyzed = LogFileAnalyzedPath
     
-    Inference.InferSimilarities(  model=model,
-                                  userId=userId,
-                                  progress_cb=progress_cb,
-                                  numberOfThreads=numberOfThreads,
-                                  Workers=Workers,
-                                  itemList=itemList,
-                                  DataTypeForTensors=DataTypeForTensors,
-                                  LogfileVerification=printfFileToProcess,
-                                  signatureInputDirectory=signatureInputDirectory,
-                                  SimilarityOutputDirectory=similarityOutputDirectory,
-                                  inferenceDataSetFile=inferenceDataSetFile,
-                                  id_from_tokenList=id_from_tokenList,
-                                  token_from_idList=token_from_idList,
-                                  temperature=temperature,
-                                  seq_length=seq_length)
+    # Inference.InferSimilarities(  model=model,
+    #                               userId=userId,
+    #                               progress_cb=progress_cb,
+    #                               numberOfThreads=numberOfThreads,
+    #                               Workers=Workers,
+    #                               itemList=itemList,
+    #                               DataTypeForTensors=DataTypeForTensors,
+    #                               LogfileVerification=printfFileToProcess,
+    #                               signatureInputDirectory=signatureInputDirectory,
+    #                               SimilarityOutputDirectory=similarityOutputDirectory,
+    #                               inferenceDataSetFile=inferenceDataSetFile,
+    #                               id_from_tokenList=id_from_tokenList,
+    #                               token_from_idList=token_from_idList,
+    #                               temperature=temperature,
+    #                               seq_length=seq_length)
 
+    signatureCollection = SignatureCollection(signatureInputDirectory)
+
+    signatureLengthList = signatureCollection.GetSignatureLengthList()
+    similarityMaxShifter  = SimilarityMaxShifter(number_of_simularities=len(signatureLengthList), max_similarity_length=seq_length, shift=-1, signatureLengthList=signatureLengthList, DataTypeForTensors=DataTypeForTensors)
+    one_step_model = ModelClass.OneStep(model, DataTypeForTensors, seq_length, itemList, token_from_idList, id_from_tokenList, temperature=temperature, signatureLengthList=signatureLengthList, similarityMaxShifter=similarityMaxShifter)
+
+    signatureList = signatureCollection.get_signatures_and_calculateVectors(one_step_model)
+            
+    for signatureIndex, signature in enumerate(signatureList):
+        signatureFile = Constants.GetSignatureFilePath(signature.name, userId)
+        SimilarityPackerInstance = SimularityPacker.SimilarityPacker(similarity_threshold=-0.8, DataTypeForTensors=DataTypeForTensors)
+        machineReadableSimularitiesFile = Constants.GetMachineReadableSimularitiesFile(printfFileToProcess, userId, signatureFile)
+        packedMachineReadableSimularitiesFile = Constants.GetPackedMachineReadableSimularitiesFile(printfFileToProcess, userId, signatureFile)
+        
+        SimilarityPackerInstance.pack(input_file_path=machineReadableSimularitiesFile, output_file_path=packedMachineReadableSimularitiesFile)
+    
     
     print("Done analyzing ", os.path.basename(printfFileToProcess), ".")
 
@@ -247,7 +267,9 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
         num_layers = 16
         num_heads = 8
         dropout_rate = 0.1
-
+        
+        
+        #the num heads * the key dimension should be equal to the embedding size
         if (modelSource["Network"] == "Transformer"):
             import Transformer
             d_model = Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
@@ -272,11 +294,18 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
             import Transformer_DecoderOnly
             # FIX: derive d_model for multi-feature. If you concatenate embeddings, sum their dims.
             # If your model instead projects each feature to the same dimension and sums, set d_model to that shared size.
-
+            embeddingDimensionList = Transformer_DecoderOnly.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)
+            d_model = sum(f for f in embeddingDimensionList)
+            dff = d_model * 4
+            head_dim = max(1, d_model // num_heads) - 1
+            
             model = Transformer_DecoderOnly.Transformer(
                 num_layers=num_layers,
                 featureList=modelFeatureList,
                 num_heads=num_heads,
+                head_dim=head_dim,
+                dff=dff,
+                embeddingDimensionList=embeddingDimensionList,
                 DataTypeForTensors=TrainingsParameter["DataTypeForTensors"],
                 seq_length=TrainingsParameter["Model"]["seq_length"],
                 dropout_rate=dropout_rate)

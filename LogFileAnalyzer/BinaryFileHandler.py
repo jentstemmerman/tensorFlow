@@ -119,7 +119,7 @@ class BinaryFileHandler:
             record = record.tolist()
         
         # Convert numpy.float32 to native Python float
-        record = [float(x) for x in record]    # this is not needed for float32
+        record = [float(x) for x in record]    
         self.write_file_handler.write(struct.pack(self.fmt, *record))
         self._header_cache["record_count"] += 1
         #self.write_file_handler.flush()

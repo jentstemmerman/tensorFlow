@@ -79,6 +79,18 @@ def GetMachineReadableSimularitiesFile(logFilename, userId, SignatureFile):
 
     return FileNameSimularitiesWithSignature
 
+def GetPackedMachineReadableSimularitiesFile(logFilename, userId, SignatureFile):
+    userId = str(userId)
+    logFilenameWithoughExtention = os.path.splitext(os.path.basename(logFilename))[0]
+    SignatureName = os.path.splitext(os.path.basename(SignatureFile))[0]
+            
+    baseDirectory = GetUserSpecificBaseDirectory("logFilesAnalyzedPacked", userId)
+     
+    FileNamePackedSimularitiesWithSignature = os.path.join(baseDirectory, logFilenameWithoughExtention, "Similarities", "Simularities_Packed_" + SignatureName + GetSignatureFilesExtention())
+
+    return FileNamePackedSimularitiesWithSignature
+
+
 def GetHumanReadableSimularitiesFile(logFilename, userId, SignatureFile):
     userId = str(userId)
     
@@ -209,7 +221,10 @@ def GetUserSpecificBaseDirectory(directoryType, userId):
         base_directory = LOG_FILES_DIRECTORY
     elif (directoryType == "logFilesAnalyzed"): 
         userSpecificDirectory = True
-        base_directory = ANALYZED_LOG_FILES_DIRECTORY
+        base_directory = ANALYZED_LOG_FILES_DIRECTORY  # packed and analyzed have the same directory
+    elif (directoryType == "logFilesAnalyzedPacked"): 
+        userSpecificDirectory = True
+        base_directory = ANALYZED_LOG_FILES_DIRECTORY  # packed and analyzed have the same directory
     elif (directoryType == "inferenceDataSet"): 
         userSpecificDirectory = True
         base_directory = DATASET_ANALYZED_LOGFILES_DIRECTORY

@@ -295,15 +295,19 @@ class DecoderLayer(tf.keras.layers.Layer):
                *,
                d_model,
                num_heads,
+               head_dim,
                dff,
                dropout_rate=0.1):
     
     super(DecoderLayer, self).__init__()
+    # Use a standard per-head key dimension instead of the full model size.
+    # In Keras, `key_dim` is the dimension per head, so we derive it from d_model.
+    head_dim = max(1, d_model // num_heads)
 
     self.causal_self_attention = CausalSelfAttention(
-        num_heads=num_heads,
-        key_dim=d_model,
-        dropout=dropout_rate
+      num_heads=num_heads,
+      key_dim= head_dim,
+      dropout=dropout_rate
        )
     
     self.cross_attention = None
@@ -361,7 +365,7 @@ class Decoder(tf.keras.layers.Layer):
       Returns:
         ndarray: A tensor of shape (batch_size, target_seq_len, d_model), representing the output from the decoder layers.
   """
-  def __init__(self, *, num_layers, num_heads, dff, featureList, embeddingDimensionList, DataTypeForTensors, seq_length, stateSampleLayer, dropout_rate=0.1):
+  def __init__(self, *, num_layers, num_heads, head_dim, dff, featureList, embeddingDimensionList, DataTypeForTensors, seq_length, stateSampleLayer, dropout_rate=0.1):
     super(Decoder, self).__init__()
     
     self.num_layers = num_layers
@@ -386,7 +390,7 @@ class Decoder(tf.keras.layers.Layer):
     self.pos_encoding = PositionalEncoding(d_model=output_dimension, seq_length=seq_length, DataTypeForTensors=DataTypeForTensors)
     
     self.dropout = tf.keras.layers.Dropout(dropout_rate)
-    self.dec_layers = [DecoderLayer(d_model=output_dimension, num_heads=num_heads, dff=dff, dropout_rate=dropout_rate) for _ in range(num_layers)]
+    self.dec_layers = [DecoderLayer(d_model=output_dimension, num_heads=num_heads, head_dim=head_dim, dff=dff, dropout_rate=dropout_rate) for _ in range(num_layers)]
 
     self.output_layerList  = []
 
@@ -470,14 +474,14 @@ class Decoder(tf.keras.layers.Layer):
   
 class DecoderOnlyTransformerLayer(tf.keras.layers.Layer):
 
-  def __init__(self, *, num_layers, num_heads, dff, featureList, embeddingDimensionList, seq_length, DataTypeForTensors,
+  def __init__(self, *, num_layers, num_heads, head_dim, dff, featureList, embeddingDimensionList, seq_length, DataTypeForTensors,
                dropout_rate=0.1):
     super().__init__()
     
     self.encoder = None
     
     self.decoder = Decoder(num_layers=num_layers, featureList=featureList,
-                           num_heads=num_heads, dff=dff, embeddingDimensionList=embeddingDimensionList, DataTypeForTensors=DataTypeForTensors,
+                           num_heads=num_heads, head_dim=head_dim, dff=dff, embeddingDimensionList=embeddingDimensionList, DataTypeForTensors=DataTypeForTensors,
                            seq_length=seq_length,
                            dropout_rate=dropout_rate, stateSampleLayer=num_layers//2)
 
@@ -533,15 +537,11 @@ class Transformer(tf.keras.Model):
   Returns:
     logits (tf.Tensor): Output tensor of the final dense layer. Shape (batch_size, target_len, target_vocab_size).
   """
-  def __init__(self, *, num_layers, num_heads, featureList, DataTypeForTensors, seq_length, dropout_rate=0.1):
+  def __init__(self, *, num_layers, num_heads, head_dim, dff, embeddingDimensionList, featureList, DataTypeForTensors, seq_length, dropout_rate=0.1):
     super().__init__()
-    
-    embeddingDimensionList = Transformer.CalculateEmbeddingDimensions(featureList)
-    d_model = sum(f for f in embeddingDimensionList)
-    dff = d_model * 4
-    
+       
 
-    self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, featureList=featureList, DataTypeForTensors=DataTypeForTensors, num_heads=num_heads, dff=dff, embeddingDimensionList=embeddingDimensionList,
+    self.decoderOnlyTransformerLayer = DecoderOnlyTransformerLayer(num_layers=num_layers, featureList=featureList, DataTypeForTensors=DataTypeForTensors, num_heads=num_heads, head_dim=head_dim, dff=dff, embeddingDimensionList=embeddingDimensionList,
                seq_length=seq_length, dropout_rate=dropout_rate)
 
   

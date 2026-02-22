@@ -114,21 +114,21 @@ def AnalyzePrintfFile(*,
 
     LogfileAnalyzed = LogFileAnalyzedPath
     
-    # Inference.InferSimilarities(  model=model,
-    #                               userId=userId,
-    #                               progress_cb=progress_cb,
-    #                               numberOfThreads=numberOfThreads,
-    #                               Workers=Workers,
-    #                               itemList=itemList,
-    #                               DataTypeForTensors=DataTypeForTensors,
-    #                               LogfileVerification=printfFileToProcess,
-    #                               signatureInputDirectory=signatureInputDirectory,
-    #                               SimilarityOutputDirectory=similarityOutputDirectory,
-    #                               inferenceDataSetFile=inferenceDataSetFile,
-    #                               id_from_tokenList=id_from_tokenList,
-    #                               token_from_idList=token_from_idList,
-    #                               temperature=temperature,
-    #                               seq_length=seq_length)
+    Inference.InferSimilarities(  model=model,
+                                  userId=userId,
+                                  progress_cb=progress_cb,
+                                  numberOfThreads=numberOfThreads,
+                                  Workers=Workers,
+                                  itemList=itemList,
+                                  DataTypeForTensors=DataTypeForTensors,
+                                  LogfileVerification=printfFileToProcess,
+                                  signatureInputDirectory=signatureInputDirectory,
+                                  SimilarityOutputDirectory=similarityOutputDirectory,
+                                  inferenceDataSetFile=inferenceDataSetFile,
+                                  id_from_tokenList=id_from_tokenList,
+                                  token_from_idList=token_from_idList,
+                                  temperature=temperature,
+                                  seq_length=seq_length)
 
     signatureCollection = SignatureCollection(signatureInputDirectory)
 

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 import os
 import FileHandler
@@ -477,38 +477,32 @@ def check_file_annotations(file_name):
         return jsonify({"error": str(e)}), 500
 
 
-@WebServer.route("/api/file/getannotations/<file_name>", methods=["GET"])
-def get_file_annotations(file_name):
-    """Return a specific part of the file content based on line numbers."""
+@WebServer.route("/api/file/getannotations/<file_name>/<signature_name>", methods=["GET"])
+def get_file_annotations(file_name, signature_name):
+    """
+    Returns the packed similarity file as raw binary (application/octet-stream).
+    The binary format is a flat array of uint64 pairs: (lineNumber, numLines).
+    Each record is 16 bytes (2 x 8-byte little-endian unsigned integers).
+    On the client, parse with: new BigUint64Array(await response.arrayBuffer())
+    """
     try:
-        lineOffset = int(request.args.get("start", 0))  # 0 means the default value
         userId = request.args.get("userId", None)
-        numberOfLines = int(request.args.get("size", 1024))
-        annotation_id = str(request.args.get("annotation_id", "0"))
-        
-        annotation_id = os.path.splitext(annotation_id)[0]
-        
-        print(
-            "[App.py] get_file_annotations file_name: ",
-            file_name,
-            "userId: ",
-            userId,
-            ", lineOffset: ",
-            lineOffset,
-            "numberOfLines: ",
-            numberOfLines,
-            "annotation_id: ",
-            annotation_id,
+        if userId is None:
+            return jsonify({"error": "userId query parameter is required"}), 400
+
+        packed_file_path = Constants.GetPackedMachineReadableSimularitiesFile(
+            file_name, userId, signature_name
         )
 
-        # if not os.path.exists(file_path):
-        #    return jsonify({"error": "File not found"}), 404
+        if not os.path.exists(packed_file_path):
+            return jsonify({"error": "Packed similarity file not found"}), 404
 
-        annotations, annotationHeader = FileHandler.GetAnnotations(
-            file_name, userId, lineOffset, numberOfLines, annotation_id
+        return send_file(
+            packed_file_path,
+            mimetype="application/octet-stream",
+            as_attachment=False,
         )
 
-        return jsonify({"annotations": annotations})
     except Exception as e:
         print(e)
         return jsonify({"error": str(e)}), 500

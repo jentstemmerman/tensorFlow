@@ -112,6 +112,7 @@ class DatasetStreamWriter:
                 numberOfLinesInFile += 1
 
         # Accumulate lines and process in batches.
+        
         for lineIndex, tokenList in enumerate(self.process_file_line_by_line()):
             batch_token_lists.append(tokenList)
             batch_line_indices.append(lineIndex)

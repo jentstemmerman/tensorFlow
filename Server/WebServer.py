@@ -592,6 +592,60 @@ def upload_signature():
 
 
 
+@WebServer.route("/api/file/repack_similarity", methods=["POST"])
+def repack_similarity():
+    """Re-pack a single signature's similarity data with a new threshold.
+
+    Expects JSON body: { fileName, userId, signatureName, threshold }
+    Runs the SimilarityPacker in a background thread and emits a
+    ``repack_complete`` Socket.IO event when finished.
+    """
+    try:
+        data = request.get_json(force=True)
+        file_name = data.get("fileName")
+        user_id = str(data.get("userId", 0))
+        signature_name = data.get("signatureName")
+        threshold = float(data.get("threshold", -0.8))
+
+        if not file_name or not signature_name:
+            return jsonify({"error": "fileName and signatureName are required"}), 400
+
+        DataTypeForTensors = DefaultTrainingSettings.TrainingsParameter["DataTypeForTensors"]
+
+        def _background_repack():
+            try:
+                count = FileHandler.RepackSimilarityFile(
+                    file_name, user_id, signature_name, threshold, DataTypeForTensors
+                )
+                socketio.emit("repack_complete", {
+                    "fileName": file_name,
+                    "userId": user_id,
+                    "signatureName": signature_name,
+                    "threshold": threshold,
+                    "intervalCount": count,
+                    "success": True,
+                    "error": None,
+                })
+            except Exception as e:
+                print(f"Error repacking similarity: {e}")
+                socketio.emit("repack_complete", {
+                    "fileName": file_name,
+                    "userId": user_id,
+                    "signatureName": signature_name,
+                    "threshold": threshold,
+                    "intervalCount": 0,
+                    "success": False,
+                    "error": str(e),
+                })
+
+        threading.Thread(target=_background_repack, daemon=True).start()
+        return jsonify({"accepted": True})
+
+    except Exception as e:
+        print(e)
+        return jsonify({"error": str(e)}), 500
+
+
 @WebServer.route("/api/PostProcessLogFiles", methods=["GET"])
 def PostProcessLogFiles():
     try:

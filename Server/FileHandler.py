@@ -251,6 +251,65 @@ def CreateAnnotationListFromSimularityFile(logFileName, signature_file, userId, 
     SignatureMatching.CreateAnnotationListFromSimularitiesFile(simularitiesMachineReadableFileName, annotationsOutputFile, DataTypeForTensors, annotationId = annotation_id, threshold = similaritythreshold, comment = signature_name)
 
     
+def RepackSimilarityFile(logFileName, userId, signatureName, threshold, DataTypeForTensors):
+    """Re-pack a single signature's similarity data using a new threshold.
+
+    This reads the existing raw similarity .dat file (produced during inference)
+    and writes a new packed binary file with the given threshold.  It does NOT
+    run any ML inference – it is a cheap I/O-only operation.
+
+    Parameters
+    ----------
+    logFileName : str
+        The log file name (basename, e.g. ``mylog.log``).
+    userId : str | int
+        User id.
+    signatureName : str
+        Signature file name as stored on disk (e.g. ``MySignature.dat``).
+    threshold : float
+        Similarity threshold (negative value, e.g. -0.5).
+    DataTypeForTensors : str
+        Data type used for binary similarity files (e.g. ``float16``).
+
+    Returns
+    -------
+    int
+        Number of packed intervals written.
+    """
+    import SimularityPacker  # type: ignore
+
+    # Build the paths the same way Model.CreatePackedSimilarityFiles does
+    signatureFilePath = Constants.GetSignatureFilePath(
+        os.path.splitext(os.path.basename(signatureName))[0], userId
+    )
+    machineReadable = Constants.GetMachineReadableSimularitiesFile(
+        logFileName, userId, signatureFilePath
+    )
+    packedOutput = Constants.GetPackedMachineReadableSimularitiesFile(
+        logFileName, userId, signatureFilePath
+    )
+
+    if not os.path.exists(machineReadable):
+        raise FileNotFoundError(
+            f"Raw similarity file not found: {machineReadable}"
+        )
+
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(packedOutput), exist_ok=True)
+
+    packer = SimularityPacker.SimilarityPacker(
+        similarity_threshold=threshold, DataTypeForTensors=DataTypeForTensors
+    )
+    count = packer.pack(
+        input_file_path=machineReadable, output_file_path=packedOutput
+    )
+    print(
+        f"RepackSimilarityFile: {logFileName} / {signatureName} "
+        f"threshold={threshold} -> {count} intervals"
+    )
+    return count
+
+
 def PostProcessLogFile(logFileName, userId, DataTypeForTensors, similaritythreshold):
     try:
 

@@ -139,15 +139,18 @@ def AnalyzePrintfFile(*,
     signatureList = signatureCollection.get_signatures_and_calculateVectors(one_step_model)
             
     for signatureIndex, signature in enumerate(signatureList):
-        signatureFile = Constants.GetSignatureFilePath(signature.name, userId)
-        SimilarityPackerInstance = SimularityPacker.SimilarityPacker(similarity_threshold=-0.8, DataTypeForTensors=DataTypeForTensors)
-        machineReadableSimularitiesFile = Constants.GetMachineReadableSimularitiesFile(printfFileToProcess, userId, signatureFile)
-        packedMachineReadableSimularitiesFile = Constants.GetPackedMachineReadableSimularitiesFile(printfFileToProcess, userId, signatureFile)
+        CreatePackedSimilarityFiles(printfFileToProcess, signature=signature, userId=userId, simularityThreshold=-0.8, DataTypeForTensors=DataTypeForTensors)
         
-        SimilarityPackerInstance.pack(input_file_path=machineReadableSimularitiesFile, output_file_path=packedMachineReadableSimularitiesFile)
-    
-    
     print("Done analyzing ", os.path.basename(printfFileToProcess), ".")
+
+
+def CreatePackedSimilarityFiles(printfFileToProcess, signature, userId, simularityThreshold, DataTypeForTensors):
+    signatureFile = Constants.GetSignatureFilePath(signature.name, userId)
+    machineReadableSimularitiesFile = Constants.GetMachineReadableSimularitiesFile(printfFileToProcess, userId, signatureFile)
+    packedMachineReadableSimularitiesFile = Constants.GetPackedMachineReadableSimularitiesFile(printfFileToProcess, userId, signatureFile)
+
+    SimilarityPackerInstance = SimularityPacker.SimilarityPacker(similarity_threshold=simularityThreshold, DataTypeForTensors=DataTypeForTensors)
+    SimilarityPackerInstance.pack(input_file_path=machineReadableSimularitiesFile, output_file_path=packedMachineReadableSimularitiesFile)
 
 
 
@@ -264,14 +267,17 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                                                                 datatype = TrainingsParameter["DataTypeForTensors"])
         optimizer = 'adam'
     elif (modelSource["Network"] == "Transformer") or (modelSource["Network"] == "Transformer_DecoderOnly"):    
-        num_layers = 16
-        num_heads = 8
-        dropout_rate = 0.1
-        
-        
+
+               
         #the num heads * the key dimension should be equal to the embedding size
         if (modelSource["Network"] == "Transformer"):
             import Transformer
+            
+            num_layers = 16
+            num_heads = 8
+            dropout_rate = 0.1
+            
+            
             d_model = Transformer.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)[0]                # to be fixed for multifeature
             dff = d_model * 4
             
@@ -292,8 +298,14 @@ def GetModel(modelSource, maskValueList, modelFeatureList, TrainingsParameter):
                 DataTypeForTensors=TrainingsParameter["DataTypeForTensors"])
         else:
             import Transformer_DecoderOnly
+            
+            num_layers = 16
+            num_heads = 8
+            dropout_rate = 0.1
+            
             # FIX: derive d_model for multi-feature. If you concatenate embeddings, sum their dims.
             # If your model instead projects each feature to the same dimension and sums, set d_model to that shared size.
+            
             embeddingDimensionList = Transformer_DecoderOnly.Transformer.CalculateEmbeddingDimensions(featureList=modelFeatureList)
             d_model = sum(f for f in embeddingDimensionList)
             dff = d_model * 4

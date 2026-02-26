@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../Server')
 import Logfile
 import tensorflow as tf
 import ModelClass  # noqa: F401

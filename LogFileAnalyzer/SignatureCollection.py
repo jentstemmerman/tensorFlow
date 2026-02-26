@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.append('../Server')
 import Signature
 import LogFileIterator
 import Constants

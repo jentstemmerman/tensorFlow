@@ -338,10 +338,13 @@ def get_file_lines(file_name):
         simularity_files = []
 
         if os.path.exists(simularity_base_directory):
-            # Only include .dat files (case-insensitive)
+            # Only include .dat files (case-insensitive), exclude packed similarity files
+            # which use a raw uint64 binary format incompatible with BinaryFileHandler
             simularity_files = [
                 f for f in os.listdir(simularity_base_directory)
-                if f.lower().endswith('.dat') and os.path.isfile(os.path.join(simularity_base_directory, f))
+                if f.lower().endswith('.dat')
+                and '_packed_' not in f.lower()
+                and os.path.isfile(os.path.join(simularity_base_directory, f))
             ]
 
         simularity_files_with_paths = [

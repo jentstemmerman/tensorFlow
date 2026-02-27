@@ -65,7 +65,7 @@ class BinaryFileHandler:
             # header_str = header_bytes.rstrip(b'\x00').decode("utf-8", errors="ignore")  # Remove padding and ignore errors
             self._header_cache = json.loads(header_str)
         except Exception as e:
-            print(f"Error reading header: {e}")
+            print(f"Error reading header of '{self.filename}': {e}")
             self._header_cache = {}
         return self._header_cache
 

@@ -1,0 +1,41 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      additional_contexts:
+        react-app: ../../VibeCodedReactEditor
+    ports:
+      - "8080:80"
+    volumes:
+      # Persistent data: log files, analysis output, user settings, etc.
+      - ../data:/app/data
+    environment:
+      # REQUIRED: Set a strong secret for JWT signing (generate with: openssl rand -hex 32)
+      - JWT_SECRET=change-me-generate-a-real-secret
+      # Comma-separated allowed CORS origins. Use "*" for development.
+      - CORS_ORIGINS=*
+      # Base directory for all data files (log files, models, user DB, etc.)
+      - DATA_BASE_DIRECTORY=/app/data
+      # Access token lifetime in minutes (default 15)
+      - ACCESS_TOKEN_TTL=15
+      # Refresh token lifetime in days (default 7)
+      - REFRESH_TOKEN_TTL=7
+    restart: unless-stopped
+
+# After starting:
+#
+# --- Running in Docker ---
+#   1. Create a user:  docker compose exec app python Server/manage_users.py create admin changeme --role admin
+#   2. Open http://localhost:8080
+#
+# --- Running outside Docker ---
+#   1. Create a user:  python Server/manage_users.py create admin changeme --role admin
+#   2. Start the server and open the app in your browser
+#
+#   3. Sign in with the created credentials
+#   
+# Server/manage_users.py create admin changeme --role admin
+# Server/manage_users.py list
+# Server/manage_users.py delete admin
+# python3 manage_users.py reset-password jents newpassword123

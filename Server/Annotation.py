@@ -17,7 +17,7 @@ class AnnotationId:
         
 
 class Annotation:
-    def __init__(self, annotationId : AnnotationId, lineNumber: int, lineCount: int, lineCount: int, comment: str):
+    def __init__(self, annotationId : AnnotationId, lineNumber: int, lineCount: int, comment: str):
         self.lineNumber = lineNumber
         self.lineCount = lineCount 
         self.annotationId = annotationId

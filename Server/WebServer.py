@@ -1,10 +1,10 @@
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, g
 from flask_cors import CORS
 import os
 import FileHandler
 import Constants
 import json
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, disconnect
 import time
 import threading
 import sys
@@ -18,12 +18,24 @@ import Signature # type: ignore
 import uuid
 
 from queue import Queue
+from UserDB import UserDB
+from AuthMiddleware import (
+    require_auth, create_access_token, create_refresh_token,
+    validate_socketio_token,
+)
 
 WebServer = Flask(__name__)
-cors = CORS(WebServer, resources={r"/*": {"origins": "*"}})
 
-# Update this line to allow all origins
-socketio = SocketIO(WebServer, cors_allowed_origins="*")
+# CORS: configurable via CORS_ORIGINS env var (comma-separated).  Default: allow all (dev).
+_cors_origins = os.environ.get("CORS_ORIGINS", "*")
+if _cors_origins != "*":
+    _cors_origins = [o.strip() for o in _cors_origins.split(",") if o.strip()]
+cors = CORS(WebServer, resources={r"/*": {"origins": _cors_origins}})
+
+socketio = SocketIO(WebServer, cors_allowed_origins=_cors_origins)
+
+# Shared user database instance
+user_db = UserDB()
 
 
 # --- Analyze File Queue ---------------------------------------------------------
@@ -110,7 +122,7 @@ def emit_analyze_file_progress(file_name: str, userId: str, progress: int, statu
             payload["jobId"] = jobId
         if error is not None:
             payload["error"] = str(error)
-        socketio.emit("analyze_file_progress", payload)
+        socketio.emit("analyze_file_progress", payload, to=f"user_{userId}")
     except Exception as e:
         print(f"emit_analyze_file_progress failed: {e}")
 
@@ -228,18 +240,83 @@ def GetOffsetFilePath(LogFilename, userId):
     return offset_file_path
 
 
+# ===========================================================================
+#  Authentication endpoints (public — no @require_auth)
+# ===========================================================================
+
+@WebServer.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    """Authenticate with username+password, return JWT tokens."""
+    data = request.get_json(force=True) or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
+    user = user_db.authenticate(username, password)
+    if user is None:
+        return jsonify({"error": "Invalid credentials"}), 401
+    access_token = create_access_token(user["id"], user["username"], user["role"])
+    refresh_token, refresh_expires = create_refresh_token(user["id"], user_db)
+    return jsonify({
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "userId": user["id"],
+        "username": user["username"],
+        "displayName": user["display_name"],
+        "role": user["role"],
+    })
+
+
+@WebServer.route("/api/auth/refresh", methods=["POST"])
+def auth_refresh():
+    """Exchange a valid refresh token for a new access token."""
+    data = request.get_json(force=True) or {}
+    refresh_token = data.get("refresh_token", "")
+    if not refresh_token:
+        return jsonify({"error": "refresh_token is required"}), 400
+    user = user_db.validate_refresh_token(refresh_token)
+    if user is None:
+        return jsonify({"error": "Invalid or expired refresh token"}), 401
+    access_token = create_access_token(user["id"], user["username"], user["role"])
+    return jsonify({"access_token": access_token})
+
+
+@WebServer.route("/api/auth/logout", methods=["POST"])
+def auth_logout():
+    """Revoke a refresh token."""
+    data = request.get_json(force=True) or {}
+    refresh_token = data.get("refresh_token", "")
+    if refresh_token:
+        user_db.revoke_refresh_token(refresh_token)
+    return jsonify({"message": "Logged out"})
+
+
+@WebServer.route("/api/auth/me", methods=["GET"])
+@require_auth
+def auth_me():
+    """Return current user info from the JWT."""
+    return jsonify({
+        "userId": g.user_id,
+        "username": g.username,
+        "role": g.user_role,
+    })
+
+
+# ===========================================================================
+#  Protected API endpoints (all use @require_auth, userId from g.user_id)
+# ===========================================================================
+
 @WebServer.route("/api/get_directory_listing", methods=["GET"])
+@require_auth
 def get_directory_listing():
     """
     Return the list of files and directories for a given path.
     Supports folder browsing, including navigation to parent directories.
     """
-    #print("get_directory_listing: Returning the list of files and directories")
-
     # Get the 'path' parameter from the request
     requested_path = request.args.get("path", "")
     requested_directoryType = request.args.get("directoryType", "")
-    userId = request.args.get("userId", "")
+    userId = str(g.user_id)
 
     base_directory = ""
 
@@ -298,11 +375,12 @@ def get_directory_listing():
 
 
 @WebServer.route("/api/signature_files", methods=["GET"])
+@require_auth
 def get_signature_files_list():
     """Return the list of available signature files with their file paths."""
     print("get_files: Return the list of available text files")
 
-    userId = request.args.get("userId", "")
+    userId = str(g.user_id)
 
     base_directory = Constants.GetSignatureDirectoryPath(userId)
 
@@ -320,13 +398,14 @@ def get_signature_files_list():
 
 
 @WebServer.route("/api/file/getlines/<file_name>", methods=["GET"])
+@require_auth
 def get_file_lines(file_name):
     """Return a specific part of the file content based on line numbers."""
     try:
         start_time = time.time()
         lineOffset = int(request.args.get("start", 0))  # 0 means the default value
         numberOfLines = int(request.args.get("size", 1024))
-        userId = str(request.args.get("userId", 0))
+        userId = str(g.user_id)
         similaritiesOnly = bool(int(request.args.get("similaritiesOnly", 0)))
         file_path = Constants.GetLogFilePath(logFilename=file_name, userId=userId)
 
@@ -416,8 +495,9 @@ def get_file_lines(file_name):
 
 
 @WebServer.route("/api/file/analyze_file/<file_name>", methods=["GET"])
+@require_auth
 def analyze_file(file_name):
-    userId = request.args.get("userId")
+    userId = str(g.user_id)
     modelDirectory = request.args.get("modelDirectory")
     tokenDirectory = request.args.get("tokenDirectory")
 
@@ -454,6 +534,7 @@ def analyze_file(file_name):
 
 
 @WebServer.route("/api/file/analyze_file/status/<job_id>", methods=["GET"])
+@require_auth
 def analyze_file_status(job_id):
     with _analyze_status_lock:
         status = analyze_job_status.get(job_id)
@@ -463,9 +544,10 @@ def analyze_file_status(job_id):
 
 
 @WebServer.route("/api/file/checkannotations/<file_name>", methods=["GET"])
+@require_auth
 def check_file_annotations(file_name):
     try:
-        userId = request.args.get("userId", None)
+        userId = str(g.user_id)
         annotation_id = str(request.args.get("annotation_id", "0"))
 
         annotation_id = os.path.splitext(annotation_id)[0]
@@ -481,6 +563,7 @@ def check_file_annotations(file_name):
 
 
 @WebServer.route("/api/file/getannotations/<file_name>/<signature_name>", methods=["GET"])
+@require_auth
 def get_file_annotations(file_name, signature_name):
     """
     Returns the packed similarity file as raw binary (application/octet-stream).
@@ -489,9 +572,7 @@ def get_file_annotations(file_name, signature_name):
     On the client, parse with: new BigUint64Array(await response.arrayBuffer())
     """
     try:
-        userId = request.args.get("userId", None)
-        if userId is None:
-            return jsonify({"error": "userId query parameter is required"}), 400
+        userId = str(g.user_id)
 
         packed_file_path = Constants.GetPackedMachineReadableSimularitiesFile(
             file_name, userId, signature_name
@@ -512,10 +593,11 @@ def get_file_annotations(file_name, signature_name):
 
 
 @WebServer.route("/api/file/meta/<file_name>", methods=["GET"])
+@require_auth
 def get_file_metadata(file_name):
     """Return metadata for a given file, such as total file size."""
 
-    userId = request.args.get("userId", None)
+    userId = str(g.user_id)
 
     file_path = Constants.GetLogFilePath(file_name, userId)
     if not os.path.exists(file_path):
@@ -532,10 +614,11 @@ def get_file_metadata(file_name):
 
 
 @WebServer.route("/api/uploadLogFile", methods=["POST"])
+@require_auth
 def upload_file():
     print("/api/uploadLogFile ")
     file = request.files["file"]
-    userId = request.form["userId"]
+    userId = str(g.user_id)
     baseDirectory = Constants.GetUserSpecificBaseDirectory("LogType", userId)
     file_path = os.path.join(baseDirectory, file.filename)
 
@@ -546,10 +629,11 @@ def upload_file():
     return jsonify({"message": "File uploaded successfully", "filePath": file_path})
 
 @WebServer.route('/api/createFile', methods=['POST'])
+@require_auth
 def create_file():
     data = request.json
     
-    user_id = data.get('userId')
+    user_id = str(g.user_id)
     path = data.get('path')
     file_name = data.get('fileName')
     file_type = data.get('fileType')
@@ -570,6 +654,7 @@ def create_file():
         return jsonify({"error": str(e)}), 500
     
 @WebServer.route("/api/createSignatureFile", methods=["POST"])
+@require_auth
 def upload_signature():
     print("/api/createSignatureFile")
 
@@ -577,7 +662,7 @@ def upload_signature():
     logFileName = request.form["logFileName"]
     selectedTextForSignature = json.loads(request.form["selectedTextForSignature"])
     
-    userId = request.form["userId"]
+    userId = str(g.user_id)
     baseDirectory = Constants.GetUserSpecificBaseDirectory("LogType", userId)
     
     logFileName = os.path.join(baseDirectory, logFileName)
@@ -596,17 +681,18 @@ def upload_signature():
 
 
 @WebServer.route("/api/file/repack_similarity", methods=["POST"])
+@require_auth
 def repack_similarity():
     """Re-pack a single signature's similarity data with a new threshold.
 
-    Expects JSON body: { fileName, userId, signatureName, threshold }
+    Expects JSON body: { fileName, signatureName, threshold }
     Runs the SimilarityPacker in a background thread and emits a
     ``repack_complete`` Socket.IO event when finished.
     """
     try:
         data = request.get_json(force=True)
         file_name = data.get("fileName")
-        user_id = str(data.get("userId", 0))
+        user_id = str(g.user_id)
         signature_name = data.get("signatureName")
         threshold = float(data.get("threshold", -0.8))
 
@@ -628,7 +714,7 @@ def repack_similarity():
                     "intervalCount": count,
                     "success": True,
                     "error": None,
-                })
+                }, to=f"user_{user_id}")
             except Exception as e:
                 print(f"Error repacking similarity: {e}")
                 socketio.emit("repack_complete", {
@@ -639,7 +725,7 @@ def repack_similarity():
                     "intervalCount": 0,
                     "success": False,
                     "error": str(e),
-                })
+                }, to=f"user_{user_id}")
 
         threading.Thread(target=_background_repack, daemon=True).start()
         return jsonify({"accepted": True})
@@ -650,10 +736,11 @@ def repack_similarity():
 
 
 @WebServer.route("/api/PostProcessLogFiles", methods=["GET"])
+@require_auth
 def PostProcessLogFiles():
     try:
         fileName = request.args.get("fileName", None)
-        userId = request.args.get("userId", None)
+        userId = str(g.user_id)
         similaritythreshold = float(request.args.get("similaritythreshold", 0.5))
         
         def background_task(fileName, userId, DataTypeForTensors, similaritythreshold):
@@ -674,8 +761,10 @@ def PostProcessLogFiles():
         print(e)
         return jsonify({"error": str(e)}), 500
 
-@WebServer.route("/api/settings/<user_id>", methods=["GET"])
-def get_user_settings(user_id):
+@WebServer.route("/api/settings", methods=["GET"])
+@require_auth
+def get_user_settings():
+    user_id = str(g.user_id)
     settings_file_path = Constants.GetSettingsDirectoryPath(user_id)
 
     settings_file_path = os.path.join(
@@ -690,8 +779,10 @@ def get_user_settings(user_id):
         return jsonify({"error": "Settings file not found"}), 404
 
 
-@WebServer.route("/api/settings/<user_id>", methods=["POST"])
-def save_user_settings(user_id):
+@WebServer.route("/api/settings", methods=["POST"])
+@require_auth
+def save_user_settings():
+    user_id = str(g.user_id)
     settings = request.json.get("settings", {})
     settings_file_path = Constants.GetSettingsDirectoryPath(user_id)
     settings_file_path = os.path.join(
@@ -732,8 +823,18 @@ if __name__ == "__main__":
 
 
 @socketio.on("connect")
-def handle_connect():
-    print("Client connected")
+def handle_connect(auth=None):
+    """Authenticate Socket.IO connections via JWT in auth parameter."""
+    payload = validate_socketio_token(auth)
+    if payload is None:
+        print("Socket.IO connection rejected: invalid token")
+        disconnect()
+        return
+    # Join a user-specific room so events can be targeted
+    from flask_socketio import join_room
+    user_room = f"user_{payload['sub']}"
+    join_room(user_room)
+    print(f"Client connected: user={payload.get('username')} room={user_room}")
     emit("message", {"data": "Connected to server"})
 
 

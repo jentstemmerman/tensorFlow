@@ -1,0 +1,34 @@
+# Git / VCS
+.git/
+.gitignore
+*.md
+
+# Python caches (will be rebuilt)
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Node modules (installed fresh in build stage)
+VibeCodedReactEditor/node_modules/
+VibeCodedReactEditor/build/
+
+# IDE / editor
+.vscode/
+*.code-workspace
+.idea/
+
+# Data directory (mounted at runtime, not baked into image)
+data/
+
+# Training data / models (large, mounted separately)
+TrainingSet4/
+Great models/
+Conversation/
+
+# Misc
+*.deb
+*.deb.*
+*.log
+debug_log.txt
+*.Zone.Identifier

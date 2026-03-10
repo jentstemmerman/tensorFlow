@@ -2,10 +2,9 @@ import os
 from pathlib import Path
 
 
-DATA_BASE_DIRECTORY = os.path.join("/" , "home", "jents", "AI", "data")
+DATA_BASE_DIRECTORY = os.environ.get("DATA_BASE_DIRECTORY", os.path.join("/" , "home", "jents", "AI", "data"))
 
-
-LOG_FILE_ANALYZER_DIRECTORY = os.path.join("/" , "home", "jents", "AI", "LogFileAnalyzer")
+LOG_FILE_ANALYZER_DIRECTORY = os.environ.get("LOG_FILE_ANALYZER_DIRECTORY", os.path.join("/" , "home", "jents", "AI", "LogFileAnalyzer"))
 LOG_FILES_DIRECTORY = os.path.normpath("logFiles")
 ITEM_FILES_DIRECTORY = os.path.normpath("ItemFiles")
 ANALYZED_LOG_FILES_DIRECTORY = os.path.normpath("logFilesAnalyzed")
@@ -17,6 +16,11 @@ OFFSET_FILES_DIRECTORY = os.path.normpath(os.path.join("cache", "offsets"))
 ANNOTATION_FILES_DIRECTORY = os.path.normpath(os.path.join("cache", "annotations"))
 USER_SETTINGS_FILE_NAME = "UserSettings.json"
 TOKEN_FILE_DIRECTORY = "TokenFiles"
+USER_DB_DIRECTORY = os.path.normpath(os.path.join("UserData", "UsersDataBase"))
+USER_DB_FILE_NAME = "users.db"
+
+def GetUserDatabasePath():
+    return os.path.join(DATA_BASE_DIRECTORY, USER_DB_DIRECTORY, USER_DB_FILE_NAME)
 
 def GetLogFilesExtention():
     return ".log"

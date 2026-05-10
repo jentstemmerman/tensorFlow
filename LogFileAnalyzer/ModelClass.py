@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from Mask import Mask
 from SimilarityMaxShifter import SimilarityMaxShifter
+import InternalFeatures
         
 class OneStep(tf.keras.Model):
   
@@ -51,6 +52,8 @@ class OneStep(tf.keras.Model):
   def generate_inputTensor_from_tokenListList(self, tokenListList):
     assert isinstance(tokenListList, list), "tokenListList should be a list of lists"
     assert self.id_from_tokenList is not None, "id_from_tokenList should not be None"
+
+    tokenListList = InternalFeatures.append_internal_features_to_rows(tokenListList)
 
     numberOfLines = len(tokenListList)
 

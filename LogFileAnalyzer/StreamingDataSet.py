@@ -5,6 +5,7 @@ import TokenParser
 import os
 import itertools
 import time
+import InternalFeatures
 
 # each shard contains the subset of the dataset that will be used by one thread. 
 class DatasetStreamWriter:
@@ -33,6 +34,7 @@ class DatasetStreamWriter:
         for line in self.input_file_handler:
             # tokenList = self.getLinesAndTokens(line)
             tokenList = TokenParser.GetItemsInLine(line, self.itemList, self.dataTreatment)
+            tokenList = InternalFeatures.append_internal_features(tokenList)
             yield tokenList  # Return one tokenized line at a time
 
     def WriteStreamingDataset(self):
@@ -41,15 +43,36 @@ class DatasetStreamWriter:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
+        num_features = len(self.id_from_tokenList)
+        metadata_file = f"{self.dataSetFile}_metadata"
 
         # Create one TFRecordWriter per shard.
         shard_files = [f"{self.dataSetFile}_shard_{i}" for i in range(self.numberOfShards)]
-        
-        if all(os.path.exists(shard_file) for shard_file in shard_files):
-            print("All shard files already exist. Skipping WriteStreamingDataset.")
+
+        def _read_stored_num_features():
+            try:
+                with open(metadata_file, "r") as f:
+                    return int(f.read().strip())
+            except Exception:
+                return None
+
+        shards_exist = all(os.path.exists(shard_file) for shard_file in shard_files)
+        stored_num_features = _read_stored_num_features()
+        features_match = (stored_num_features == num_features)
+
+        if shards_exist and features_match:
+            print("All shard files already exist with matching feature count. Skipping WriteStreamingDataset.")
             return
         else:
-            print("Shard files do not exist. Writing new shard files.")
+            if shards_exist and not features_match:
+                print(f"Shard files exist but feature count changed ({stored_num_features} -> {num_features}). Regenerating shard files.")
+                for shard_file in shard_files:
+                    if os.path.exists(shard_file):
+                        os.remove(shard_file)
+                if os.path.exists(metadata_file):
+                    os.remove(metadata_file)
+            else:
+                print("Shard files do not exist. Writing new shard files.")
             
         writers = [tf.io.TFRecordWriter(shard_file) for shard_file in shard_files]
 
@@ -135,6 +158,10 @@ class DatasetStreamWriter:
         for writer in writers:
             writer.close()
 
+        # Write metadata so future runs can detect feature count changes.
+        with open(metadata_file, "w") as f:
+            f.write(str(num_features))
+
         return numberOfLinesInFile
 
 
@@ -148,7 +175,7 @@ class DatasetStreamReader:
             self.itemList = itemList
             self.DataTypeForTensors = DataTypeForTensors
             self.seq_length = seq_length
-            self.num_features = len(self.itemList)
+            self.num_features = InternalFeatures.get_internal_feature_count(self.itemList)
             self.stride = stride
             self.numberOfShards = numberOfShards
 

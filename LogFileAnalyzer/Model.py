@@ -39,6 +39,7 @@ from neptune.integrations.tensorflow_keras import NeptuneCallback
 import DefaultTrainingSettings
 import math
 import Mask
+import InternalFeatures
 
 
 
@@ -250,6 +251,16 @@ def CreateModelFeatureListFromItemList(itemList, id_from_tokenList):
 
             name = name + "_NonCathegorical_layer"
             modelFeatureList.append({"embedded": False, "layer_name": name})
+
+    if len(id_from_tokenList) > len(itemList):
+        for index in range(len(itemList), len(id_from_tokenList)):
+            VocabularySize = len(id_from_tokenList[index].get_vocabulary())
+            modelFeatureList.append({
+                "embedded": True,
+                "vocab_size": VocabularySize,
+                "layer_name": InternalFeatures.INTERNAL_EOL_LAYER_NAME,
+            })
+
     return modelFeatureList
 
              

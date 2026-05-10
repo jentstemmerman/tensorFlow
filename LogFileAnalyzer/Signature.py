@@ -9,6 +9,7 @@ import Constants                    # type: ignore
 import os
 import json
 from Mask import Mask
+import InternalFeatures
 
 class Signature:
     
@@ -103,6 +104,7 @@ class Signature:
         assert isinstance(tokenListList, list), "tokenListList must be a list."
         assert len(tokenListList) > 0, "tokenListList must not be empty."
         
+        tokenListList = InternalFeatures.append_internal_features_to_rows(tokenListList)
         numberOfLines = len(tokenListList)
                 
         tokenIdList = []

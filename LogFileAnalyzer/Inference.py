@@ -376,7 +376,7 @@ def AddProbabilitiesPrintfFileParallel(model,
         maxNumberOfParallelExecutions        = 200  # dit is het aantal samples dat de GPU inferes in 1 keer
         onlyLogLogitsVector                  = False
         
-        numberOfFeatures = len(id_from_tokenList)
+        numberOfFeatures = len(itemList)
         queueTimeout                         = 50000
         numberOfIdenticals                   = 0
         averagePredictedTokenProbability     = 0

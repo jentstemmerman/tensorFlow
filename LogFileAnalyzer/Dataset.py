@@ -5,6 +5,7 @@ import LogFileIterator
 import Dataset
 import os
 from Mask import Mask
+import InternalFeatures
 
 
 def GetDataSetInformation(dataSet):
@@ -169,6 +170,7 @@ def CreateInferenceDatasetFromFile(InputFile, IntermediateFile, itemList, id_fro
     #    print(" Intermediate file: " + IntermediateFile + ".\n")
 
     tokenListList, _, _ = TokenParser.process_file_to_tokenFile(itemList=itemList, input_file=InputFile, human_readable_output_file=IntermediateFile)
+    tokenListList = InternalFeatures.append_internal_features_to_rows(tokenListList)
    #print(" Number Of Lines in the file: " + str(numberOfLines) + "\n" )
     
     TensorOfThisFile = []
@@ -213,6 +215,7 @@ def CreateTrainingDatasetFromFile(InputFile, IntermediateFile, itemList, id_from
         print(" Intermediate file: " + IntermediateFile + ".\n")
 
     tokenListList, _, numberOfLines = TokenParser.process_file_to_tokenFile(itemList=itemList, input_file=InputFile, human_readable_output_file=IntermediateFile)
+    tokenListList = InternalFeatures.append_internal_features_to_rows(tokenListList)
     print(" Number Of Lines in the file: " + str(numberOfLines) + "\n" )
     
     TensorOfThisFile = []
@@ -388,4 +391,7 @@ def GetEncodersDecodersFromTokenFiles(OriginalTokenFileDirectory, itemList, Outp
             token_from_idList.append(None)
 
         itemIndex += 1    
+    id_from_tokenList.append(InternalFeatures.create_internal_eol_lookup(Mask.Universal_Mask_Token))
+    token_from_idList.append(InternalFeatures.create_internal_eol_inverse_lookup(Mask.Universal_Mask_Token))
+
     return id_from_tokenList, token_from_idList

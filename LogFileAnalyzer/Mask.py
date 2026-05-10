@@ -12,6 +12,8 @@ class Mask:
         id_from_token = id_from_tokenList[featureIndex]
         
         if ( id_from_token is None):
+            if featureIndex >= len(itemList):
+                raise IndexError("Synthetic internal features must be categorical and provide a lookup layer")
             maskValue = itemList[featureIndex]['MaskValue']
         else:
             # Use the class-level constant defined here

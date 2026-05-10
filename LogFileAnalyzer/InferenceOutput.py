@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 from numbers import Number
 from Mask import Mask
+import InternalFeatures
 
 
 def extend_string_with_spaces(s, target_length):
@@ -78,6 +79,10 @@ def ComposeLineList(numberOfParallelExecutions,
         string_length = 17
         number_string_length = 6
         numberOfFeatures = len(id_from_tokenList)
+        featureIndices = list(range(numberOfFeatures))
+        if numberOfFeatures > 0 and InternalFeatures.is_internal_eol_lookup(token_from_idList[numberOfFeatures - 1]):
+            featureIndices = featureIndices[:-1]
+
         linesToWrite = []
         numberOfIdenticals = 0
         accumulatedActualProbability = 0
@@ -95,7 +100,7 @@ def ComposeLineList(numberOfParallelExecutions,
             crossEntropyOfActualString = "ActualCrEntr: "
             AccuracyOfPrediction = 0
 
-            for featureIndex in range(numberOfFeatures):
+            for featureIndex in featureIndices:
 
                 prediction = TranslateToString(predictions[featureIndex][executionIndex])  
                 
@@ -142,7 +147,10 @@ def ComposeLineList(numberOfParallelExecutions,
                 accumulatedPredictedProbability += probabilityOfPrediction
                 accumulatedCrossEntropyOfActual += crossEntropyOfActual
 
-            AccuracyOfPrediction = AccuracyOfPrediction / numberOfFeatures
+            if len(featureIndices) > 0:
+                AccuracyOfPrediction = AccuracyOfPrediction / len(featureIndices)
+            else:
+                AccuracyOfPrediction = 0
             AccuracyOfPredictionString  = "HIDDEN" + str(int(AccuracyOfPrediction * 100))    
             AccuracyOfPredictionString  = extend_string_with_spaces(AccuracyOfPredictionString, 10)
 
